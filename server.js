@@ -80,8 +80,8 @@ app.post('/api/upload', auth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid YouTube URL' });
     }
 
-    // Step 1: Cobalt API se audio URL lo
-    const cobaltRes = await fetch('https://api.cobalt.tools/api/json', {
+    // Step 1: Cobalt new API se audio URL lo
+    const cobaltRes = await fetch('https://cobalt.imput.net/api/json', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
