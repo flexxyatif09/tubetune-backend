@@ -1,7 +1,7 @@
+const fetch = require('node-fetch');
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
-const { Innertube } = require('youtubei.js');
 
 const app = express();
 app.use(cors());
@@ -77,58 +77,79 @@ app.post('/api/upload', auth, async (req, res) => {
     }
 
     if (!videoId) {
-      return res.status(400).json({ error: 'Could not extract video ID' });
+      return res.status(400).json({ error: 'Invalid YouTube URL' });
     }
 
-    // Init YouTube client
-    const yt = await Innertube.create({
-      lang: 'en',
-      location: 'US',
-      retrieve_player: false,
+    // Step 1: Cobalt API se audio URL lo
+    const cobaltRes = await fetch('https://api.cobalt.tools/api/json', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        url: url,
+        aFormat: 'mp3',
+        isAudioOnly: true
+      })
     });
 
-    // Get video info
-    const info = await yt.getInfo(videoId);
-    const title = info.basic_info.title || 'Unknown Title';
-    const artist = info.basic_info.author || 'Unknown Artist';
-    const duration_sec = info.basic_info.duration || 0;
-    const mins = Math.floor(duration_sec / 60);
-    const secs = String(duration_sec % 60).padStart(2, '0');
-    const duration = `${mins}:${secs}`;
-    const thumbnail = info.basic_info.thumbnail?.[0]?.url || '';
+    const cobaltData = await cobaltRes.json();
+    console.log('Cobalt response:', cobaltData);
 
-    // Download audio stream
-    const stream = await yt.download(videoId, {
-      type: 'audio',
-      quality: 'best',
-      format: 'mp4'
-    });
-
-    // Collect chunks
-    const chunks = [];
-    for await (const chunk of stream) {
-      chunks.push(chunk);
+    if (
+      cobaltData.status !== 'stream' &&
+      cobaltData.status !== 'redirect' &&
+      cobaltData.status !== 'tunnel' &&
+      cobaltData.status !== 'picker'
+    ) {
+      throw new Error('Cobalt error: ' + (cobaltData.text || JSON.stringify(cobaltData)));
     }
-    const audioBuffer = Buffer.concat(chunks);
 
-    // Upload to Supabase Storage
-    const fileName = `${Date.now()}_${videoId}.mp4`;
+    const audioStreamUrl = cobaltData.url;
+
+    // Step 2: Audio download karo
+    const audioRes = await fetch(audioStreamUrl);
+    if (!audioRes.ok) throw new Error('Audio download failed: ' + audioRes.status);
+    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
+
+    // Step 3: Title aur thumbnail lo
+    let title = 'Unknown Title';
+    let artist = 'Unknown Artist';
+    let thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+    let duration = '0:00';
+
+    try {
+      const oembedRes = await fetch(
+        `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
+      );
+      if (oembedRes.ok) {
+        const oembedData = await oembedRes.json();
+        title = oembedData.title || title;
+        artist = oembedData.author_name || artist;
+      }
+    } catch (e) {
+      console.log('oembed error:', e.message);
+    }
+
+    // Step 4: Supabase Storage mein upload
+    const fileName = `${Date.now()}_${videoId}.mp3`;
 
     const { error: uploadError } = await supabase.storage
       .from('audio')
       .upload(fileName, audioBuffer, {
-        contentType: 'audio/mp4',
+        contentType: 'audio/mpeg',
         upsert: false
       });
 
     if (uploadError) throw uploadError;
 
-    // Get public URL
+    // Step 5: Public URL lo
     const { data: { publicUrl: audioUrl } } = supabase.storage
       .from('audio')
       .getPublicUrl(fileName);
 
-    // Save to DB
+    // Step 6: Database mein save karo
     const { data: song, error: dbError } = await supabase
       .from('songs')
       .insert({
@@ -159,6 +180,7 @@ app.post('/api/upload', auth, async (req, res) => {
     });
 
   } catch (err) {
+    console.error('Upload error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
