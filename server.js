@@ -1,9 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
-const ytdlp = require('yt-dlp-exec');
-const fs = require('fs');
-const path = require('path');
+const { Innertube } = require('youtubei.js');
 
 const app = express();
 app.use(cors());
@@ -63,48 +61,65 @@ app.get('/api/songs/:id', async (req, res) => {
 
 // ── UPLOAD SONG ──
 app.post('/api/upload', auth, async (req, res) => {
-  const tempFile = `/tmp/audio_${Date.now()}.mp3`;
-
   try {
     const { url, quality = '320' } = req.body;
 
-    if (!url || !url.includes('youtube.com') && !url.includes('youtu.be')) {
+    if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
       return res.status(400).json({ error: 'Invalid YouTube URL' });
     }
 
-    // Get video info
-    const info = await ytdlp(url, {
-      dumpSingleJson: true,
-      noWarnings: true,
-      noCallHome: true,
-      preferFreeFormats: true,
+    // Extract video ID
+    let videoId = '';
+    if (url.includes('watch?v=')) {
+      videoId = url.split('watch?v=')[1].split('&')[0];
+    } else if (url.includes('youtu.be/')) {
+      videoId = url.split('youtu.be/')[1].split('?')[0];
+    }
+
+    if (!videoId) {
+      return res.status(400).json({ error: 'Could not extract video ID' });
+    }
+
+    // Init YouTube client
+    const yt = await Innertube.create({
+      lang: 'en',
+      location: 'US',
+      retrieve_player: false,
     });
 
-    const title = info.title || 'Unknown Title';
-    const artist = info.uploader || info.channel || 'Unknown Artist';
-    const thumbnail = info.thumbnail || '';
-    const duration_sec = info.duration || 0;
+    // Get video info
+    const info = await yt.getInfo(videoId);
+    const title = info.basic_info.title || 'Unknown Title';
+    const artist = info.basic_info.author || 'Unknown Artist';
+    const duration_sec = info.basic_info.duration || 0;
     const mins = Math.floor(duration_sec / 60);
     const secs = String(duration_sec % 60).padStart(2, '0');
     const duration = `${mins}:${secs}`;
+    const thumbnail = info.basic_info.thumbnail?.[0]?.url || '';
 
-    // Download audio
-    await ytdlp(url, {
-      extractAudio: true,
-      audioFormat: 'mp3',
-      audioQuality: quality === '320' ? '0' : quality === '192' ? '2' : '5',
-      output: tempFile,
-      noWarnings: true,
+    // Download audio stream
+    const stream = await yt.download(videoId, {
+      type: 'audio',
+      quality: 'best',
+      format: 'mp4'
     });
 
-    // Read file
-    const audioBuffer = fs.readFileSync(tempFile);
-    const fileName = `${Date.now()}_${title.replace(/[^a-z0-9]/gi, '_').slice(0, 50)}.mp3`;
+    // Collect chunks
+    const chunks = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+    const audioBuffer = Buffer.concat(chunks);
 
     // Upload to Supabase Storage
+    const fileName = `${Date.now()}_${videoId}.mp4`;
+
     const { error: uploadError } = await supabase.storage
       .from('audio')
-      .upload(fileName, audioBuffer, { contentType: 'audio/mpeg' });
+      .upload(fileName, audioBuffer, {
+        contentType: 'audio/mp4',
+        upsert: false
+      });
 
     if (uploadError) throw uploadError;
 
@@ -130,9 +145,6 @@ app.post('/api/upload', auth, async (req, res) => {
 
     if (dbError) throw dbError;
 
-    // Cleanup temp file
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-
     res.json({
       success: true,
       song: {
@@ -147,7 +159,6 @@ app.post('/api/upload', auth, async (req, res) => {
     });
 
   } catch (err) {
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
     res.status(500).json({ error: err.message });
   }
 });
