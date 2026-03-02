@@ -1,20 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
-const ytdl = require('ytdl-core');
-const { Readable } = require('stream');
+const ytdlp = require('yt-dlp-exec');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
-// ── AUTH MIDDLEWARE ──
 function auth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (token !== process.env.ADMIN_PASSWORD) {
@@ -33,18 +32,15 @@ app.get('/api/songs', async (req, res) => {
       .from('songs')
       .select('*')
       .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .range(offset, offset + Number(limit) - 1);
 
     if (search) {
-      query = query.or(
-        `title.ilike.%${search}%,artist.ilike.%${search}%`
-      );
+      query = query.or(`title.ilike.%${search}%,artist.ilike.%${search}%`);
     }
 
-    const { data, error, count } = await query;
+    const { data, error } = await query;
     if (error) throw error;
-
-    res.json({ success: true, total: count, data });
+    res.json({ success: true, total: data.length, data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -58,7 +54,6 @@ app.get('/api/songs/:id', async (req, res) => {
       .select('*')
       .eq('id', req.params.id)
       .single();
-
     if (error) throw error;
     res.json({ success: true, data });
   } catch (err) {
@@ -68,54 +63,57 @@ app.get('/api/songs/:id', async (req, res) => {
 
 // ── UPLOAD SONG ──
 app.post('/api/upload', auth, async (req, res) => {
+  const tempFile = `/tmp/audio_${Date.now()}.mp3`;
+
   try {
     const { url, quality = '320' } = req.body;
 
-    if (!ytdl.validateURL(url)) {
+    if (!url || !url.includes('youtube.com') && !url.includes('youtu.be')) {
       return res.status(400).json({ error: 'Invalid YouTube URL' });
     }
 
     // Get video info
-    const info = await ytdl.getInfo(url);
-    const title = info.videoDetails.title;
-    const artist = info.videoDetails.author.name;
-    const thumbnail = info.videoDetails.thumbnails.pop().url;
-    const duration_sec = parseInt(info.videoDetails.lengthSeconds);
+    const info = await ytdlp(url, {
+      dumpSingleJson: true,
+      noWarnings: true,
+      noCallHome: true,
+      preferFreeFormats: true,
+    });
+
+    const title = info.title || 'Unknown Title';
+    const artist = info.uploader || info.channel || 'Unknown Artist';
+    const thumbnail = info.thumbnail || '';
+    const duration_sec = info.duration || 0;
     const mins = Math.floor(duration_sec / 60);
     const secs = String(duration_sec % 60).padStart(2, '0');
     const duration = `${mins}:${secs}`;
 
-    // Download audio as buffer
-    const audioStream = ytdl(url, {
-      quality: 'highestaudio',
-      filter: 'audioonly'
+    // Download audio
+    await ytdlp(url, {
+      extractAudio: true,
+      audioFormat: 'mp3',
+      audioQuality: quality === '320' ? '0' : quality === '192' ? '2' : '5',
+      output: tempFile,
+      noWarnings: true,
     });
 
-    const chunks = [];
-    for await (const chunk of audioStream) {
-      chunks.push(chunk);
-    }
-    const audioBuffer = Buffer.concat(chunks);
+    // Read file
+    const audioBuffer = fs.readFileSync(tempFile);
+    const fileName = `${Date.now()}_${title.replace(/[^a-z0-9]/gi, '_').slice(0, 50)}.mp3`;
 
-    // Upload audio to Supabase Storage
-    const audioFileName = `${Date.now()}_${title.replace(/[^a-z0-9]/gi, '_')}.mp3`;
-
-    const { data: audioUpload, error: audioError } = await supabase
-      .storage
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
       .from('audio')
-      .upload(audioFileName, audioBuffer, {
-        contentType: 'audio/mpeg'
-      });
+      .upload(fileName, audioBuffer, { contentType: 'audio/mpeg' });
 
-    if (audioError) throw audioError;
+    if (uploadError) throw uploadError;
 
     // Get public URL
-    const { data: { publicUrl: audioUrl } } = supabase
-      .storage
+    const { data: { publicUrl: audioUrl } } = supabase.storage
       .from('audio')
-      .getPublicUrl(audioFileName);
+      .getPublicUrl(fileName);
 
-    // Save to database
+    // Save to DB
     const { data: song, error: dbError } = await supabase
       .from('songs')
       .insert({
@@ -132,6 +130,9 @@ app.post('/api/upload', auth, async (req, res) => {
 
     if (dbError) throw dbError;
 
+    // Cleanup temp file
+    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+
     res.json({
       success: true,
       song: {
@@ -146,6 +147,7 @@ app.post('/api/upload', auth, async (req, res) => {
     });
 
   } catch (err) {
+    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
     res.status(500).json({ error: err.message });
   }
 });
@@ -157,23 +159,31 @@ app.delete('/api/songs/:id', auth, async (req, res) => {
       .from('songs')
       .delete()
       .eq('id', req.params.id);
-
     if (error) throw error;
-    res.json({ success: true, message: 'Deleted' });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── STATS ──
-app.get('/api/stats', async (req, res) => {
-  const { count } = await supabase
-    .from('songs')
-    .select('*', { count: 'exact', head: true });
-  res.json({ total: count });
+// ── UPDATE SONG ──
+app.put('/api/songs/:id', auth, async (req, res) => {
+  try {
+    const { title, artist, thumbnail, audio_url, duration } = req.body;
+    const { data, error } = await supabase
+      .from('songs')
+      .update({ title, artist, thumbnail, audio_url, duration })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// ── HEALTH CHECK ──
+// ── HEALTH ──
 app.get('/', (req, res) => {
   res.json({ status: 'TubeTune API running!' });
 });
