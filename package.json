@@ -9,6 +9,6 @@
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "@supabase/supabase-js": "^2.38.0",
-    "yt-dlp-exec": "^1.0.2"
+    "youtubei.js": "^9.0.0"
   }
 }
