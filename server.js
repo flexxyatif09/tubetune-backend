@@ -58,14 +58,16 @@ async function premiumAuth(req, res, next) {
     if (!user?.id) {
       return res.status(401).json({ success: false, error: 'Login zaroori hai' });
     }
-    const { data: sub } = await supabase
+
+    // supabaseAdmin use karo — RLS bypass hoga
+    const { data: sub, error: subError } = await supabaseAdmin
       .from('subscriptions')
-      .select('id')
+      .select('id, expires_at, status')
       .eq('user_id', user.id)
-      .eq('status', 'active')
-      .gte('expires_at', new Date().toISOString())
       .limit(1)
       .maybeSingle();
+
+    if (subError) console.error('premiumAuth DB error:', subError.message);
 
     if (!sub) {
       return res.status(403).json({
@@ -74,9 +76,20 @@ async function premiumAuth(req, res, next) {
         code: 'NOT_PREMIUM'
       });
     }
+
+    // Agar expires_at column hai toh expiry check karo, warna sirf existence kaafi hai
+    if (sub.expires_at && new Date(sub.expires_at) < new Date()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Premium subscription expire ho gaya',
+        code: 'PREMIUM_EXPIRED'
+      });
+    }
+
     req.userId = user.id;
     next();
   } catch (err) {
+    console.error('premiumAuth error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 }
@@ -675,4 +688,4 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server on port ${PORT
