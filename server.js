@@ -226,6 +226,86 @@ app.get('/api/plans', async (req, res) => {
   }
 });
 
+// ── ADD PLAN (admin) ──
+app.post('/api/plans', auth, async (req, res) => {
+  try {
+    const { name, description, price, duration_days, features, is_active } = req.body;
+    if (!name || !price || !duration_days) {
+      return res.status(400).json({ success: false, error: 'name, price aur duration_days required hai' });
+    }
+    const { data, error } = await supabase
+      .from('plans')
+      .insert({
+        name,
+        description:   description   || '',
+        price:         Number(price),
+        duration_days: Number(duration_days),
+        features:      features      || [],
+        is_active:     is_active !== undefined ? is_active : true
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ success: true, plan: data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── UPDATE PLAN (admin) ──
+app.put('/api/plans/:id', auth, async (req, res) => {
+  try {
+    const { name, description, price, duration_days, features, is_active } = req.body;
+    const updates = {};
+    if (name          !== undefined) updates.name          = name;
+    if (description   !== undefined) updates.description   = description;
+    if (price         !== undefined) updates.price         = Number(price);
+    if (duration_days !== undefined) updates.duration_days = Number(duration_days);
+    if (features      !== undefined) updates.features      = features;
+    if (is_active     !== undefined) updates.is_active     = is_active;
+
+    const { data, error } = await supabase
+      .from('plans')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ success: true, plan: data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── DELETE PLAN (admin) ──
+app.delete('/api/plans/:id', auth, async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('plans')
+      .delete()
+      .eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── GET ALL SUBSCRIPTIONS (admin) ──
+app.get('/api/subscriptions/all', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    res.json({ success: true, data: data || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── CHECK SUBSCRIPTION ──
 app.get('/api/subscription', async (req, res) => {
   try {
@@ -283,7 +363,6 @@ app.post('/api/verify-payment', async (req, res) => {
 
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan_id } = req.body;
 
-    // Signature verify
     const expectedSig = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(razorpay_order_id + '|' + razorpay_payment_id)
@@ -300,12 +379,10 @@ app.post('/api/verify-payment', async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + plan.duration_days);
 
-    // Purani subscription expire karo
     await supabase.from('subscriptions')
       .update({ status: 'expired' })
       .eq('user_id', user.id).eq('status', 'active');
 
-    // Nayi subscription save karo
     const { data: sub, error: subError } = await supabase
       .from('subscriptions')
       .insert({
@@ -335,7 +412,6 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Query too short' });
     }
 
-    // Step 1: YouTube pe search karo
     const searchRes = await fetch(
       `https://youtube-search-and-download.p.rapidapi.com/search?query=${encodeURIComponent(query)}&hl=en&gl=US&type=v`,
       {
@@ -359,7 +435,6 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
     const artist    = firstResult.channelName || 'Unknown Artist';
     const thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
 
-    // Step 2: Pehle se database mein hai?
     const { data: existing } = await supabase
       .from('songs').select('*')
       .eq('youtube_url', `https://www.youtube.com/watch?v=${videoId}`)
@@ -376,7 +451,6 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
       });
     }
 
-    // Step 3: RapidAPI se MP3 URL lo
     const rapidRes = await fetch(
       `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
       {
@@ -397,24 +471,20 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
       ? `${Math.floor(rapidData.duration / 60)}:${String(rapidData.duration % 60).padStart(2, '0')}`
       : '0:00';
 
-    // Step 4: MP3 download karo
     const audioRes = await fetch(mp3Url);
     if (!audioRes.ok) throw new Error('Audio download failed');
     const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
 
-    // Step 5: Supabase Storage pe upload
     const fileName = `${Date.now()}_${videoId}.mp3`;
     const { error: uploadError } = await supabase.storage
       .from('audio')
       .upload(fileName, audioBuffer, { contentType: 'audio/mpeg', upsert: false });
     if (uploadError) throw uploadError;
 
-    // Step 6: Public URL lo
     const { data: { publicUrl: audioUrl } } = supabase.storage
       .from('audio')
       .getPublicUrl(fileName);
 
-    // Step 7: Database mein save karo
     const { data: song, error: dbError } = await supabase
       .from('songs')
       .insert({
