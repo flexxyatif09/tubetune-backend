@@ -9,9 +9,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ── Normal client (anon key) — public operations ke liye ──
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
+);
+
+// ── Admin client (service_role key) — RLS bypass, admin operations ke liye ──
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY
 );
 
 const razorpay = new Razorpay({
@@ -179,7 +186,7 @@ app.post('/api/upload', auth, async (req, res) => {
       .from('audio')
       .getPublicUrl(fileName);
 
-    const { data: song, error: dbError } = await supabase
+    const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
       .insert({
         title, artist, thumbnail,
@@ -233,7 +240,7 @@ app.post('/api/plans', auth, async (req, res) => {
     if (!name || !price || !duration_days) {
       return res.status(400).json({ success: false, error: 'name, price aur duration_days required hai' });
     }
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('plans')
       .insert({
         name,
@@ -264,7 +271,7 @@ app.put('/api/plans/:id', auth, async (req, res) => {
     if (features      !== undefined) updates.features      = features;
     if (is_active     !== undefined) updates.is_active     = is_active;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('plans')
       .update(updates)
       .eq('id', req.params.id)
@@ -280,7 +287,7 @@ app.put('/api/plans/:id', auth, async (req, res) => {
 // ── DELETE PLAN (admin) ──
 app.delete('/api/plans/:id', auth, async (req, res) => {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('plans')
       .delete()
       .eq('id', req.params.id);
@@ -294,7 +301,7 @@ app.delete('/api/plans/:id', auth, async (req, res) => {
 // ── GET ALL SUBSCRIPTIONS (admin) ──
 app.get('/api/subscriptions/all', auth, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('subscriptions')
       .select('*')
       .order('created_at', { ascending: false })
@@ -379,11 +386,13 @@ app.post('/api/verify-payment', async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + plan.duration_days);
 
-    await supabase.from('subscriptions')
+    await supabaseAdmin
+      .from('subscriptions')
       .update({ status: 'expired' })
-      .eq('user_id', user.id).eq('status', 'active');
+      .eq('user_id', user.id)
+      .eq('status', 'active');
 
-    const { data: sub, error: subError } = await supabase
+    const { data: sub, error: subError } = await supabaseAdmin
       .from('subscriptions')
       .insert({
         user_id:             user.id,
@@ -485,7 +494,7 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
       .from('audio')
       .getPublicUrl(fileName);
 
-    const { data: song, error: dbError } = await supabase
+    const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
       .insert({
         title, artist, thumbnail,
@@ -514,7 +523,7 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
 // ── DELETE SONG ──
 app.delete('/api/songs/:id', auth, async (req, res) => {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('songs').delete().eq('id', req.params.id);
     if (error) throw error;
     res.json({ success: true });
@@ -527,7 +536,7 @@ app.delete('/api/songs/:id', auth, async (req, res) => {
 app.put('/api/songs/:id', auth, async (req, res) => {
   try {
     const { title, artist, thumbnail, audio_url, duration } = req.body;
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('songs')
       .update({ title, artist, thumbnail, audio_url, duration })
       .eq('id', req.params.id)
