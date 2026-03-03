@@ -218,13 +218,27 @@ app.get('/api/config', (req, res) => {
   res.json({ razorpay_key_id: process.env.RAZORPAY_KEY_ID || '' });
 });
 
-// ── GET PLANS (public) ──
+// ── GET PLANS (public — only active) ──
 app.get('/api/plans', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('plans')
       .select('*')
       .eq('is_active', true)
+      .order('price', { ascending: true });
+    if (error) throw error;
+    res.json({ success: true, plans: data || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── GET ALL PLANS including disabled (admin) ──
+app.get('/api/plans/all', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('plans')
+      .select('*')
       .order('price', { ascending: true });
     if (error) throw error;
     res.json({ success: true, plans: data || [] });
@@ -308,6 +322,113 @@ app.get('/api/subscriptions/all', auth, async (req, res) => {
       .limit(50);
     if (error) throw error;
     res.json({ success: true, data: data || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── GET ALL USERS (admin) ──
+app.get('/api/users/all', auth, async (req, res) => {
+  try {
+    // Supabase Admin API se saare users lo
+    const r = await fetch(`${process.env.SUPABASE_URL}/auth/v1/admin/users?per_page=500`, {
+      headers: {
+        apikey:        process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY,
+        Authorization: 'Bearer ' + (process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY)
+      }
+    });
+    if (!r.ok) throw new Error('Auth API error: ' + r.status);
+    const authData = await r.json();
+    const authUsers = authData.users || [];
+
+    // Active subscriptions bhi lo
+    const { data: subs } = await supabaseAdmin
+      .from('subscriptions')
+      .select('*')
+      .eq('status', 'active')
+      .gte('expires_at', new Date().toISOString());
+
+    const subsMap = {};
+    (subs || []).forEach(s => { subsMap[s.user_id] = s; });
+
+    const users = authUsers.map(u => ({
+      id:          u.id,
+      email:       u.email || '',
+      created_at:  u.created_at,
+      last_sign_in: u.last_sign_in_at || null,
+      isPremium:   !!subsMap[u.id],
+      subscription: subsMap[u.id] || null
+    }));
+
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error('Users fetch error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── GRANT PREMIUM MANUALLY (admin) ──
+app.post('/api/admin/grant-premium', auth, async (req, res) => {
+  try {
+    const { user_id, plan_id, duration_days } = req.body;
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+
+    let planName = 'Admin Grant';
+    let planPrice = 0;
+    let days = duration_days || 30;
+
+    if (plan_id) {
+      const { data: plan } = await supabaseAdmin
+        .from('plans').select('*').eq('id', plan_id).single();
+      if (plan) { planName = plan.name; planPrice = plan.price; days = plan.duration_days; }
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + Number(days));
+
+    // Purani subscription expire karo
+    await supabaseAdmin
+      .from('subscriptions')
+      .update({ status: 'expired' })
+      .eq('user_id', user_id)
+      .eq('status', 'active');
+
+    // Nayi manual subscription insert karo
+    const { data: sub, error } = await supabaseAdmin
+      .from('subscriptions')
+      .insert({
+        user_id,
+        plan_id:    plan_id || null,
+        plan_name:  planName,
+        price:      planPrice,
+        status:     'active',
+        expires_at: expiresAt.toISOString(),
+        razorpay_order_id:   'ADMIN_GRANT',
+        razorpay_payment_id: 'ADMIN_GRANT'
+      })
+      .select().single();
+    if (error) throw error;
+
+    res.json({ success: true, subscription: sub });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── REVOKE PREMIUM MANUALLY (admin) ──
+app.post('/api/admin/revoke-premium', auth, async (req, res) => {
+  try {
+    const { user_id } = req.body;
+    if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
+
+    const { error } = await supabaseAdmin
+      .from('subscriptions')
+      .update({ status: 'expired' })
+      .eq('user_id', user_id)
+      .eq('status', 'active');
+    if (error) throw error;
+
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
