@@ -475,13 +475,20 @@ app.post('/api/create-order', async (req, res) => {
     const user  = await getUserFromToken(token);
     if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
 
+    // Razorpay keys check karo
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({ success: false, error: 'Razorpay keys configure nahi hain (Railway env check karo)' });
+    }
+
     const { plan_id } = req.body;
-    const { data: plan, error } = await supabase
-      .from('plans').select('*').eq('id', plan_id).eq('is_active', true).single();
-    if (error || !plan) return res.status(404).json({ success: false, error: 'Plan nahi mila' });
+    if (!plan_id) return res.status(400).json({ success: false, error: 'plan_id required hai' });
+
+    const { data: plan, error: planErr } = await supabaseAdmin
+      .from('plans').select('*').eq('id', plan_id).single();
+    if (planErr || !plan) return res.status(404).json({ success: false, error: 'Plan nahi mila: ' + (planErr?.message || 'not found') });
 
     const order = await razorpay.orders.create({
-      amount:   plan.price * 100,
+      amount:   Math.round(plan.price * 100),
       currency: 'INR',
       receipt:  `tt_${Date.now()}`,
       notes:    { plan_id: plan.id, user_id: user.id }
@@ -489,7 +496,8 @@ app.post('/api/create-order', async (req, res) => {
 
     res.json({ success: true, order, plan });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error('create-order error:', err);
+    res.status(500).json({ success: false, error: err.message || 'Order create nahi hua', details: err.error || null });
   }
 });
 
@@ -545,14 +553,13 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// ── YT FETCH (PREMIUM ONLY) ──
-app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
+// ── YT SEARCH — Results dikhao (PREMIUM ONLY) ──
+app.post('/api/yt-search', premiumAuth, async (req, res) => {
   try {
     const { query } = req.body;
     if (!query || query.trim().length < 2) {
       return res.status(400).json({ success: false, error: 'Query too short' });
     }
-
     const searchRes = await fetch(
       `https://youtube-search-and-download.p.rapidapi.com/search?query=${encodeURIComponent(query)}&hl=en&gl=US&type=v`,
       {
@@ -566,15 +573,69 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
     if (!searchRes.ok) throw new Error('YouTube search fail hua');
     const searchData = await searchRes.json();
 
-    const firstResult = searchData?.contents?.[0]?.video;
-    if (!firstResult?.videoId) {
-      return res.status(404).json({ success: false, error: 'Koi video nahi mila' });
+    const results = (searchData?.contents || [])
+      .filter(c => c?.video?.videoId)
+      .slice(0, 5)
+      .map(c => ({
+        videoId:   c.video.videoId,
+        title:     c.video.title     || 'Unknown',
+        channel:   c.video.channelName || 'Unknown',
+        duration:  c.video.lengthText || '',
+        thumbnail: `https://i.ytimg.com/vi/${c.video.videoId}/mqdefault.jpg`,
+        views:     c.video.viewCountText || ''
+      }));
+
+    if (!results.length) {
+      return res.status(404).json({ success: false, error: 'Koi result nahi mila' });
+    }
+    res.json({ success: true, results });
+  } catch (err) {
+    console.error('yt-search error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── YT FETCH (PREMIUM ONLY) ──
+app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
+  try {
+    const { query, videoId: fixedVideoId } = req.body;
+    if (!query || query.trim().length < 2) {
+      return res.status(400).json({ success: false, error: 'Query too short' });
     }
 
-    const videoId   = firstResult.videoId;
-    const title     = firstResult.title       || query;
-    const artist    = firstResult.channelName || 'Unknown Artist';
-    const thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+    let videoId, title, artist, thumbnail;
+
+    if (fixedVideoId) {
+      // User ne specific video choose kiya — seedha use karo
+      videoId   = fixedVideoId;
+      title     = query;
+      artist    = 'Unknown Artist';
+      thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+    } else {
+      // Search karke first result lo
+      const searchRes = await fetch(
+        `https://youtube-search-and-download.p.rapidapi.com/search?query=${encodeURIComponent(query)}&hl=en&gl=US&type=v`,
+        {
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key':  process.env.RAPIDAPI_KEY,
+            'X-RapidAPI-Host': 'youtube-search-and-download.p.rapidapi.com'
+          }
+        }
+      );
+      if (!searchRes.ok) throw new Error('YouTube search fail hua');
+      const searchData = await searchRes.json();
+
+      const firstResult = searchData?.contents?.[0]?.video;
+      if (!firstResult?.videoId) {
+        return res.status(404).json({ success: false, error: 'Koi video nahi mila' });
+      }
+
+      videoId   = firstResult.videoId;
+      title     = firstResult.title       || query;
+      artist    = firstResult.channelName || 'Unknown Artist';
+      thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+    }
 
     const { data: existing } = await supabase
       .from('songs').select('*')
