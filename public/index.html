@@ -1487,6 +1487,9 @@ async function boot(){
   aud.addEventListener('ended',onEnded);
   aud.addEventListener('play',()=>setPlayUI(true));
   aud.addEventListener('pause',()=>setPlayUI(false));
+  // Seekbar aur time notification mein dikhane ke liye
+  aud.addEventListener('loadedmetadata',()=>updateMediaPosition());
+  aud.addEventListener('durationchange',()=>updateMediaPosition());
   if('mediaSession' in navigator){
     navigator.mediaSession.setActionHandler('play',()=>aud.play());
     navigator.mediaSession.setActionHandler('pause',()=>aud.pause());
@@ -1650,6 +1653,20 @@ function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;cu
       artwork
     });
     navigator.mediaSession.playbackState = 'playing';
+    // Duration milne ke baad seekbar show karo
+    const initPos = () => {
+      if(aud.duration && isFinite(aud.duration)){
+        try{
+          navigator.mediaSession.setPositionState({
+            duration: aud.duration,
+            playbackRate: aud.playbackRate || 1,
+            position: Math.min(aud.currentTime, aud.duration)
+          });
+        }catch(_){}
+      }
+    };
+    aud.addEventListener('loadedmetadata', initPos, {once: true});
+    aud.addEventListener('durationchange', initPos, {once: true});
   }}
 function showMini(){miniUp=true;document.getElementById('mini').classList.add('up');document.getElementById('shufFab').classList.remove('no-mini');}
 function closeMini(){aud.pause();miniUp=false;document.getElementById('mini').classList.remove('up');document.getElementById('shufFab').classList.add('no-mini');}
@@ -1663,12 +1680,12 @@ function setPlayUI(isPlaying){playing=isPlaying;const ico=isPlaying?`<rect x="6"
 }
 
 function updateMediaPosition(){
-  if(!('mediaSession' in navigator)||!aud.duration)return;
+  if(!('mediaSession' in navigator)||!aud.duration||!isFinite(aud.duration)||aud.duration<=0)return;
   try{
     navigator.mediaSession.setPositionState({
       duration:     aud.duration,
       playbackRate: aud.playbackRate||1,
-      position:     Math.min(aud.currentTime, aud.duration)
+      position:     Math.min(Math.max(0, aud.currentTime), aud.duration)
     });
   }catch(_){}
   // Android native seekbar update — har 2 sec mein
