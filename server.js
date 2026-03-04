@@ -5,9 +5,34 @@ const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const { createClient } = require('@supabase/supabase-js');
 
+const path = require('path');
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ── Serve static files (HTML app) ──
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Manifest route explicitly ──
+app.get('/manifest.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json({
+    name: "TubeTune",
+    short_name: "TubeTune",
+    description: "YouTube se music, sirf tumhare liye",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#07080F",
+    theme_color: "#6C5CE7",
+    orientation: "portrait-primary",
+    scope: "/",
+    icons: [
+      { src: "https://i.imgur.com/8mQnmXZ.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+      { src: "https://i.imgur.com/8mQnmXZ.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }
+    ],
+    categories: ["music", "entertainment"]
+  });
+});
 
 // ── Normal client (anon key) — public operations ke liye ──
 const supabase = createClient(
@@ -826,7 +851,13 @@ app.put('/api/songs/:id', auth, async (req, res) => {
 
 // ── HEALTH ──
 app.get('/', (req, res) => {
-  res.json({ status: 'TubeTune API running!' });
+  const htmlPath = path.join(__dirname, 'public', 'index.html');
+  const fs = require('fs');
+  if (fs.existsSync(htmlPath)) {
+    res.sendFile(htmlPath);
+  } else {
+    res.json({ status: 'TubeTune API running!' });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
