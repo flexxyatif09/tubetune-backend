@@ -1653,8 +1653,7 @@ function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;cu
       artwork
     });
     navigator.mediaSession.playbackState = 'playing';
-    // iOS seekbar: duration load hone ke baad setPositionState call karo
-    const onReady=()=>{updateMediaPosition();};
+    const onReady=()=>updateMediaPosition();
     aud.addEventListener('loadedmetadata',onReady,{once:true});
     aud.addEventListener('canplay',onReady,{once:true});
   }}
