@@ -1497,6 +1497,31 @@ async function boot(){
     navigator.mediaSession.setActionHandler('seekbackward',(d)=>{aud.currentTime=Math.max(0,aud.currentTime-(d.seekOffset||10));updateMediaPosition();});
     navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});
   }
+
+  // FIX 2: Notification click → app resume → song restore karo
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'){
+      // Sirf tab karo jab mainApp active ho aur song chal raha ho
+      const appActive = document.getElementById('mainApp')?.classList.contains('on');
+      if(appActive && curIdx>=0 && aud.src){
+        setPlayUI(playing);
+        if(playing) showMini();
+        if(window.AndroidBridge){
+          const s=songs[curIdx];
+          try{AndroidBridge.updateMediaSession(s.title||'',s.artist||'',s.thumb||'',playing);}catch(e){}
+        }
+      }
+    }
+  });
+
+  // FIX 3: Background mein bhi ended event fire ho iske liye extra check
+  window._bgInterval = setInterval(()=>{
+    const appActive = document.getElementById('mainApp')?.classList.contains('on');
+    if(!appActive || !aud.src || aud.paused || !songs.length) return;
+    if(aud.duration && aud.currentTime >= aud.duration - 0.5){
+      onEnded();
+    }
+  }, 1000);
   if(sbDev){document.getElementById('authRoot').classList.add('hidden');document.getElementById('mainApp').classList.add('on');document.getElementById('avInitial').textContent='D';document.getElementById('heroGreet').textContent='Hey, Dev';document.getElementById('profAv').textContent='D';document.getElementById('profName').textContent='Dev User';document.getElementById('profEmail').textContent='dev@tubetune.app';loadSongs();toast('Dev mode','inf');return;}
   showScreen('login');
   const session=SS.get();
@@ -1654,14 +1679,29 @@ function updateMediaPosition(){
     navigator.mediaSession.setPositionState({
       duration:     aud.duration,
       playbackRate: aud.playbackRate||1,
-      position:     aud.currentTime
+      position:     Math.min(aud.currentTime, aud.duration)
     });
   }catch(_){}
+  // Android native seekbar update — har 2 sec mein
+  if(window.AndroidBridge && curIdx>=0){
+    try{AndroidBridge.updatePosition(Math.floor(aud.currentTime), Math.floor(aud.duration));}catch(e){}
+  }
 }
-function nextS(){if(!songs.length)return;if(shuffle)curIdx=Math.floor(Math.random()*songs.length);else if(!repeat)curIdx=Math.min(curIdx+1,songs.length-1);playById(songs[curIdx].id);}
-function prevS(){if(aud.currentTime>3){aud.currentTime=0;return;}if(curIdx>0){curIdx--;playById(songs[curIdx].id);}else aud.currentTime=0;}
-function onEnded(){if(repeat){aud.currentTime=0;aud.play();}else nextS();}
-function shuffleAll(){if(!songs.length)return;shuffle=true;document.getElementById('npShuf').classList.add('on');curIdx=Math.floor(Math.random()*songs.length);playById(songs[curIdx].id);toast('Shuffle play shuru','ok');}
+let _endedCalled=false;
+function onEnded(){
+  if(_endedCalled)return; _endedCalled=true;
+  setTimeout(()=>_endedCalled=false,1000);
+  if(repeat){aud.currentTime=0;aud.play();}
+  else{
+    // Auto next — chahe background ho ya foreground
+    const wasIdx=curIdx;
+    if(shuffle) curIdx=Math.floor(Math.random()*songs.length);
+    else curIdx=curIdx+1 < songs.length ? curIdx+1 : 0; // Loop back to start
+    if(curIdx!==wasIdx||repeat) playById(songs[curIdx].id);
+  }
+}
+function nextS(){if(!songs.length)return;if(shuffle)curIdx=Math.floor(Math.random()*songs.length);else curIdx=curIdx+1<songs.length?curIdx+1:0;playById(songs[curIdx].id);}
+function prevS(){if(aud.currentTime>3){aud.currentTime=0;return;}curIdx=curIdx>0?curIdx-1:songs.length-1;playById(songs[curIdx].id);}if(!songs.length)return;shuffle=true;document.getElementById('npShuf').classList.add('on');curIdx=Math.floor(Math.random()*songs.length);playById(songs[curIdx].id);toast('Shuffle play shuru','ok');}
 function toggleFav(id){if(favs.includes(id)){favs=favs.filter(x=>x!==id);toast('Favorites se hataya','inf');}else{favs.push(id);toast('Favorites mein add kiya','ok');}localStorage.setItem('tt_favs',JSON.stringify(favs));renderFavBadge();renderSongs();renderFavs();if(curIdx>=0&&songs[curIdx]?.id===id){const faved=favs.includes(id),hrt=document.getElementById('npHeart');hrt.classList.toggle('on',faved);hrt.querySelector('svg').setAttribute('fill',faved?'currentColor':'none');}}
 function toggleFavNP(){if(curIdx<0)return;toggleFav(songs[curIdx].id);}
 function onTU(){if(!aud.duration)return;const pct=aud.currentTime/aud.duration*100;document.getElementById('npBar').style.width=pct+'%';document.getElementById('miniFill').style.width=pct+'%';document.getElementById('npRing').style.setProperty('--prog',pct+'%');document.getElementById('npCur').textContent=fmtTime(aud.currentTime);document.getElementById('npDur').textContent=fmtTime(aud.duration);updateMediaPosition();}
