@@ -1485,19 +1485,16 @@ function updateUserUI(user){
 async function boot(){
   aud.addEventListener('timeupdate',onTU);
   aud.addEventListener('ended',onEnded);
-  aud.addEventListener('play',()=>{setPlayUI(true);updateMediaPosition();});
+  aud.addEventListener('play',()=>setPlayUI(true));
   aud.addEventListener('pause',()=>setPlayUI(false));
-  aud.addEventListener('loadedmetadata',()=>updateMediaPosition());
-  aud.addEventListener('durationchange',()=>updateMediaPosition());
-  aud.addEventListener('canplay',()=>updateMediaPosition());
   if('mediaSession' in navigator){
     navigator.mediaSession.setActionHandler('play',()=>aud.play());
     navigator.mediaSession.setActionHandler('pause',()=>aud.pause());
     navigator.mediaSession.setActionHandler('nexttrack',nextS);
     navigator.mediaSession.setActionHandler('previoustrack',prevS);
-    try{navigator.mediaSession.setActionHandler('seekto',(d)=>{if(d.seekTime!=null&&aud.duration){aud.currentTime=Math.min(d.seekTime,aud.duration);updateMediaPosition();}});}catch(_){}
-    try{navigator.mediaSession.setActionHandler('seekbackward',(d)=>{aud.currentTime=Math.max(0,aud.currentTime-(d.seekOffset||10));updateMediaPosition();});}catch(_){}
-    try{navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});}catch(_){}
+    navigator.mediaSession.setActionHandler('seekto',(d)=>{if(d.seekTime&&aud.duration){aud.currentTime=d.seekTime;updateMediaPosition();}});
+    navigator.mediaSession.setActionHandler('seekbackward',(d)=>{aud.currentTime=Math.max(0,aud.currentTime-(d.seekOffset||10));updateMediaPosition();});
+    navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});
   }
 
   // visibilitychange — app foreground mein aane par state refresh
@@ -1653,9 +1650,6 @@ function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;cu
       artwork
     });
     navigator.mediaSession.playbackState = 'playing';
-    const onReady=()=>updateMediaPosition();
-    aud.addEventListener('loadedmetadata',onReady,{once:true});
-    aud.addEventListener('canplay',onReady,{once:true});
   }}
 function showMini(){miniUp=true;document.getElementById('mini').classList.add('up');document.getElementById('shufFab').classList.remove('no-mini');}
 function closeMini(){aud.pause();miniUp=false;document.getElementById('mini').classList.remove('up');document.getElementById('shufFab').classList.add('no-mini');}
@@ -1669,13 +1663,16 @@ function setPlayUI(isPlaying){playing=isPlaying;const ico=isPlaying?`<rect x="6"
 }
 
 function updateMediaPosition(){
-  if(!('mediaSession' in navigator))return;
   const dur=aud.duration;
   if(!dur||!isFinite(dur)||isNaN(dur)||dur<=0)return;
   const pos=Math.min(Math.max(0,aud.currentTime||0),dur);
-  try{navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});}catch(_){}
+  // iOS / PWA — mediaSession seekbar
+  if('mediaSession' in navigator){
+    try{navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});}catch(_){}
+  }
+  // Android WebView — native seekbar (mediaSession check se bahar!)
   if(window.AndroidBridge&&curIdx>=0){
-    try{AndroidBridge.updatePosition(Math.floor(aud.currentTime),Math.floor(dur));}catch(e){}
+    try{AndroidBridge.updatePosition(Math.floor(pos),Math.floor(dur));}catch(e){}
   }
 }
 function onEnded(){
