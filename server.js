@@ -598,7 +598,7 @@ app.post('/api/yt-search', premiumAuth, async (req, res) => {
 // ── YT FETCH (PREMIUM ONLY) ──
 app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
   try {
-    const { query, videoId: fixedVideoId } = req.body;
+    const { query, videoId: fixedVideoId, title: fixedTitle, channel: fixedChannel } = req.body;
     if (!query || query.trim().length < 2) {
       return res.status(400).json({ success: false, error: 'Query too short' });
     }
@@ -606,10 +606,10 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
     let videoId, title, artist, thumbnail;
 
     if (fixedVideoId) {
-      // User ne specific video choose kiya — seedha use karo
+      // User ne specific video choose kiya — uski info use karo
       videoId   = fixedVideoId;
-      title     = query;
-      artist    = 'Unknown Artist';
+      title     = fixedTitle  || query;
+      artist    = fixedChannel || 'Unknown Artist';
       thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
     } else {
       // Search karke first result lo
