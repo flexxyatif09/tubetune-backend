@@ -553,6 +553,68 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
+// ── MUSIC FILTER HELPERS ──
+
+// Duration string (e.g. "3:45" or "1:02:30") ko seconds mein convert karo
+function parseDurationToSeconds(durationStr) {
+  if (!durationStr) return null;
+  const parts = String(durationStr).split(':').map(Number);
+  if (parts.length === 2) return parts[0] * 60 + parts[1];       // MM:SS
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]; // HH:MM:SS
+  return null;
+}
+
+// Duration seconds se check karo — 60s to 600s (1 min to 10 min)
+function isDurationValid(seconds) {
+  if (seconds === null) return true; // duration pata nahi — allow karo
+  return seconds >= 60 && seconds <= 600;
+}
+
+// Title mein music keywords check karo
+const MUSIC_KEYWORDS = [
+  'song','songs','music','audio','lyrics','lyric','official','video',
+  'lofi','lo-fi','remix','cover','beats','beat','instrumental','ost',
+  'soundtrack','album','single','ft.','feat','prod','version','mix',
+  'slowed','reverb','sped up','nightcore','acoustic','unplugged',
+  'full song','new song','latest song','hit song','trending','mashup',
+  'jukebox','playlist','bhajan','ghazal','qawwali','rap','hip hop',
+  'pop','rock','jazz','classical','folk','devotional','shayari'
+];
+
+const BLOCK_KEYWORDS = [
+  'vlog','podcast','interview','trailer','teaser','review','unboxing',
+  'tutorial','how to','recipe','cooking','gaming','gameplay','reaction',
+  'commentary','news','debate','speech','lecture','documentary',
+  'episode','season','series','movie','film','web series'
+];
+
+function isMusicByTitle(title) {
+  if (!title) return false;
+  const t = title.toLowerCase();
+  // Block karo agar clearly non-music hai
+  if (BLOCK_KEYWORDS.some(w => t.includes(w))) return false;
+  // Allow karo agar music keyword hai
+  if (MUSIC_KEYWORDS.some(w => t.includes(w))) return true;
+  // No keyword found — duration pe depend karo (short = probably music)
+  return null; // neutral
+}
+
+function validateMusic(title, durationSeconds) {
+  const titleCheck = isMusicByTitle(title);
+  const durValid   = isDurationValid(durationSeconds);
+
+  // Block keywords mein hai → reject
+  if (titleCheck === false) {
+    return { ok: false, reason: `Yeh music nahi lagta: "${title}". Sirf songs add kar sakte ho.` };
+  }
+  // Duration bahut zyada hai → reject
+  if (!durValid) {
+    const mins = durationSeconds ? Math.round(durationSeconds / 60) : '?';
+    return { ok: false, reason: `Video bahut lamba hai (${mins} min). Sirf songs add kar sakte ho (max 10 min).` };
+  }
+  return { ok: true };
+}
+
 // ── YT SEARCH — Results dikhao (PREMIUM ONLY) ──
 app.post('/api/yt-search', premiumAuth, async (req, res) => {
   try {
@@ -573,20 +635,34 @@ app.post('/api/yt-search', premiumAuth, async (req, res) => {
     if (!searchRes.ok) throw new Error('YouTube search fail hua');
     const searchData = await searchRes.json();
 
-    const results = (searchData?.contents || [])
+    const allResults = (searchData?.contents || [])
       .filter(c => c?.video?.videoId)
+      .map(c => {
+        const durationSecs = parseDurationToSeconds(c.video.lengthText);
+        return {
+          videoId:       c.video.videoId,
+          title:         c.video.title       || 'Unknown',
+          channel:       c.video.channelName || 'Unknown',
+          duration:      c.video.lengthText  || '',
+          durationSecs,
+          thumbnail:     `https://i.ytimg.com/vi/${c.video.videoId}/mqdefault.jpg`,
+          views:         c.video.viewCountText || ''
+        };
+      });
+
+    // Music filter — block non-music videos
+    const results = allResults
+      .filter(v => {
+        const check = validateMusic(v.title, v.durationSecs);
+        return check.ok;
+      })
       .slice(0, 5)
-      .map(c => ({
-        videoId:   c.video.videoId,
-        title:     c.video.title     || 'Unknown',
-        channel:   c.video.channelName || 'Unknown',
-        duration:  c.video.lengthText || '',
-        thumbnail: `https://i.ytimg.com/vi/${c.video.videoId}/mqdefault.jpg`,
-        views:     c.video.viewCountText || ''
-      }));
+      .map(({ durationSecs, ...v }) => v); // durationSecs frontend ko nahi chahiye
 
     if (!results.length) {
-      return res.status(404).json({ success: false, error: 'Koi result nahi mila' });
+      // Agar sab filter ho gaye — unfiltered top 3 dikhao with warning
+      const fallback = allResults.slice(0, 3).map(({ durationSecs, ...v }) => v);
+      return res.json({ success: true, results: fallback, warning: 'Music results nahi mile, yeh related videos hain' });
     }
     res.json({ success: true, results });
   } catch (err) {
@@ -666,6 +742,13 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
     const rapidData = await rapidRes.json();
     if (rapidData.status !== 'ok' || !rapidData.link) {
       throw new Error('MP3 link nahi mila: ' + (rapidData.msg || 'Unknown error'));
+    }
+
+    // Music validation — duration + title check
+    const durationSecs = rapidData.duration || null;
+    const musicCheck   = validateMusic(title, durationSecs);
+    if (!musicCheck.ok) {
+      return res.status(422).json({ success: false, error: musicCheck.reason, code: 'NOT_MUSIC' });
     }
 
     const mp3Url   = rapidData.link;
