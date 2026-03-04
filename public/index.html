@@ -1487,7 +1487,6 @@ async function boot(){
   aud.addEventListener('ended',onEnded);
   aud.addEventListener('play',()=>setPlayUI(true));
   aud.addEventListener('pause',()=>setPlayUI(false));
-  // Seekbar aur time notification mein dikhane ke liye
   aud.addEventListener('loadedmetadata',()=>updateMediaPosition());
   aud.addEventListener('durationchange',()=>updateMediaPosition());
   if('mediaSession' in navigator){
@@ -1495,9 +1494,9 @@ async function boot(){
     navigator.mediaSession.setActionHandler('pause',()=>aud.pause());
     navigator.mediaSession.setActionHandler('nexttrack',nextS);
     navigator.mediaSession.setActionHandler('previoustrack',prevS);
-    navigator.mediaSession.setActionHandler('seekto',(d)=>{if(d.seekTime&&aud.duration){aud.currentTime=d.seekTime;updateMediaPosition();}});
-    navigator.mediaSession.setActionHandler('seekbackward',(d)=>{aud.currentTime=Math.max(0,aud.currentTime-(d.seekOffset||10));updateMediaPosition();});
-    navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});
+    try{navigator.mediaSession.setActionHandler('seekto',(d)=>{if(d.seekTime!=null&&aud.duration){aud.currentTime=Math.min(d.seekTime,aud.duration);updateMediaPosition();}});}catch(_){}
+    try{navigator.mediaSession.setActionHandler('seekbackward',(d)=>{aud.currentTime=Math.max(0,aud.currentTime-(d.seekOffset||10));updateMediaPosition();});}catch(_){}
+    try{navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});}catch(_){}
   }
 
   // visibilitychange — app foreground mein aane par state refresh
@@ -1646,27 +1645,16 @@ function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;cu
       {src: s.thumb, sizes:'256x256', type:'image/jpeg'},
       {src: s.thumb, sizes:'512x512', type:'image/jpeg'}
     ] : [];
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title:  s.title  || 'Unknown',
-      artist: s.artist || 'TubeTune',
-      album:  'TubeTune',
-      artwork
-    });
+    navigator.mediaSession.metadata = new MediaMetadata({title:s.title||'Unknown',artist:s.artist||'TubeTune',album:'TubeTune',artwork});
     navigator.mediaSession.playbackState = 'playing';
-    // Duration milne ke baad seekbar show karo
-    const initPos = () => {
-      if(aud.duration && isFinite(aud.duration)){
-        try{
-          navigator.mediaSession.setPositionState({
-            duration: aud.duration,
-            playbackRate: aud.playbackRate || 1,
-            position: Math.min(aud.currentTime, aud.duration)
-          });
-        }catch(_){}
-      }
-    };
-    aud.addEventListener('loadedmetadata', initPos, {once: true});
-    aud.addEventListener('durationchange', initPos, {once: true});
+    // iOS seekbar ke liye seekbackward + seekforward ZAROORI hai
+    try{navigator.mediaSession.setActionHandler('seekbackward',(d)=>{aud.currentTime=Math.max(0,aud.currentTime-(d.seekOffset||10));updateMediaPosition();});}catch(_){}
+    try{navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});}catch(_){}
+    try{navigator.mediaSession.setActionHandler('seekto',(d)=>{if(d.seekTime!=null&&aud.duration){aud.currentTime=Math.min(d.seekTime,aud.duration);updateMediaPosition();}});}catch(_){}
+    // Duration available hone ke baad seekbar position set karo
+    const trySetPos=()=>{const dur=aud.duration;if(dur&&isFinite(dur)&&dur>0){try{navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:Math.min(Math.max(0,aud.currentTime),dur)});}catch(_){}}};
+    if(aud.duration&&isFinite(aud.duration)&&aud.duration>0){trySetPos();}
+    else{aud.addEventListener('loadedmetadata',trySetPos,{once:true});aud.addEventListener('durationchange',trySetPos,{once:true});}
   }}
 function showMini(){miniUp=true;document.getElementById('mini').classList.add('up');document.getElementById('shufFab').classList.remove('no-mini');}
 function closeMini(){aud.pause();miniUp=false;document.getElementById('mini').classList.remove('up');document.getElementById('shufFab').classList.add('no-mini');}
@@ -1680,13 +1668,12 @@ function setPlayUI(isPlaying){playing=isPlaying;const ico=isPlaying?`<rect x="6"
 }
 
 function updateMediaPosition(){
-  if(!('mediaSession' in navigator)||!aud.duration||!isFinite(aud.duration)||aud.duration<=0)return;
+  if(!('mediaSession' in navigator))return;
+  const dur=aud.duration;
+  if(!dur||!isFinite(dur)||dur<=0)return;
+  const pos=Math.min(Math.max(0,aud.currentTime),dur);
   try{
-    navigator.mediaSession.setPositionState({
-      duration:     aud.duration,
-      playbackRate: aud.playbackRate||1,
-      position:     Math.min(Math.max(0, aud.currentTime), aud.duration)
-    });
+    navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});
   }catch(_){}
   // Android native seekbar update — har 2 sec mein
   if(window.AndroidBridge && curIdx>=0){
