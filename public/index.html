@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TubeTune</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+:root {
+  --bg: #07080F;
+  --s1: #0D0F1C;
+  --s2: #131627;
+  --s3: #1A1E35;
+  --s4: #222743;
+  --bd: rgba(255,255,255,0.055);
+  --bd2: rgba(255,255,255,0.11);
+  --bd3: rgba(255,255,255,0.18);
+  --p: #6C5CE7;
+  --p2: #A29BFE;
+  --acc: #FD79A8;
+  --acc2: #FDCB6E;
+  --grn: #00CEC9;
+  --red: #FF7675;
+  --gold: #F9CA24;
+  --gold2: #F0932B;
+  --tx: #ECEEFF;
+  --tx2: #7B82A8;
+  --tx3: #3D4268;
+  --grad: linear-gradient(135deg, #6C5CE7 0%, #FD79A8 100%);
+  --grad-gold: linear-gradient(135deg, #F9CA24 0%, #F0932B 100%);
+  --sh: 0 20px 60px rgba(0,0,0,0.6);
+  --r: 20px; --r2: 14px; --r3: 10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{overscroll-behavior:none}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;user-select:none}
+body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");pointer-events:none}
+.glow-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.ga{position:absolute;border-radius:50%;filter:blur(90px);transition:all 2s cubic-bezier(.4,0,.2,1)}
+.ga-1{width:380px;height:380px;top:-140px;right:-80px;background:var(--p);opacity:.07}
+.ga-2{width:320px;height:320px;bottom:-100px;left:-80px;background:var(--acc);opacity:.06}
+.ga-3{width:200px;height:200px;top:40%;left:30%;background:var(--acc2);opacity:.03}
+
+/* ── AUTH ── */
+.auth-root{position:fixed;inset:0;z-index:600;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.auth-root.hidden{display:none}
+.auth-root::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 10%,rgba(108,92,231,.15) 0%,transparent 55%),radial-gradient(ellipse at 80% 90%,rgba(253,121,168,.12) 0%,transparent 55%);pointer-events:none}
+.auth-hero{flex-shrink:0;padding:60px 32px 32px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;z-index:1}
+.auth-icon-wrap{width:88px;height:88px;border-radius:26px;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 40px rgba(108,92,231,.45),0 0 0 1px rgba(255,255,255,.08);position:relative}
+.auth-brand{font-size:30px;font-weight:900;letter-spacing:-1.5px;color:var(--tx)}
+.auth-brand em{font-style:normal;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.auth-tagline{font-size:14px;color:var(--tx2);margin-top:6px;font-weight:400}
+.auth-card-area{flex:1;position:relative;overflow:hidden}
+.auth-slide{position:absolute;inset:0;overflow-y:auto;padding:0 20px 40px;transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .4s}
+.auth-slide::-webkit-scrollbar{display:none}
+.auth-card{background:rgba(13,15,28,.85);border:1px solid var(--bd2);border-radius:32px;padding:30px 24px 26px;backdrop-filter:blur(28px);box-shadow:0 32px 80px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.05) inset;position:relative;overflow:hidden}
+.auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent)}
+.auth-card-title{font-size:24px;font-weight:900;letter-spacing:-.6px;color:var(--tx);margin-bottom:5px}
+.auth-card-sub{font-size:13px;color:var(--tx2);margin-bottom:24px;line-height:1.5;font-weight:400}
+.auth-msg{padding:10px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-bottom:14px;display:none;gap:8px;align-items:center}
+.auth-msg.show{display:flex}
+.auth-msg.ok{background:rgba(0,206,201,.1);border:1px solid rgba(0,206,201,.2);color:var(--grn)}
+.auth-msg.err{background:rgba(255,118,117,.1);border:1px solid rgba(255,118,117,.2);color:var(--red)}
+.field{margin-bottom:14px}
+.field-lbl{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;display:flex;align-items:center;gap:5px}
+.field-wrap{position:relative}
+.field-inp{width:100%;background:var(--s2);border:1.5px solid var(--bd2);border-radius:var(--r2);padding:14px 46px 14px 18px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:500;color:var(--tx);transition:border-color .2s,background .2s,box-shadow .2s;outline:none}
+.field-inp:focus{border-color:var(--p);background:var(--s3);box-shadow:0 0 0 4px rgba(108,92,231,.1)}
+.field-inp::placeholder{color:var(--tx3);font-weight:400}
+.field-ico{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--tx3);pointer-events:none}
+.field-toggle{position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--tx3);cursor:pointer;display:flex;align-items:center;padding:3px;transition:color .15s}
+.field-toggle:hover{color:var(--p2)}
+.field-err-txt{font-size:11px;color:var(--red);margin-top:5px;display:none;align-items:center;gap:4px}
+.field-err-txt.show{display:flex}
+.strength{margin-top:8px;display:none}
+.strength.show{display:block}
+.strength-track{height:3px;background:var(--s4);border-radius:3px;overflow:hidden;margin-bottom:5px}
+.strength-bar{height:100%;border-radius:3px;transition:all .35s}
+.strength-txt{font-size:11px;color:var(--tx3)}
+.auth-btn{width:100%;padding:16px;background:var(--grad);border:none;border-radius:18px;color:#fff;font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;letter-spacing:.3px;cursor:pointer;margin-top:10px;box-shadow:0 10px 32px rgba(108,92,231,.45);transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden}
+.auth-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.14) 0%,transparent 60%)}
+.auth-btn:hover{transform:translateY(-2px);box-shadow:0 14px 42px rgba(108,92,231,.55)}
+.auth-btn:active{transform:scale(.98)}
+.auth-btn:disabled{opacity:.5;cursor:not-allowed}
+.auth-btn .spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spinning .7s linear infinite;display:none}
+.auth-btn.ld .spin{display:block}
+.auth-btn.ld .btn-txt{display:none}
+.auth-switch{text-align:center;margin-top:18px;font-size:13px;color:var(--tx2)}
+.auth-switch b{color:var(--p2);font-weight:600;cursor:pointer}
+.auth-switch b:hover{text-decoration:underline}
+@keyframes ringPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.25;transform:scale(1.06)}}
+
+/* ── APP ── */
+.app{position:relative;z-index:1;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;display:none}
+.app.on{display:flex}
+.hdr{padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:relative;z-index:10}
+.hdr-logo{display:flex;align-items:center;gap:10px}
+.hdr-logo-icon{width:36px;height:36px;border-radius:12px;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(108,92,231,.4)}
+.hdr-logo-name{font-size:20px;font-weight:900;letter-spacing:-1px;color:var(--tx)}
+.hdr-logo-name em{font-style:normal;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.icon-btn{width:36px;height:36px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r3);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx2);transition:all .15s}
+.icon-btn:hover{background:var(--s3);color:var(--tx)}
+.icon-btn.spin svg{animation:spinning .8s linear infinite}
+@keyframes spinning{to{transform:rotate(360deg)}}
+.av-btn{width:36px;height:36px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;cursor:pointer;box-shadow:0 2px 12px rgba(108,92,231,.4);border:2px solid rgba(255,255,255,.12);transition:transform .15s;position:relative}
+.av-btn:hover{transform:scale(1.07)}
+/* Premium crown on avatar */
+.av-crown{position:absolute;top:-8px;right:-4px;display:none;width:16px;height:16px;background:var(--grad-gold);border-radius:50%;display:flex;align-items:center;justify-content:center;display:none}
+.av-crown.show{display:flex}
+
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:196px}
+.scroll::-webkit-scrollbar{width:0}
+.pg{display:none;animation:pgIn .3s cubic-bezier(.4,0,.2,1)}
+.pg.on{display:block}
+@keyframes pgIn{from{opacity:0;transform:translateY(10px)}to{opacity:1}}
+
+/* ── SEARCH ── */
+.search-bar{padding:4px 16px 14px;position:sticky;top:0;z-index:9;background:linear-gradient(to bottom,var(--bg) 75%,transparent)}
+.search-inner{display:flex;align-items:center;gap:10px;background:var(--s1);border:1.5px solid var(--bd2);border-radius:16px;padding:11px 16px;transition:border-color .2s,box-shadow .2s}
+.search-inner:focus-within{border-color:rgba(108,92,231,.5);box-shadow:0 0 0 3px rgba(108,92,231,.08)}
+.search-inner svg{color:var(--tx3);flex-shrink:0}
+.search-inner input{flex:1;background:none;border:none;outline:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:500;color:var(--tx)}
+.search-inner input::placeholder{color:var(--tx3)}
+.s-clr{width:22px;height:22px;border-radius:50%;background:var(--s4);border:none;color:var(--tx2);cursor:pointer;display:none;align-items:center;justify-content:center}
+.s-clr.on{display:flex}
+
+/* ── HERO ── */
+.hero-wrap{padding:0 16px 18px}
+.hero-card{background:var(--s1);border:1px solid var(--bd2);border-radius:26px;padding:24px;position:relative;overflow:hidden;min-height:155px}
+.hero-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 85% 30%,rgba(108,92,231,.18) 0%,transparent 65%),radial-gradient(ellipse at 15% 85%,rgba(253,121,168,.12) 0%,transparent 60%)}
+.hero-greeting{font-size:12px;font-weight:600;color:var(--p2);letter-spacing:.5px;margin-bottom:6px;position:relative}
+.hero-title{font-size:28px;font-weight:900;letter-spacing:-1.2px;line-height:1.05;color:var(--tx);position:relative;margin-bottom:7px}
+.hero-title em{font-style:normal;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:13px;color:var(--tx2);position:relative;font-weight:400}
+.hero-stats{display:flex;align-items:center;gap:8px;margin-top:18px;position:relative;flex-wrap:wrap}
+.hero-pill{display:inline-flex;align-items:center;gap:7px;background:rgba(0,206,201,.1);border:1px solid rgba(0,206,201,.2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--grn)}
+.hero-pulse{width:7px;height:7px;border-radius:50%;background:var(--grn);box-shadow:0 0 10px var(--grn);animation:pulse 2s ease infinite;flex-shrink:0}
+.hero-premium-pill{display:none;align-items:center;gap:7px;background:rgba(249,202,36,.1);border:1px solid rgba(249,202,36,.25);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--gold)}
+.hero-premium-pill.show{display:inline-flex}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hero-vinyl{position:absolute;right:18px;top:50%;transform:translateY(-50%);width:88px;height:88px;opacity:.08}
+
+/* ── SECTION ── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:0 16px;margin-bottom:12px}
+.sec-title{font-size:15px;font-weight:800;letter-spacing:-.3px;color:var(--tx)}
+
+/* ── RECENT ── */
+.recent-row{display:flex;gap:12px;padding:0 16px 14px;overflow-x:auto}
+.recent-row::-webkit-scrollbar{display:none}
+.rc-card{flex-shrink:0;width:118px;cursor:pointer;transition:transform .18s}
+.rc-card:active{transform:scale(.94)}
+.rc-art{width:118px;height:118px;border-radius:18px;background:var(--s3);overflow:hidden;margin-bottom:9px;position:relative;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.rc-art img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.rc-play-ov{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .18s;border-radius:18px}
+.rc-card:hover .rc-play-ov,.rc-card:active .rc-play-ov{opacity:1}
+.rc-play-ring{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center}
+.rc-name{font-size:12px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-artist{font-size:11px;color:var(--tx3);margin-top:1px}
+
+/* ── CHIPS ── */
+.chips-row{display:flex;gap:8px;padding:0 16px 14px;overflow-x:auto}
+.chips-row::-webkit-scrollbar{display:none}
+.chip{padding:7px 18px;background:var(--s2);border:1.5px solid var(--bd2);border-radius:50px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--tx2);cursor:pointer;white-space:nowrap;transition:all .18s;flex-shrink:0}
+.chip:hover{border-color:var(--bd3);color:var(--tx)}
+.chip.on{background:rgba(108,92,231,.14);border-color:rgba(108,92,231,.45);color:var(--p2)}
+
+/* ── SONGS LIST ── */
+.songs-wrap{display:flex;flex-direction:column;gap:1px;padding:0 10px}
+.s-row{display:flex;align-items:center;gap:12px;padding:10px 10px 10px 8px;border-radius:var(--r2);cursor:pointer;transition:background .15s;position:relative}
+.s-row:hover{background:var(--s2)}
+.s-row:active{background:var(--s3)}
+.s-row.now-on{background:rgba(108,92,231,.09)}
+.s-row.now-on::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;border-radius:2px;background:var(--grad)}
+.s-num{font-size:12px;color:var(--tx3);font-family:'DM Mono',monospace;width:18px;text-align:center;flex-shrink:0}
+.s-thumb{width:52px;height:52px;border-radius:14px;background:var(--s3);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.s-thumb img{width:100%;height:100%;object-fit:cover}
+.s-ov{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;border-radius:14px}
+.s-row:hover .s-ov,.s-row.now-on .s-ov{opacity:1}
+.eq-bars{display:flex;align-items:flex-end;gap:2px;height:14px;width:16px}
+.eq-b{width:3px;background:var(--p2);border-radius:2px;animation:eqAnim .8s ease-in-out infinite alternate}
+.eq-b:nth-child(1){animation-duration:.55s;height:55%}
+.eq-b:nth-child(2){animation-duration:.8s;height:100%}
+.eq-b:nth-child(3){animation-duration:.5s;height:40%}
+@keyframes eqAnim{to{height:15%}}
+.eq-bars.paused .eq-b{animation-play-state:paused}
+.s-info{flex:1;min-width:0}
+.s-name{font-size:14px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.s-art{font-size:12px;color:var(--tx2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-dur{font-size:11px;color:var(--tx3);font-family:'DM Mono',monospace;flex-shrink:0}
+.s-heart{width:32px;height:32px;background:none;border:none;color:var(--tx3);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all .15s;flex-shrink:0}
+.s-heart:hover,.s-heart.on{color:var(--acc)}
+.s-heart.on svg{fill:var(--acc)}
+
+/* ── STATES ── */
+.state-empty{display:flex;flex-direction:column;align-items:center;padding:56px 24px;text-align:center}
+.state-icon{width:68px;height:68px;border-radius:22px;background:var(--s2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:var(--tx3)}
+.state-empty h3{font-size:15px;font-weight:800;color:var(--tx2);margin-bottom:6px}
+.state-empty p{font-size:13px;color:var(--tx3);line-height:1.6}
+.load-box{display:flex;flex-direction:column;align-items:center;padding:60px 24px}
+.loader{width:40px;height:40px;border:3px solid var(--s4);border-top-color:var(--p);border-radius:50%;animation:spinning .85s linear infinite;margin-bottom:14px}
+.load-txt{font-size:13px;color:var(--tx3)}
+.err-card{margin:16px;background:rgba(255,118,117,.07);border:1px solid rgba(255,118,117,.18);border-radius:var(--r);padding:20px;text-align:center;color:var(--red);display:none}
+.err-card h4{font-size:14px;font-weight:800;margin-bottom:6px}
+
+/* ── FAVS ── */
+.favs-hdr{padding:18px 16px 10px}
+.favs-hdr h2{font-size:24px;font-weight:900;letter-spacing:-.8px;color:var(--tx)}
+.favs-hdr h2 em{font-style:normal;color:var(--acc)}
+.favs-hdr p{font-size:13px;color:var(--tx2);margin-top:4px}
+
+/* ── NOW PLAYING ── */
+.np-page{padding:0 20px}
+.np-topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 0 6px}
+.np-lbl{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--tx3);flex:1;text-align:center}
+.np-close{width:32px;height:32px;border-radius:50%;background:var(--s2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx3);transition:all .15s}
+.np-close:hover{background:rgba(255,118,117,.12);color:var(--red);border-color:rgba(255,118,117,.25)}
+.np-spacer{width:32px}
+.np-art-outer{position:relative;width:230px;height:230px;margin:16px auto 24px}
+.np-ring{position:absolute;inset:-13px;border-radius:50%;background:conic-gradient(var(--p) var(--prog,0%),var(--s3) 0%);transition:background .3s}
+.np-ring::before{content:'';position:absolute;inset:7px;background:var(--bg);border-radius:50%}
+.np-art{position:relative;z-index:1;width:100%;height:100%;border-radius:50%;background:var(--s3);overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 24px 72px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.05)}
+.np-art img{width:100%;height:100%;object-fit:cover}
+.np-art.spin{animation:vinylSpin 10s linear infinite}
+@keyframes vinylSpin{to{transform:rotate(360deg)}}
+.np-info{text-align:center;margin-bottom:20px}
+.np-title{font-size:22px;font-weight:900;letter-spacing:-.6px;line-height:1.2;color:var(--tx)}
+.np-artist{font-size:14px;color:var(--tx2);margin-top:5px;font-weight:500}
+.np-badge{display:inline-flex;align-items:center;background:rgba(0,206,201,.1);color:var(--grn);border-radius:8px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:.5px;font-family:'DM Mono',monospace;margin-top:9px}
+.np-actions{display:flex;justify-content:center;gap:12px;margin-bottom:20px}
+.np-action{width:44px;height:44px;border-radius:50%;background:var(--s2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx2);transition:all .18s}
+.np-action:hover{background:var(--s3);color:var(--tx)}
+.np-action.on{background:rgba(253,121,168,.1);border-color:rgba(253,121,168,.3);color:var(--acc)}
+.np-action.on svg{fill:var(--acc)}
+.np-prog{margin-bottom:20px}
+.np-track{width:100%;height:4px;background:var(--s4);border-radius:4px;cursor:pointer;position:relative;overflow:visible}
+.np-bar{height:100%;background:var(--grad);border-radius:4px;width:0%;transition:width .35s linear;position:relative}
+.np-bar::after{content:'';position:absolute;right:-7px;top:50%;transform:translateY(-50%);width:16px;height:16px;border-radius:50%;background:var(--p2);box-shadow:0 0 12px rgba(108,92,231,.7),0 0 0 3px rgba(13,15,28,1)}
+.np-times{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;font-family:'DM Mono',monospace;color:var(--tx3)}
+.np-ctrl{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:18px}
+.ctrl-btn{background:none;border:none;color:var(--tx2);cursor:pointer;border-radius:50%;width:46px;height:46px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.ctrl-btn:hover{color:var(--tx);background:var(--s2)}
+.ctrl-btn.on{color:var(--p2)}
+.ctrl-play{width:68px;height:68px;background:var(--grad);border:none;border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 32px rgba(108,92,231,.5);transition:all .18s}
+.ctrl-play:hover{transform:scale(1.05);box-shadow:0 12px 40px rgba(108,92,231,.6)}
+.ctrl-play:active{transform:scale(.95)}
+.np-vol{display:flex;align-items:center;gap:10px}
+.vol-ico{color:var(--tx3);flex-shrink:0}
+.vol-track{flex:1;height:4px;background:var(--s4);border-radius:4px;cursor:pointer}
+.vol-fill{height:100%;background:var(--p);border-radius:4px;width:80%}
+.up-next{margin-top:24px;padding-bottom:8px}
+.un-title{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:10px}
+
+/* ── BOTTOM NAV ── */
+.bot-nav{position:fixed;bottom:0;left:0;right:0;z-index:99;background:rgba(7,8,15,.95);backdrop-filter:blur(28px) saturate(1.5);border-top:1px solid var(--bd);display:flex;padding:8px 0 max(8px,env(safe-area-inset-bottom));height:68px}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--tx3);font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:.3px;transition:color .15s;position:relative}
+.nav-btn.on{color:var(--p2)}
+.nav-btn.on::after{content:'';position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:30px;height:3px;background:var(--grad);border-radius:0 0 4px 4px}
+.nav-btn svg{transition:transform .2s}
+.nav-btn.on svg{transform:scale(1.12)}
+.nav-badge{position:absolute;top:3px;right:calc(50% - 17px);background:var(--acc);color:#fff;font-size:8px;font-weight:800;padding:1px 5px;border-radius:10px;line-height:1.6;display:none}
+
+/* ── MINI PLAYER ── */
+.mini-player{position:fixed;bottom:68px;left:0;right:0;z-index:98;background:rgba(10,11,22,.97);backdrop-filter:blur(32px) saturate(1.5);border-top:1px solid rgba(108,92,231,.2);display:flex;align-items:center;gap:12px;padding:10px 12px 10px 14px;transform:translateY(100%);transition:transform .38s cubic-bezier(.4,0,.2,1)}
+.mini-player.up{transform:translateY(0)}
+.mini-player.hidden-np{transform:translateY(100%)!important}
+.mini-prog-bar{position:absolute;top:0;left:0;right:0;height:2px;background:var(--s4)}
+.mini-fill{height:100%;background:var(--grad);width:0%;transition:width .35s linear}
+.mini-thumb{width:44px;height:44px;border-radius:var(--r3);background:var(--s3);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.mini-thumb img{width:100%;height:100%;object-fit:cover}
+.mini-text{flex:1;min-width:0;cursor:pointer}
+.mini-title{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx)}
+.mini-art{font-size:11px;color:var(--tx3);margin-top:1px}
+.mini-btns{display:flex;align-items:center;gap:2px}
+.mini-btn{width:36px;height:36px;background:none;border:none;color:var(--tx2);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.mini-btn:hover{color:var(--tx)}
+.mini-btn.play-btn{width:42px;height:42px;background:var(--grad);color:#fff;box-shadow:0 2px 12px rgba(108,92,231,.4);border-radius:50%}
+.mini-btn.play-btn:hover{transform:scale(1.06)}
+.mini-close-btn{width:28px;height:28px;border-radius:50%;background:var(--s3);border:none;color:var(--tx3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:2px;transition:all .15s}
+.mini-close-btn:hover{background:rgba(255,118,117,.15);color:var(--red)}
+
+/* ── SHUFFLE FAB ── */
+.shuf-fab{position:fixed;right:16px;z-index:97;width:48px;height:48px;background:var(--grad);border:none;border-radius:50%;color:#fff;cursor:pointer;box-shadow:0 6px 24px rgba(108,92,231,.55);display:none;align-items:center;justify-content:center;transition:all .2s;bottom:152px}
+.shuf-fab.visible{display:flex}
+.shuf-fab.no-mini{bottom:84px}
+.shuf-fab.np-page{bottom:84px}
+.shuf-fab:hover{transform:scale(1.08)}
+.shuf-fab:active{transform:scale(.93)}
+
+/* ── TOASTS ── */
+.toasts{position:fixed;top:62px;right:12px;z-index:1000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--bd2);border-radius:14px;padding:11px 15px;font-size:13px;font-weight:500;min-width:180px;max-width:265px;box-shadow:var(--sh);animation:toastIn .25s cubic-bezier(.4,0,.2,1)}
+@keyframes toastIn{from{opacity:0;transform:translateX(16px)}to{opacity:1}}
+.toast.ok{border-color:rgba(0,206,201,.3)}
+.toast.err{border-color:rgba(255,118,117,.3)}
+.toast.inf{border-color:rgba(108,92,231,.3)}
+.toast.gold{border-color:rgba(249,202,36,.3)}
+.toast-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.toast.ok .toast-dot{background:var(--grn)}
+.toast.err .toast-dot{background:var(--red)}
+.toast.inf .toast-dot{background:var(--p2)}
+.toast.gold .toast-dot{background:var(--gold)}
+
+/* ── PROFILE SHEET ── */
+.overlay{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);display:none;align-items:flex-end}
+.overlay.open{display:flex}
+.sheet{width:100%;max-height:88vh;overflow-y:auto;background:var(--s1);border:1px solid var(--bd2);border-radius:28px 28px 0 0;animation:sheetUp .32s cubic-bezier(.4,0,.2,1);box-shadow:0 -20px 60px rgba(0,0,0,.6)}
+.sheet::-webkit-scrollbar{display:none}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-handle{width:36px;height:4px;background:var(--s4);border-radius:2px;margin:14px auto 0}
+.prof-hdr{display:flex;align-items:center;gap:16px;padding:22px 22px 16px;border-bottom:1px solid var(--bd);margin-bottom:4px}
+.prof-av{width:64px;height:64px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#fff;flex-shrink:0;box-shadow:0 8px 28px rgba(108,92,231,.5);border:3px solid rgba(255,255,255,.12);position:relative;overflow:hidden}
+.prof-av::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.2) 0%,transparent 60%)}
+.prof-name{font-size:18px;font-weight:800;letter-spacing:-.3px;color:var(--tx);margin-bottom:2px}
+.prof-joined{display:inline-flex;align-items:center;gap:5px;margin-top:6px;background:rgba(108,92,231,.1);border:1px solid rgba(108,92,231,.2);border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:var(--p2)}
+.prof-email{font-size:12px;color:var(--tx3);font-family:'DM Mono',monospace;margin-top:2px}
+
+/* Subscription info card in profile */
+.prof-sub-card{display:none;margin:0 16px 4px;background:linear-gradient(135deg,rgba(249,202,36,.07) 0%,rgba(240,147,43,.05) 100%);border:1px solid rgba(249,202,36,.2);border-radius:16px;padding:14px 16px;position:relative;overflow:hidden}
+.prof-sub-card.show{display:block}
+.prof-sub-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 90% 0%,rgba(249,202,36,.08) 0%,transparent 60%);pointer-events:none}
+.prof-sub-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.prof-sub-badge{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--gold)}
+.prof-sub-plan{font-size:15px;font-weight:800;color:var(--tx)}
+.prof-sub-timer{margin-top:8px}
+.prof-sub-timer-lbl{font-size:11px;color:var(--tx3);margin-bottom:6px;font-weight:600}
+.prof-sub-countdown{display:flex;gap:8px}
+.count-unit{display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;min-width:44px}
+.count-num{font-size:18px;font-weight:900;color:var(--tx);font-family:'DM Mono',monospace;line-height:1}
+.count-lbl{font-size:9px;color:var(--tx3);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-top:2px}
+.prof-sub-exp{font-size:11px;color:var(--tx3);margin-top:8px;display:flex;align-items:center;gap:5px}
+
+.prof-premium-badge{display:none;align-items:center;gap:5px;margin-top:6px;background:rgba(249,202,36,.1);border:1px solid rgba(249,202,36,.25);border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700;color:var(--gold)}
+.prof-premium-badge.show{display:inline-flex}
+.sheet-menu{padding:14px 12px 8px}
+.menu-item{display:flex;align-items:center;gap:14px;padding:13px 12px;border-radius:16px;cursor:pointer;transition:background .15s}
+.menu-item:hover{background:var(--s2)}
+.menu-ico{width:40px;height:40px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.menu-ico.purple{background:rgba(108,92,231,.12);color:var(--p2)}
+.menu-ico.pink{background:rgba(253,121,168,.12);color:var(--acc)}
+.menu-ico.gold{background:rgba(249,202,36,.12);color:var(--gold)}
+.menu-ico.red{background:rgba(255,118,117,.12);color:var(--red)}
+.menu-txt{flex:1}
+.menu-lbl{font-size:14px;font-weight:700;color:var(--tx)}
+.menu-sub{font-size:12px;color:var(--tx3);margin-top:2px}
+.menu-arrow{color:var(--tx3)}
+.sheet-divider{height:1px;background:var(--bd);margin:6px 20px}
+.edit-view{padding:20px;display:none}
+.edit-view.open{display:block}
+.edit-back{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--tx2);cursor:pointer;margin-bottom:20px;transition:color .15s;width:fit-content}
+.edit-back:hover{color:var(--tx)}
+.edit-title{font-size:20px;font-weight:900;letter-spacing:-.4px;color:var(--tx);margin-bottom:18px}
+.edit-msg{font-size:12px;padding:10px 14px;border-radius:12px;margin-bottom:14px;display:none;font-weight:500}
+.edit-msg.show{display:block}
+.edit-msg.ok{background:rgba(0,206,201,.1);color:var(--grn);border:1px solid rgba(0,206,201,.2)}
+.edit-msg.err{background:rgba(255,118,117,.1);color:var(--red);border:1px solid rgba(255,118,117,.2)}
+.edit-field{margin-bottom:14px}
+.edit-lbl{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--tx3);margin-bottom:7px}
+.edit-inp{width:100%;background:var(--s2);border:1.5px solid var(--bd2);border-radius:var(--r2);padding:13px 44px 13px 16px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:500;color:var(--tx);outline:none;transition:border-color .2s,box-shadow .2s}
+.edit-inp:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(108,92,231,.1)}
+.edit-inp::placeholder{color:var(--tx3);font-weight:400}
+.edit-inp-wrap{position:relative}
+.edit-toggle{position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--tx3);cursor:pointer;display:flex;align-items:center;transition:color .15s}
+.edit-toggle:hover{color:var(--p2)}
+.edit-btn{width:100%;padding:14px;background:var(--grad);border:none;border-radius:var(--r2);color:#fff;font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;box-shadow:0 6px 24px rgba(108,92,231,.35);transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px}
+.edit-btn:hover{transform:translateY(-1px);box-shadow:0 10px 32px rgba(108,92,231,.45)}
+.edit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.edit-btn .spin{width:17px;height:17px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spinning .7s linear infinite;display:none}
+.edit-btn.ld .spin{display:block}
+.edit-btn.ld .btn-txt{display:none}
+
+/* ══════════════════════════════════════════
+   PREMIUM PAGE
+══════════════════════════════════════════ */
+.premium-pg{padding:0 16px 20px}
+.prem-hdr{padding:10px 0 16px;display:flex;align-items:center;gap:0;position:relative}
+.prem-back-btn{width:36px;height:36px;border-radius:50%;background:var(--s2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx2);flex-shrink:0;transition:all .15s}
+.prem-back-btn:hover{background:var(--s3);color:var(--tx)}
+.prem-hdr-center{flex:1;text-align:center;padding-right:36px}
+.prem-hdr-icon{width:44px;height:44px;border-radius:14px;background:var(--grad-gold);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;box-shadow:0 6px 20px rgba(249,202,36,.3)}
+.prem-hdr h2{font-size:26px;font-weight:900;letter-spacing:-.8px}
+.prem-hdr h2 span{background:var(--grad-gold);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.prem-hdr p{font-size:13px;color:var(--tx2);margin-top:6px;line-height:1.5}
+
+/* Active subscription card */
+.prem-active-card{background:linear-gradient(135deg,rgba(249,202,36,.08) 0%,rgba(240,147,43,.08) 100%);border:1.5px solid rgba(249,202,36,.25);border-radius:22px;padding:20px;margin-bottom:18px;display:none;position:relative;overflow:hidden}
+.prem-active-card.show{display:block}
+.prem-active-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 90% 10%,rgba(249,202,36,.1) 0%,transparent 60%);pointer-events:none}
+.pac-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.pac-badge{display:flex;align-items:center;gap:8px;background:rgba(249,202,36,.15);border:1px solid rgba(249,202,36,.3);border-radius:50px;padding:6px 14px;font-size:12px;font-weight:800;color:var(--gold)}
+.pac-plan{font-size:20px;font-weight:900;color:var(--tx)}
+.pac-exp{font-size:12px;color:var(--tx2);margin-top:4px}
+.pac-features{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.pac-feat{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--tx2)}
+.pac-feat svg{color:var(--gold);flex-shrink:0}
+
+/* Plans loading */
+.plans-loader{display:flex;flex-direction:column;align-items:center;padding:40px 0}
+
+/* Plan cards */
+.plans-grid{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+.plan-card{background:var(--s1);border:1.5px solid var(--bd2);border-radius:22px;padding:20px;position:relative;overflow:hidden;transition:border-color .2s,transform .18s}
+.plan-card:hover{border-color:rgba(108,92,231,.35);transform:translateY(-2px)}
+.plan-card.popular{border-color:rgba(249,202,36,.3);background:linear-gradient(135deg,rgba(249,202,36,.05) 0%,rgba(240,147,43,.04) 100%)}
+.plan-popular-badge{position:absolute;top:12px;right:12px;background:var(--grad-gold);color:#fff;font-size:10px;font-weight:800;padding:3px 10px;border-radius:50px;letter-spacing:.5px;display:flex;align-items:center;gap:5px}
+.plan-name{font-size:18px;font-weight:900;color:var(--tx);margin-bottom:3px}
+.plan-desc{font-size:12px;color:var(--tx3);margin-bottom:14px;line-height:1.4}
+.plan-price{display:flex;align-items:baseline;gap:3px;margin-bottom:14px}
+.plan-price-amt{font-size:32px;font-weight:900;color:var(--tx)}
+.plan-price-cur{font-size:16px;font-weight:700;color:var(--tx2);margin-right:2px}
+.plan-price-dur{font-size:12px;color:var(--tx3);margin-left:4px}
+.plan-dur-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(108,92,231,.1);border:1px solid rgba(108,92,231,.2);border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--p2);margin-bottom:16px}
+.plan-buy-btn{width:100%;padding:13px;background:var(--grad);border:none;border-radius:14px;color:#fff;font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 6px 20px rgba(108,92,231,.35);transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px}
+.plan-buy-btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(108,92,231,.5)}
+.plan-buy-btn:active{transform:scale(.97)}
+.plan-buy-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.plan-buy-btn.gold-btn{background:var(--grad-gold);box-shadow:0 6px 20px rgba(249,202,36,.3)}
+.plan-buy-btn.gold-btn:hover{box-shadow:0 10px 28px rgba(249,202,36,.45)}
+.plan-buy-btn .btn-spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spinning .7s linear infinite;display:none}
+.plan-buy-btn.ld .btn-spin{display:block}
+.plan-buy-btn.ld .btn-lbl{display:none}
+
+/* No plans message */
+.no-plans-msg{text-align:center;padding:32px 20px;color:var(--tx3);font-size:13px;background:var(--s1);border:1px solid var(--bd);border-radius:18px;margin-bottom:18px}
+.no-plans-msg svg{color:var(--tx3);margin-bottom:10px}
+.no-plans-msg p{margin-top:6px;font-size:12px}
+
+/* Benefits list */
+.prem-benefits{margin-bottom:20px}
+.prem-ben-title{font-size:13px;font-weight:800;color:var(--tx2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px}
+.prem-ben-list{display:flex;flex-direction:column;gap:8px}
+.prem-ben-item{display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:500;color:var(--tx2);line-height:1.4}
+.prem-ben-ico{width:22px;height:22px;border-radius:6px;background:rgba(108,92,231,.12);display:flex;align-items:center;justify-content:center;color:var(--p2);flex-shrink:0;margin-top:1px}
+
+/* ══════════════════════════════════════════
+   YT FETCH BOX (Premium gated)
+══════════════════════════════════════════ */
+.yt-search-box{margin:6px 16px 14px;background:rgba(13,15,28,.9);border:1.5px solid rgba(253,121,168,.25);border-radius:20px;overflow:hidden;display:none;animation:pgIn .3s cubic-bezier(.4,0,.2,1)}
+.yt-search-box.show{display:block}
+.yt-result-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bd);transition:background .15s}
+.yt-result-item:last-child{border-bottom:none}
+.yt-result-item:hover,.yt-result-item:active{background:rgba(108,92,231,.08)}
+.yt-result-item-thumb{width:52px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--s3)}
+.yt-result-item-info{flex:1;min-width:0}
+.yt-result-item-title{font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.yt-result-item-meta{font-size:11px;color:var(--tx3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.yt-result-item-add{width:28px;height:28px;border-radius:50%;background:var(--grad);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.yt-search-hdr{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
+.yt-icon-wrap{width:32px;height:32px;border-radius:10px;background:rgba(253,121,168,.15);border:1px solid rgba(253,121,168,.25);display:flex;align-items:center;justify-content:center;color:var(--acc);flex-shrink:0}
+.yt-hdr-text{flex:1;min-width:0}
+.yt-hdr-title{font-size:13px;font-weight:800;color:var(--tx)}
+.yt-hdr-sub{font-size:11px;color:var(--tx3);margin-top:1px}
+.yt-fetch-btn{margin:12px 16px 14px;width:calc(100% - 32px);display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,rgba(253,121,168,.18) 0%,rgba(108,92,231,.18) 100%);border:1.5px solid rgba(253,121,168,.35);border-radius:14px;padding:13px 18px;color:var(--acc);font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
+.yt-fetch-btn:hover{background:linear-gradient(135deg,rgba(253,121,168,.28) 0%,rgba(108,92,231,.28) 100%);border-color:rgba(253,121,168,.55);transform:translateY(-1px)}
+.yt-fetch-btn:active{transform:scale(.97)}
+.yt-fetch-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.yt-fetch-btn .yt-spin{width:16px;height:16px;border:2px solid rgba(253,121,168,.3);border-top-color:var(--acc);border-radius:50%;animation:spinning .7s linear infinite;display:none}
+.yt-fetch-btn.fetching .yt-spin{display:block}
+.yt-fetch-btn.fetching .yt-btn-lbl{display:none}
+.yt-steps{padding:0 16px 14px;display:none;flex-direction:column;gap:8px}
+.yt-steps.show{display:flex}
+.yt-step{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;background:rgba(255,255,255,.03);font-size:12px;font-weight:600;color:var(--tx3);transition:all .3s}
+.yt-step.active{background:rgba(108,92,231,.08);color:var(--p2)}
+.yt-step.done{background:rgba(0,206,201,.07);color:var(--grn)}
+.yt-step.err{background:rgba(255,118,117,.07);color:var(--red)}
+.yt-step-dot{width:8px;height:8px;border-radius:50%;background:var(--tx3);flex-shrink:0;transition:background .3s}
+.yt-step.active .yt-step-dot{background:var(--p2);box-shadow:0 0 8px var(--p2);animation:pulse 1s ease infinite}
+.yt-step.done .yt-step-dot{background:var(--grn)}
+.yt-step.err .yt-step-dot{background:var(--red)}
+.yt-result-card{margin:0 16px 14px;background:rgba(0,206,201,.06);border:1px solid rgba(0,206,201,.2);border-radius:16px;padding:14px;display:none;align-items:center;gap:12px}
+.yt-result-card.show{display:flex}
+.yt-result-thumb{width:52px;height:52px;border-radius:12px;background:var(--s3);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.yt-result-thumb img{width:100%;height:100%;object-fit:cover}
+.yt-result-info{flex:1;min-width:0}
+.yt-result-title{font-size:13px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.yt-result-sub{font-size:11px;color:var(--tx2);margin-top:2px}
+.yt-play-now-btn{padding:8px 16px;background:var(--grad);border:none;border-radius:10px;color:#fff;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .18s;flex-shrink:0;box-shadow:0 4px 14px rgba(108,92,231,.4)}
+.yt-play-now-btn:hover{transform:scale(1.05)}
+.yt-no-match{margin:4px 16px 14px;display:none;align-items:center;gap:8px;background:rgba(255,118,117,.06);border:1px solid rgba(255,118,117,.15);border-radius:12px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--red)}
+.yt-no-match.show{display:flex}
+
+/* Premium lock box */
+.yt-premium-lock{margin:6px 16px 14px;background:linear-gradient(135deg,rgba(249,202,36,.06) 0%,rgba(240,147,43,.04) 100%);border:1.5px solid rgba(249,202,36,.2);border-radius:20px;padding:18px;display:none;text-align:center;animation:pgIn .3s cubic-bezier(.4,0,.2,1)}
+.yt-premium-lock.show{display:block}
+.yt-lock-icon{width:40px;height:40px;border-radius:12px;background:var(--grad-gold);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;box-shadow:0 4px 16px rgba(249,202,36,.25)}
+.yt-lock-title{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:4px}
+.yt-lock-sub{font-size:12px;color:var(--tx3);margin-bottom:14px;line-height:1.4}
+.yt-lock-btn{display:inline-flex;align-items:center;gap:8px;background:var(--grad-gold);border:none;border-radius:12px;padding:10px 22px;color:#fff;font-family:'Outfit',sans-serif;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(249,202,36,.3);transition:all .18s}
+.yt-lock-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(249,202,36,.45)}
+
+audio{display:none}
+</style>
+</head>
+<body>
+<div class="glow-bg">
+  <div class="ga ga-1"></div>
+  <div class="ga ga-2"></div>
+  <div class="ga ga-3"></div>
+</div>
+
+<!-- ══ AUTH ══ -->
+<div class="auth-root" id="authRoot">
+  <div class="auth-hero">
+    <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:88px;height:88px">
+      <div style="position:absolute;inset:-8px;border-radius:34px;border:1.5px solid rgba(108,92,231,.3);animation:ringPulse 2.5s ease-in-out infinite;pointer-events:none"></div>
+      <div style="position:absolute;inset:-16px;border-radius:40px;border:1px solid rgba(108,92,231,.15);animation:ringPulse 2.5s ease-in-out infinite .5s;pointer-events:none"></div>
+      <div class="auth-icon-wrap">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
+    </div>
+    <div style="height:20px"></div>
+    <div class="auth-brand">Tube<em>Tune</em></div>
+    <div class="auth-tagline">Your music, your world</div>
+  </div>
+  <div class="auth-card-area">
+    <div class="auth-slide" id="slideLogin" style="transform:translateX(0);opacity:1;pointer-events:auto">
+      <div class="auth-card">
+        <div class="auth-card-title">Welcome Back</div>
+        <div class="auth-card-sub">Login karo aur music enjoy karo</div>
+        <div class="auth-msg" id="loginMsg"></div>
+        <div class="field">
+          <div class="field-lbl"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Email</div>
+          <div class="field-wrap">
+            <input class="field-inp" id="lEmail" type="email" placeholder="email@example.com" autocomplete="email">
+            <svg class="field-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+          <div class="field-err-txt" id="lEmailErr">Valid email daalo</div>
+        </div>
+        <div class="field">
+          <div class="field-lbl"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Password</div>
+          <div class="field-wrap">
+            <input class="field-inp" id="lPass" type="password" placeholder="Apna password" autocomplete="current-password">
+            <button class="field-toggle" type="button" onclick="toggleVis('lPass',this)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="field-err-txt" id="lPassErr">Password zaroori hai</div>
+        </div>
+        <button class="auth-btn" id="loginBtn" onclick="doLogin()"><div class="spin"></div><span class="btn-txt">Sign In</span></button>
+      </div>
+      <div class="auth-switch">Account nahi hai? <b onclick="goSignup()">Sign up karo</b></div>
+    </div>
+    <div class="auth-slide" id="slideSignup" style="transform:translateX(100%);opacity:0;pointer-events:none">
+      <div class="auth-card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px">
+          <button onclick="goLogin()" style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx2);flex-shrink:0;transition:all .15s" onmouseover="this.style.background='rgba(108,92,231,.18)';this.style.color='var(--p2)'" onmouseout="this.style.background='rgba(255,255,255,.07)';this.style.color='var(--tx2)'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div class="auth-card-title" style="margin-bottom:0">Create Account</div>
+        </div>
+        <div class="auth-card-sub">Sign up karo aur music enjoy karo</div>
+        <div class="auth-msg" id="signupMsg"></div>
+        <div class="field">
+          <div class="field-lbl">Full Name</div>
+          <div class="field-wrap"><input class="field-inp" id="sName" type="text" placeholder="Apna poora naam" autocomplete="name"></div>
+          <div class="field-err-txt" id="sNameErr">Naam daalna zaroori hai</div>
+        </div>
+        <div class="field">
+          <div class="field-lbl">Email</div>
+          <div class="field-wrap"><input class="field-inp" id="sEmail" type="email" placeholder="email@example.com" autocomplete="email"></div>
+          <div class="field-err-txt" id="sEmailErr">Valid email daalo</div>
+        </div>
+        <div class="field">
+          <div class="field-lbl">Password</div>
+          <div class="field-wrap">
+            <input class="field-inp" id="sPass" type="password" placeholder="Min 8 characters" autocomplete="new-password" oninput="calcStrength(this.value)">
+            <button class="field-toggle" type="button" onclick="toggleVis('sPass',this)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="strength" id="strengthBox"><div class="strength-track"><div class="strength-bar" id="strengthBar"></div></div><div class="strength-txt" id="strengthTxt"></div></div>
+          <div class="field-err-txt" id="sPassErr">Min 8 characters chahiye</div>
+        </div>
+        <button class="auth-btn" id="signupBtn" onclick="doSignup()"><div class="spin"></div><span class="btn-txt">Create Account</span></button>
+      </div>
+      <div class="auth-switch">Pehle se account hai? <b onclick="goLogin()">Sign in karo</b></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div class="app" id="mainApp">
+  <header class="hdr">
+    <div class="hdr-logo">
+      <div class="hdr-logo-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+      <div class="hdr-logo-name">Tube<em>Tune</em></div>
+    </div>
+    <div class="hdr-right">
+      <div class="icon-btn" id="refreshBtn" onclick="refreshSongs()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+      </div>
+      <div class="av-btn" id="avBtn" onclick="openProfile()">
+        <span id="avInitial">U</span>
+        <!-- Premium crown icon (no emoji) -->
+        <span class="av-crown" id="avCrown">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z"/></svg>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <div class="scroll" id="scrollArea">
+
+    <!-- HOME PAGE -->
+    <div class="pg on" id="pg-home">
+      <div class="search-bar">
+        <div class="search-inner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchQ" placeholder="Songs, artists search karo..." oninput="onSearch()">
+          <button class="s-clr" id="sClear" onclick="clearSearch()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- YT FETCH BOX (Premium users) -->
+      <div class="yt-search-box" id="ytSearchBox">
+        <div class="yt-search-hdr">
+          <div class="yt-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          </div>
+          <div class="yt-hdr-text">
+            <div class="yt-hdr-title" id="ytBoxTitle">YouTube pe dhundho</div>
+            <div class="yt-hdr-sub" id="ytBoxSub">Yeh song humare server pe nahi hai</div>
+          </div>
+        </div>
+
+        <!-- PHASE 1: Search button -->
+        <div id="ytPhase1">
+          <button class="yt-fetch-btn" id="ytSearchBtn" onclick="ytSearchYoutube()">
+            <div class="yt-spin"></div>
+            <span class="yt-btn-lbl">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+              YouTube pe Search Karo
+            </span>
+          </button>
+        </div>
+
+        <!-- PHASE 2: Search results list -->
+        <div id="ytPhase2" style="display:none">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--tx3);padding:4px 16px 8px">Results — ek chunno</div>
+          <div id="ytResultsList"></div>
+          <button onclick="ytBackToSearch()" style="width:100%;padding:10px;background:none;border:none;color:var(--tx3);font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">← Wapas jao</button>
+        </div>
+
+        <!-- PHASE 3: Adding progress -->
+        <div id="ytPhase3" style="display:none">
+          <div class="yt-steps" id="ytSteps">
+            <div class="yt-step" id="ytStep1"><div class="yt-step-dot"></div><span>YouTube pe search kar raha hai...</span></div>
+            <div class="yt-step" id="ytStep2"><div class="yt-step-dot"></div><span>Audio URL nikal raha hai...</span></div>
+            <div class="yt-step" id="ytStep3"><div class="yt-step-dot"></div><span>Server pe upload ho raha hai...</span></div>
+            <div class="yt-step" id="ytStep4"><div class="yt-step-dot"></div><span>Library update ho rahi hai...</span></div>
+          </div>
+          <div class="yt-result-card" id="ytResultCard">
+            <div class="yt-result-thumb" id="ytResultThumb"></div>
+            <div class="yt-result-info">
+              <div class="yt-result-title" id="ytResultTitle">—</div>
+              <div class="yt-result-sub" id="ytResultSub">Add ho raha hai...</div>
+            </div>
+            <button class="yt-play-now-btn" id="ytPlayNowBtn">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="margin-right:4px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Play
+            </button>
+          </div>
+          <div class="yt-no-match" id="ytNoMatch">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="ytNoMatchTxt">Song nahi mila</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PREMIUM LOCK (Non-premium users) -->
+      <div class="yt-premium-lock" id="ytPremiumLock">
+        <div class="yt-lock-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z"/></svg>
+        </div>
+        <div class="yt-lock-title">Premium Feature</div>
+        <div class="yt-lock-sub">YouTube se koi bhi song automatically add karna ek <strong style="color:var(--gold)">Premium</strong> feature hai. Upgrade karo aur unlimited songs enjoy karo!</div>
+        <button class="yt-lock-btn" onclick="goPage('premium', document.getElementById('nb-premium'));ytHideLock()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z"/></svg>
+          Premium Upgrade Karo
+        </button>
+      </div>
+
+      <div class="hero-wrap" id="heroArea">
+        <div class="hero-card">
+          <div class="hero-greeting" id="heroGreet">Hey there</div>
+          <div class="hero-title">Apna Music<br><em>Suno</em></div>
+          <div class="hero-sub">Sab kuch ek jagah — no ads, no limits</div>
+          <div class="hero-stats">
+            <div class="hero-pill"><div class="hero-pulse"></div><span id="heroCount">Loading...</span></div>
+            <div class="hero-premium-pill" id="heroPremiumPill">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z"/></svg>
+              Premium Active
+            </div>
+          </div>
+          <svg class="hero-vinyl" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="45" stroke="white" stroke-width="2" opacity=".6"/><circle cx="50" cy="50" r="30" stroke="white" stroke-width="2" opacity=".4"/><circle cx="50" cy="50" r="15" stroke="white" stroke-width="2" opacity=".25"/><circle cx="50" cy="50" r="5" fill="white" opacity=".5"/></svg>
+        </div>
+      </div>
+
+      <div id="recentArea" style="display:none">
+        <div class="sec-hdr"><div class="sec-title">Recently Played</div></div>
+        <div class="recent-row" id="recentList"></div>
+      </div>
+
+      <div class="load-box" id="loadBox"><div class="loader"></div><div class="load-txt">Songs load ho rahi hain...</div></div>
+      <div class="err-card" id="errCard"><h4>Connection failed</h4><span id="errTxt"></span></div>
+      <div class="chips-row" id="chipRow" style="display:none">
+        <div class="chip on" onclick="setFilter('all',this)">All Songs</div>
+        <div class="chip" onclick="setFilter('newest',this)">Newest First</div>
+        <div class="chip" onclick="setFilter('oldest',this)">Oldest First</div>
+        <div class="chip" onclick="setFilter('az',this)">A – Z</div>
+        <div class="chip" onclick="setFilter('artist',this)">By Artist</div>
+      </div>
+      <div class="songs-wrap" id="songsList"></div>
+    </div>
+
+    <!-- FAVORITES PAGE -->
+    <div class="pg" id="pg-favs">
+      <div class="favs-hdr">
+        <h2>Favorites <em>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:middle"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </em></h2>
+        <p id="favsCount">0 songs</p>
+      </div>
+      <div class="songs-wrap" id="favsList"></div>
+    </div>
+
+    <!-- NOW PLAYING PAGE -->
+    <div class="pg" id="pg-np">
+      <div class="np-page">
+        <div class="np-topbar">
+          <div class="np-spacer"></div>
+          <div class="np-lbl">Now Playing</div>
+          <div class="np-close" onclick="closeNP()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 21 6 15"/></svg>
+          </div>
+        </div>
+        <div class="np-art-outer">
+          <div class="np-ring" id="npRing"></div>
+          <div class="np-art" id="npArt">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          </div>
+        </div>
+        <div class="np-info">
+          <div class="np-title" id="npTitle">No Song Selected</div>
+          <div class="np-artist" id="npArtist">—</div>
+          <span class="np-badge" id="npBadge" style="display:none"></span>
+        </div>
+        <div class="np-actions">
+          <div class="np-action" id="npHeart" onclick="toggleFavNP()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </div>
+          <div class="np-action" onclick="shareNP()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          </div>
+          <div class="np-action" id="npRep" onclick="toggleRepeat()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          </div>
+        </div>
+        <div class="np-prog">
+          <div class="np-track" id="npTrack" onclick="seekClick(event)"><div class="np-bar" id="npBar"></div></div>
+          <div class="np-times"><span id="npCur">0:00</span><span id="npDur">0:00</span></div>
+        </div>
+        <div class="np-ctrl">
+          <button class="ctrl-btn" id="npShuf" onclick="toggleShuffle()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+          </button>
+          <button class="ctrl-btn" onclick="prevS()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+          </button>
+          <button class="ctrl-play" onclick="togglePlay()">
+            <svg id="npPlayIco" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <button class="ctrl-btn" onclick="nextS()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+          </button>
+          <button class="ctrl-btn" id="npSleep" onclick="toggleSleep()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+        </div>
+        <div class="np-vol">
+          <svg class="vol-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
+          <div class="vol-track" id="volTrack" onclick="setVol(event)"><div class="vol-fill" id="volFill"></div></div>
+          <svg class="vol-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </div>
+        <div class="up-next"><div class="un-title">Up Next</div><div class="songs-wrap" id="upNextList" style="padding:0"></div></div>
+      </div>
+    </div>
+
+    <!-- PREMIUM PAGE -->
+    <div class="pg" id="pg-premium">
+      <div class="premium-pg">
+        <!-- Header with back button -->
+        <div class="prem-hdr">
+          <div class="prem-back-btn" onclick="goPage('home',document.getElementById('nb-home'))">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div class="prem-hdr-center">
+            <div class="prem-hdr-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z"/></svg>
+            </div>
+            <h2>TubeTune <span>Premium</span></h2>
+            <p>Unlimited music, koi bhi song YouTube se — sirf tumhare liye</p>
+          </div>
+        </div>
+
+        <!-- Active subscription card -->
+        <div class="prem-active-card" id="premActiveCard">
+          <div class="pac-top">
+            <div>
+              <div class="pac-badge">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z"/></svg>
+                Premium Active
+              </div>
+              <div class="pac-plan" id="pacPlanName">—</div>
+              <div class="pac-exp" id="pacExpiry">—</div>
+            </div>
+          </div>
+          <div class="pac-features">
+            <div class="pac-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>YouTube se koi bhi song add karo</div>
+            <div class="pac-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Unlimited search</div>
+            <div class="pac-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Priority support</div>
+          </div>
+        </div>
+
+        <!-- Plans loader -->
+        <div class="plans-loader" id="plansLoader">
+          <div class="loader"></div>
+          <div class="load-txt">Plans load ho rahe hain...</div>
+        </div>
+
+        <!-- Plans grid -->
+        <div class="plans-grid" id="plansGrid" style="display:none"></div>
+
+        <!-- Benefits -->
+        <div class="prem-benefits">
+          <div class="prem-ben-title">Premium Benefits</div>
+          <div class="prem-ben-list">
+            <div class="prem-ben-item">
+              <div class="prem-ben-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></div>
+              <span><strong style="color:var(--tx)">YouTube Auto-Add</strong> — Koi bhi song naam likho, automatically library mein add ho jaata hai</span>
+            </div>
+            <div class="prem-ben-item">
+              <div class="prem-ben-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+              <span><strong style="color:var(--tx)">Unlimited Search</strong> — Jitna chahiye search karo, koi limit nahi</span>
+            </div>
+            <div class="prem-ben-item">
+              <div class="prem-ben-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+              <span><strong style="color:var(--tx)">Permanent Library</strong> — Tumhare add kiye songs hamesha server pe rahenge</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /scroll -->
+
+  <nav class="bot-nav">
+    <button class="nav-btn on" id="nb-home" onclick="goPage('home',this)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </button>
+    <button class="nav-btn" id="nb-favs" onclick="goPage('favs',this)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      Favorites
+      <span class="nav-badge" id="favBadge"></span>
+    </button>
+    <button class="nav-btn" id="nb-np" onclick="goPage('np',this)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+      Playing
+    </button>
+    <button class="nav-btn" id="nb-premium" onclick="goPage('premium',this)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Premium
+    </button>
+  </nav>
+</div>
+
+<!-- MINI PLAYER -->
+<div class="mini-player" id="mini">
+  <div class="mini-prog-bar"><div class="mini-fill" id="miniFill"></div></div>
+  <div class="mini-thumb" id="miniThumb" onclick="goPage('np',document.getElementById('nb-np'))">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+  </div>
+  <div class="mini-text" onclick="goPage('np',document.getElementById('nb-np'))">
+    <div class="mini-title" id="miniTitle">—</div>
+    <div class="mini-art" id="miniArt">—</div>
+  </div>
+  <div class="mini-btns">
+    <button class="mini-btn" onclick="prevS()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg></button>
+    <button class="mini-btn play-btn" onclick="togglePlay()"><svg id="miniPlayIco" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+    <button class="mini-btn" onclick="nextS()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg></button>
+  </div>
+  <button class="mini-close-btn" onclick="closeMini()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+</div>
+
+<!-- SHUFFLE FAB -->
+<button class="shuf-fab no-mini" id="shufFab" onclick="shuffleAll()">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+</button>
+
+<!-- PROFILE SHEET -->
+<div class="overlay" id="profOverlay" onclick="if(event.target===this)closeProfile()">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div id="profMain">
+      <div class="prof-hdr">
+        <div class="prof-av" id="profAv"></div>
+        <div style="flex:1;min-width:0">
+          <div class="prof-name" id="profName">—</div>
+          <div class="prof-email" id="profEmail">—</div>
+          <div class="prof-joined">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            TubeTune Member
+          </div>
+          <div class="prof-premium-badge" id="profPremiumBadge">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z"/></svg>
+            Premium Active
+          </div>
+        </div>
+      </div>
+
+      <!-- Subscription Info Card with Countdown Timer -->
+      <div class="prof-sub-card" id="profSubCard">
+        <div class="prof-sub-top">
+          <div class="prof-sub-badge">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z"/></svg>
+            Active Subscription
+          </div>
+        </div>
+        <div class="prof-sub-plan" id="profSubPlanName">—</div>
+        <div class="prof-sub-timer">
+          <div class="prof-sub-timer-lbl">Subscription khatam hone mein:</div>
+          <div class="prof-sub-countdown">
+            <div class="count-unit"><div class="count-num" id="timerDays">00</div><div class="count-lbl">Din</div></div>
+            <div class="count-unit"><div class="count-num" id="timerHours">00</div><div class="count-lbl">Ghante</div></div>
+            <div class="count-unit"><div class="count-num" id="timerMins">00</div><div class="count-lbl">Minute</div></div>
+            <div class="count-unit"><div class="count-num" id="timerSecs">00</div><div class="count-lbl">Second</div></div>
+          </div>
+        </div>
+        <div class="prof-sub-exp">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span id="profSubExpDate">—</span>
+        </div>
+      </div>
+
+      <div class="sheet-menu">
+        <div class="menu-item" onclick="closeProfile();goPage('premium',document.getElementById('nb-premium'))">
+          <div class="menu-ico gold"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+          <div class="menu-txt"><div class="menu-lbl" style="color:var(--gold)">Premium Plans</div><div class="menu-sub" id="premMenuSub">Upgrade karo — unlimited songs</div></div>
+          <svg class="menu-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="menu-item" onclick="openEdit('name')">
+          <div class="menu-ico purple"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <div class="menu-txt"><div class="menu-lbl">Change Name</div><div class="menu-sub">Display name update karo</div></div>
+          <svg class="menu-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="menu-item" onclick="openEdit('pass')">
+          <div class="menu-ico pink"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          <div class="menu-txt"><div class="menu-lbl">Change Password</div><div class="menu-sub">Naya secure password set karo</div></div>
+          <svg class="menu-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="sheet-divider"></div>
+        <div class="menu-item" onclick="doLogout()">
+          <div class="menu-ico red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+          <div class="menu-txt"><div class="menu-lbl" style="color:var(--red)">Logout</div><div class="menu-sub">Account se sign out karo</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="edit-view" id="editNameView">
+      <div class="edit-back" onclick="closeEdit()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Back</div>
+      <div class="edit-title">Change Name</div>
+      <div class="edit-msg" id="nameMsg"></div>
+      <div class="edit-field"><div class="edit-lbl">New Name</div><input class="edit-inp" id="newName" type="text" placeholder="Apna naya naam"></div>
+      <button class="edit-btn" id="saveNameBtn" onclick="saveName()"><div class="spin"></div><span class="btn-txt">Save Changes</span></button>
+    </div>
+    <div class="edit-view" id="editPassView">
+      <div class="edit-back" onclick="closeEdit()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Back</div>
+      <div class="edit-title">Change Password</div>
+      <div class="edit-msg" id="passMsg"></div>
+      <div class="edit-field"><div class="edit-lbl">New Password</div><div class="edit-inp-wrap"><input class="edit-inp" id="newPass" type="password" placeholder="Min 8 characters"><button class="edit-toggle" type="button" onclick="toggleVis('newPass',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+      <div class="edit-field"><div class="edit-lbl">Confirm Password</div><div class="edit-inp-wrap"><input class="edit-inp" id="confPass" type="password" placeholder="Dobara likho"><button class="edit-toggle" type="button" onclick="toggleVis('confPass',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+      <button class="edit-btn" id="savePassBtn" onclick="savePass()"><div class="spin"></div><span class="btn-txt">Update Password</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toastBox"></div>
+<audio id="aud"></audio>
+
+<script>
+/* ══════════════════════════════════════════════════
+   CONFIG
+══════════════════════════════════════════════════ */
+const SB_URL = 'https://vkzhqwsujnurcsyntnmr.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZremhxd3N1am51cmNzeW50bm1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NzE1ODcsImV4cCI6MjA4ODA0NzU4N30.j7-8qrdAXivjKatVjuK1aFfumfPPucs3NiDcYU4_Lfg';
+const API    = 'https://tubetune-backend-production.up.railway.app';
+const RZP_KEY = 'rzp_test_XXXXXXXXXXXXXXXXXX';
+
+const sbDev = (SB_URL === 'YOUR_SUPABASE_URL');
+
+/* ══════════════════════════════════════════════════
+   SESSION MANAGER
+══════════════════════════════════════════════════ */
+const SS = {
+  save(s) { try { if(s&&!s.expires_at&&s.expires_in) s.expires_at=Math.floor(Date.now()/1000)+parseInt(s.expires_in); localStorage.setItem('tt_sess',JSON.stringify(s)); } catch(_){} },
+  get()   { try { return JSON.parse(localStorage.getItem('tt_sess')); } catch(_){ return null; } },
+  clear() { localStorage.removeItem('tt_sess'); },
+  user()  { return this.get()?.user||null; },
+  token() { return this.get()?.access_token||null; }
+};
+
+/* ══════════════════════════════════════════════════
+   PREMIUM STATE
+══════════════════════════════════════════════════ */
+let isPremium = false;
+let premiumSub = null;
+let countdownInterval = null;
+
+async function checkPremium() {
+  if (!SS.token()) { isPremium = false; premiumSub = null; updatePremiumUI(); return; }
+  const userId = SS.user()?.id;
+  if (!userId) { isPremium = false; premiumSub = null; updatePremiumUI(); return; }
+
+  // Supabase direct check — sabse fast (direct DB)
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/subscriptions?user_id=eq.${userId}&select=*&order=created_at.desc&limit=1`,
+      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SS.token(), Accept: 'application/json' } }
+    );
+    if (r.ok) {
+      const rows = await r.json();
+      if (rows && rows.length) {
+        const sub = rows[0];
+        const expiresAt = sub.expires_at || sub.expiry || sub.end_date || sub.valid_till || null;
+        const isActive = expiresAt
+          ? new Date(expiresAt) > new Date()
+          : (sub.status === 'active' || sub.is_active === true || !!sub.plan_id);
+        isPremium = isActive;
+        premiumSub = isActive ? {
+          plan_name: sub.plan_name || sub.name || 'TubeTune Premium',
+          expires_at: expiresAt, ...sub
+        } : null;
+        updatePremiumUI();
+        return; // Fast path — Supabase se mil gaya
+      }
+    }
+  } catch(e) { console.warn('Supabase premium check:', e.message); }
+
+  // Fallback: Backend se check karo
+  try {
+    const r = await fetch(`${API}/api/subscription`, {
+      headers: { Authorization: 'Bearer ' + SS.token(), Accept: 'application/json' }
+    });
+    const txt = await r.text();
+    if (!txt || txt.trim().startsWith('<')) throw new Error('HTML response');
+    const d = JSON.parse(txt);
+    isPremium = !!(d.isPremium || d.is_premium || d.active || d.status === 'active');
+    premiumSub = isPremium ? (d.subscription || d.plan || { plan_name: d.plan_name || 'Premium', expires_at: d.expires_at || null, ...d }) : null;
+  } catch(e) {
+    console.warn('Backend premium check:', e.message);
+    isPremium = false; premiumSub = null;
+  }
+  updatePremiumUI();
+}
+
+function updatePremiumUI() {
+  // Avatar crown
+  document.getElementById('avCrown').classList.toggle('show', isPremium);
+  // Hero pill
+  document.getElementById('heroPremiumPill').classList.toggle('show', isPremium);
+  // Profile badge
+  const pb = document.getElementById('profPremiumBadge');
+  pb.classList.toggle('show', isPremium);
+
+  // Subscription card in profile
+  const subCard = document.getElementById('profSubCard');
+  if (isPremium && premiumSub) {
+    subCard.classList.add('show');
+    const planName = premiumSub.plan_name || premiumSub.name || 'TubeTune Premium';
+    document.getElementById('profSubPlanName').textContent = planName;
+    const expDate = premiumSub.expires_at || premiumSub.expiry || premiumSub.end_date || premiumSub.valid_till || null;
+    if (expDate) {
+      const expObj = new Date(expDate);
+      document.getElementById('profSubExpDate').textContent =
+        'Valid till: ' + expObj.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});
+      startCountdown(expDate);
+    } else {
+      document.getElementById('profSubExpDate').textContent = 'Subscription active hai';
+      // No expiry — show dashes
+      ['timerDays','timerHours','timerMins','timerSecs'].forEach(id => {
+        document.getElementById(id).textContent = '--';
+      });
+    }
+    document.getElementById('premMenuSub').textContent =
+      expDate ? `Active · Expires ${new Date(expDate).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}` : 'Premium Active';
+  } else {
+    subCard.classList.remove('show');
+    stopCountdown();
+    document.getElementById('premMenuSub').textContent = 'Upgrade karo — unlimited songs';
+  }
+
+  // Premium page active card
+  const pac = document.getElementById('premActiveCard');
+  if (isPremium && premiumSub) {
+    pac.classList.add('show');
+    document.getElementById('pacPlanName').textContent = premiumSub.plan_name || premiumSub.name || 'TubeTune Premium';
+    const expAt = premiumSub.expires_at || premiumSub.expiry || premiumSub.end_date || premiumSub.valid_till || null;
+    if (expAt) {
+      const exp2 = new Date(expAt);
+      document.getElementById('pacExpiry').textContent = `Valid till ${exp2.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}`;
+    } else {
+      document.getElementById('pacExpiry').textContent = 'Premium subscription active hai';
+    }
+  } else {
+    pac.classList.remove('show');
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   COUNTDOWN TIMER
+══════════════════════════════════════════════════ */
+function startCountdown(expiresAt) {
+  stopCountdown();
+  function tick() {
+    const now = Date.now();
+    const end = new Date(expiresAt).getTime();
+    const diff = end - now;
+    if (diff <= 0) {
+      document.getElementById('timerDays').textContent = '00';
+      document.getElementById('timerHours').textContent = '00';
+      document.getElementById('timerMins').textContent = '00';
+      document.getElementById('timerSecs').textContent = '00';
+      stopCountdown();
+      isPremium = false;
+      updatePremiumUI();
+      toast('Premium subscription khatam ho gayi', 'err');
+      return;
+    }
+    const days  = Math.floor(diff / (1000*60*60*24));
+    const hours = Math.floor((diff % (1000*60*60*24)) / (1000*60*60));
+    const mins  = Math.floor((diff % (1000*60*60)) / (1000*60));
+    const secs  = Math.floor((diff % (1000*60)) / 1000);
+    document.getElementById('timerDays').textContent  = String(days).padStart(2,'0');
+    document.getElementById('timerHours').textContent = String(hours).padStart(2,'0');
+    document.getElementById('timerMins').textContent  = String(mins).padStart(2,'0');
+    document.getElementById('timerSecs').textContent  = String(secs).padStart(2,'0');
+  }
+  tick();
+  countdownInterval = setInterval(tick, 1000);
+}
+
+function stopCountdown() {
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+}
+
+/* ══════════════════════════════════════════════════
+   PLANS
+══════════════════════════════════════════════════ */
+async function loadPlans() {
+  const loader = document.getElementById('plansLoader');
+  const grid   = document.getElementById('plansGrid');
+
+  // Agar premium active hai toh plans mat dikhao
+  if (isPremium) {
+    loader.style.display = 'none';
+    grid.style.display   = 'none';
+    return;
+  }
+
+  loader.style.display = 'flex';
+  grid.style.display   = 'none';
+
+  try {
+    const r = await fetch(`${API}/api/plans`);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const txt = await r.text();
+    if (!txt || txt.trim().startsWith('<')) throw new Error('Backend unavailable');
+    const d = JSON.parse(txt);
+    const plans = d.data || d.plans || (Array.isArray(d) ? d : []);
+
+    loader.style.display = 'none';
+
+    if (!plans.length) {
+      grid.innerHTML = `<div class="no-plans-msg">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div style="font-size:14px;font-weight:700;color:var(--tx2);margin-top:8px">Abhi koi plan available nahi hai</div>
+        <p>Admin se contact karo ya baad mein try karo</p>
+      </div>`;
+      grid.style.display = 'flex';
+      return;
+    }
+
+    const maxPrice = Math.max(...plans.map(p => p.price || 0));
+
+    grid.innerHTML = plans.map(p => {
+      const isPopular = p.price === maxPrice && plans.length > 1;
+      const durText = p.duration_days >= 365
+        ? `${Math.round(p.duration_days/365)} Saal`
+        : p.duration_days >= 30
+          ? `${Math.round(p.duration_days/30)} Mahine`
+          : `${p.duration_days} Din`;
+      return `
+        <div class="plan-card ${isPopular?'popular':''}">
+          ${isPopular ? `<div class="plan-popular-badge">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            POPULAR
+          </div>` : ''}
+          <div class="plan-name">${p.name||'Plan'}</div>
+          ${p.description ? `<div class="plan-desc">${p.description}</div>` : ''}
+          <div class="plan-price">
+            <span class="plan-price-cur">&#8377;</span>
+            <span class="plan-price-amt">${p.price||0}</span>
+          </div>
+          <div class="plan-dur-pill">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${durText} ke liye
+          </div>
+          <button class="plan-buy-btn ${isPopular?'gold-btn':''}" id="planBtn_${p.id}" onclick="buyPlan('${p.id}','${p.name||'Plan'}',${p.price||0})">
+            <div class="btn-spin"></div>
+            <span class="btn-lbl" style="display:flex;align-items:center;gap:8px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z"/></svg>
+              Abhi Upgrade Karo
+            </span>
+          </button>
+        </div>`;
+    }).join('');
+
+    grid.style.display = 'flex';
+  } catch(e) {
+    loader.innerHTML = `<div style="text-align:center;padding:20px">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div style="color:var(--red);font-size:13px;font-weight:600">Plans load nahi hue</div>
+      <div style="color:var(--tx3);font-size:12px;margin-top:4px">${e.message}</div>
+      <button onclick="loadPlans()" style="margin-top:14px;padding:8px 20px;background:var(--grad);border:none;border-radius:10px;color:#fff;font-family:Outfit,sans-serif;font-size:13px;font-weight:700;cursor:pointer">Dobara Try Karo</button>
+    </div>`;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   RAZORPAY PAYMENT
+══════════════════════════════════════════════════ */
+async function buyPlan(planId, planName, planPrice) {
+  if (!SS.token()) { toast('Pehle login karo', 'err'); return; }
+  const btn = document.getElementById(`planBtn_${planId}`);
+  if (btn) { btn.classList.add('ld'); btn.disabled = true; }
+  try {
+    // Step 1: Backend se Razorpay key lo
+    let rzpKey = RZP_KEY;
+    try {
+      const cfgR = await fetch(`${API}/api/config`);
+      const cfgTxt = await cfgR.text();
+      if (!cfgTxt.trim().startsWith('<')) {
+        const cfg = JSON.parse(cfgTxt);
+        if (cfg.razorpay_key_id) rzpKey = cfg.razorpay_key_id;
+      }
+    } catch(_) {}
+
+    // Step 2: Order create karo — sahi route /api/create-order
+    const r = await fetch(`${API}/api/create-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + SS.token() },
+      body: JSON.stringify({ plan_id: planId })
+    });
+    const txt = await r.text();
+    if (!txt || txt.trim().startsWith('<')) throw new Error('Backend se response nahi aaya. Dobara try karo.');
+    const d = JSON.parse(txt);
+    if (!r.ok || !d.success) throw new Error(d.error || d.details || 'Order create nahi hua');
+
+    // Backend returns: { success, order: { id, amount, currency }, plan }
+    const orderId  = d.order?.id   || d.order_id;
+    const amount   = d.order?.amount || d.amount || planPrice * 100;
+    const currency = d.order?.currency || d.currency || 'INR';
+
+    if (!orderId) throw new Error('Order ID nahi mila');
+
+    const user = SS.user();
+    const options = {
+      key: rzpKey,
+      amount, currency,
+      name: 'TubeTune Premium',
+      description: planName,
+      order_id: orderId,
+      prefill: { name: user?.user_metadata?.name || '', email: user?.email || '' },
+      theme: { color: '#6C5CE7' },
+      handler: async function(response) { await verifyPayment(response, planId, btn); },
+      modal: { ondismiss: function() {
+        if (btn) { btn.classList.remove('ld'); btn.disabled = false; }
+        toast('Payment cancel kar diya', 'inf');
+      }}
+    };
+    const rzp = new Razorpay(options);
+    rzp.open();
+  } catch(e) {
+    console.error('buyPlan error:', e);
+    toast(e.message || 'Payment shuru nahi hua', 'err');
+    if (btn) { btn.classList.remove('ld'); btn.disabled = false; }
+  }
+}
+
+async function verifyPayment(response, planId, btn) {
+  try {
+    const r = await fetch(`${API}/api/verify-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + SS.token() },
+      body: JSON.stringify({
+        razorpay_order_id:   response.razorpay_order_id,
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_signature:  response.razorpay_signature,
+        plan_id: planId
+      })
+    });
+    const txt = await r.text();
+    const d = txt.trim().startsWith('<') ? {} : JSON.parse(txt);
+    if (!r.ok || !d.success) throw new Error(d.error || 'Verification failed');
+    toast('🎉 Premium active ho gaya! Welcome!', 'ok');
+    await checkPremium();
+    await loadPlans();
+  } catch(e) {
+    toast('Payment verify nahi hua: ' + e.message, 'err');
+  }
+  if (btn) { btn.classList.remove('ld'); btn.disabled = false; }
+}
+
+/* ══════════════════════════════════════════════════
+   SUPABASE HELPERS
+══════════════════════════════════════════════════ */
+async function sbAuth(ep, body) {
+  const r = await fetch(`${SB_URL}/auth/v1/${ep}`, { method:'POST', headers:{ apikey:SB_KEY,'Content-Type':'application/json' }, body:JSON.stringify(body) });
+  return { ok:r.ok, status:r.status, data:await r.json() };
+}
+async function sbFetch(path, opts={}) {
+  const r = await fetch(SB_URL+path, { headers:{ apikey:SB_KEY, Authorization:'Bearer '+(SS.token()||SB_KEY), 'Content-Type':'application/json', Prefer:'return=minimal', ...(opts.headers||{}) }, ...opts });
+  const txt=await r.text(); let data; try{data=JSON.parse(txt);}catch{data=txt;}
+  return {ok:r.ok,data};
+}
+
+/* ══════════════════════════════════════════════════
+   AUTH UI
+══════════════════════════════════════════════════ */
+function showScreen(id) {
+  const login=document.getElementById('slideLogin'), signup=document.getElementById('slideSignup');
+  if(id==='login'){login.style.transform='translateX(0)';login.style.opacity='1';login.style.pointerEvents='auto';signup.style.transform='translateX(100%)';signup.style.opacity='0';signup.style.pointerEvents='none';}
+  else{signup.style.transform='translateX(0)';signup.style.opacity='1';signup.style.pointerEvents='auto';login.style.transform='translateX(-100%)';login.style.opacity='0';login.style.pointerEvents='none';}
+}
+function goLogin(){showScreen('login');document.getElementById('signupMsg').className='auth-msg';}
+function goSignup(){showScreen('signup');document.getElementById('loginMsg').className='auth-msg';}
+function toggleVis(id,btn){const inp=document.getElementById(id);const show=inp.type==='password';inp.type=show?'text':'password';btn.innerHTML=show?`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;}
+function calcStrength(pw){const box=document.getElementById('strengthBox'),bar=document.getElementById('strengthBar'),txt=document.getElementById('strengthTxt');if(!pw){box.classList.remove('show');return;}box.classList.add('show');let sc=0;if(pw.length>=8)sc++;if(/[A-Z]/.test(pw))sc++;if(/[0-9]/.test(pw))sc++;if(/[^A-Za-z0-9]/.test(pw))sc++;const map=[{w:'25%',c:'var(--red)',t:'Weak'},{w:'50%',c:'var(--acc2)',t:'Fair'},{w:'75%',c:'var(--grn)',t:'Good'},{w:'100%',c:'var(--grn)',t:'Strong'}];const m=map[sc-1]||map[0];bar.style.width=m.w;bar.style.background=m.c;txt.textContent=m.t;txt.style.color=m.c;}
+function setMsg(id,msg,type){const el=document.getElementById(id);const icon=type==='ok'?'<polyline points="20 6 9 17 4 12"/>':`<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>`;el.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${icon}</svg><span>${msg}</span>`;el.className=`auth-msg show ${type}`;}
+function clearMsg(id){document.getElementById(id).className='auth-msg';}
+function setErr(id,show){document.getElementById(id).classList.toggle('show',show);}
+
+/* ══════════════════════════════════════════════════
+   INSERT USER ROW
+══════════════════════════════════════════════════ */
+async function insertUserRow(uid,name,email,token){
+  if(!uid||!token)return;
+  const payload={id:uid,name,email,created_at:new Date().toISOString()};
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/users`,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',Prefer:'return=minimal,resolution=merge-duplicates'},body:JSON.stringify(payload)});
+    if(r.ok||r.status===201){localStorage.removeItem('tt_pending');return;}
+    await fetch(`${SB_URL}/rest/v1/users`,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',Prefer:'return=minimal,resolution=ignore-duplicates'},body:JSON.stringify(payload)});
+    localStorage.removeItem('tt_pending');
+  }catch(e){console.warn('insertUserRow:',e);}
+}
+
+/* ══════════════════════════════════════════════════
+   SIGNUP / LOGIN / LOGOUT
+══════════════════════════════════════════════════ */
+async function doSignup(){
+  clearMsg('signupMsg');
+  const name=document.getElementById('sName').value.trim(),email=document.getElementById('sEmail').value.trim(),pass=document.getElementById('sPass').value;
+  setErr('sNameErr',!name);setErr('sEmailErr',!email||!email.includes('@'));setErr('sPassErr',pass.length<8);
+  if(!name||!email||!email.includes('@')||pass.length<8)return;
+  const btn=document.getElementById('signupBtn');btn.classList.add('ld');btn.disabled=true;
+  try{
+    const{ok,data}=await sbAuth('signup',{email,password:pass,data:{name}});
+    if(!ok){const em=data?.error_description||data?.msg||data?.message||'Signup failed';if(em.toLowerCase().includes('already registered'))throw new Error('Yeh email pehle se registered hai — Sign in karo');throw new Error(em);}
+    const uid=data.user?.id;if(!uid)throw new Error('User ID nahi mili');
+    let token=data.session?.access_token,user=data.user;
+    if(!token){setMsg('signupMsg','Account bana, login ho raha hai...','ok');await new Promise(r=>setTimeout(r,1000));const{ok:lok,data:ld}=await sbAuth('token?grant_type=password',{email,password:pass});if(lok&&ld.access_token){token=ld.access_token;user=ld.user||user;SS.save(ld);}else{localStorage.setItem('tt_pending',JSON.stringify({id:uid,name,email}));}}
+    else SS.save(data.session);
+    await insertUserRow(uid,name,email,token);
+    if(token&&user){setMsg('signupMsg','Account ban gaya! App khul raha hai...','ok');setTimeout(()=>enterApp(user),700);}
+    else{setMsg('signupMsg','Account ban gaya! Email confirm karo phir Sign in karo.','ok');setTimeout(goLogin,2500);}
+  }catch(e){setMsg('signupMsg',e.message||'Kuch gadbad hua','err');}
+  btn.classList.remove('ld');btn.disabled=false;
+}
+
+async function doLogin(){
+  clearMsg('loginMsg');
+  const email=document.getElementById('lEmail').value.trim(),pass=document.getElementById('lPass').value;
+  setErr('lEmailErr',!email||!email.includes('@'));setErr('lPassErr',!pass);
+  if(!email||!email.includes('@')||!pass)return;
+  const btn=document.getElementById('loginBtn');btn.classList.add('ld');btn.disabled=true;
+  try{
+    const{ok,data}=await sbAuth('token?grant_type=password',{email,password:pass});
+    if(!ok){const em=data?.error_description||data?.msg||data?.message||'Login failed';if(em.toLowerCase().includes('invalid'))throw new Error('Email ya password galat hai');throw new Error(em);}
+    SS.save(data);
+    const pending=JSON.parse(localStorage.getItem('tt_pending')||'null');
+    if(pending?.id)await insertUserRow(pending.id,pending.name,pending.email,data.access_token);
+    const uname=data.user?.user_metadata?.name||email.split('@')[0];
+    await insertUserRow(data.user?.id,uname,email,data.access_token);
+    setMsg('loginMsg','Login ho gaya!','ok');
+    setTimeout(()=>enterApp(data.user),700);
+  }catch(e){setMsg('loginMsg',e.message||'Login fail hua','err');}
+  btn.classList.remove('ld');btn.disabled=false;
+}
+
+async function doLogout(){
+  try{await sbFetch('/auth/v1/logout',{method:'POST'});}catch(_){}
+  SS.clear();isPremium=false;premiumSub=null;stopCountdown();
+  closeProfile();aud.pause();
+  document.getElementById('mini').classList.remove('up');
+  document.getElementById('mainApp').classList.remove('on');
+  document.getElementById('authRoot').classList.remove('hidden');
+  goLogin();toast('Logout ho gaye','inf');
+}
+
+function enterApp(user){
+  document.getElementById('authRoot').classList.add('hidden');
+  document.getElementById('mainApp').classList.add('on');
+  updateUserUI(user);
+  // Parallel run karo — faster loading
+  Promise.all([loadSongs(), checkPremium()]);
+}
+
+function updateUserUI(user){
+  if(!user)return;
+  const name=user.user_metadata?.name||user.email?.split('@')[0]||'User',email=user.email||'',av=name.charAt(0).toUpperCase();
+  document.getElementById('avInitial').textContent=av;
+  document.getElementById('heroGreet').textContent=`Hey, ${name.split(' ')[0]}`;
+  document.getElementById('profAv').textContent=av;
+  document.getElementById('profName').textContent=name;
+  document.getElementById('profEmail').textContent=email;
+}
+
+/* ══════════════════════════════════════════════════
+   BOOT
+══════════════════════════════════════════════════ */
+async function boot(){
+  const aud=document.getElementById('aud');
+  aud.addEventListener('timeupdate',onTU);
+  aud.addEventListener('ended',onEnded);
+  aud.addEventListener('play',()=>setPlayUI(true));
+  aud.addEventListener('pause',()=>setPlayUI(false));
+  if('mediaSession' in navigator){
+    navigator.mediaSession.setActionHandler('play',()=>aud.play());
+    navigator.mediaSession.setActionHandler('pause',()=>aud.pause());
+    navigator.mediaSession.setActionHandler('nexttrack',nextS);
+    navigator.mediaSession.setActionHandler('previoustrack',prevS);
+    navigator.mediaSession.setActionHandler('seekto',(d)=>{if(d.seekTime&&aud.duration){aud.currentTime=d.seekTime;updateMediaPosition();}});
+    navigator.mediaSession.setActionHandler('seekbackward',(d)=>{aud.currentTime=Math.max(0,aud.currentTime-(d.seekOffset||10));updateMediaPosition();});
+    navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});
+  }
+  if(sbDev){document.getElementById('authRoot').classList.add('hidden');document.getElementById('mainApp').classList.add('on');document.getElementById('avInitial').textContent='D';document.getElementById('heroGreet').textContent='Hey, Dev';document.getElementById('profAv').textContent='D';document.getElementById('profName').textContent='Dev User';document.getElementById('profEmail').textContent='dev@tubetune.app';loadSongs();toast('Dev mode','inf');return;}
+  showScreen('login');
+  const session=SS.get();
+  if(!session)return;
+  const now=Math.floor(Date.now()/1000);
+  if(session.expires_at&&session.expires_at>now+60){enterApp(session.user);return;}
+  if(session.refresh_token){try{const r=await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:session.refresh_token})});const d=await r.json();if(r.ok){SS.save(d);enterApp(d.user);return;}}catch(_){}}
+  SS.clear();
+}
+
+/* ══════════════════════════════════════════════════
+   PROFILE SHEET
+══════════════════════════════════════════════════ */
+function openProfile(){document.getElementById('profOverlay').classList.add('open');updatePremiumUI();}
+function closeProfile(){document.getElementById('profOverlay').classList.remove('open');closeEdit();}
+function openEdit(type){document.getElementById('profMain').style.display='none';if(type==='name'){document.getElementById('newName').value=document.getElementById('profName').textContent;document.getElementById('editNameView').classList.add('open');document.getElementById('nameMsg').className='edit-msg';}else{document.getElementById('newPass').value='';document.getElementById('confPass').value='';document.getElementById('editPassView').classList.add('open');document.getElementById('passMsg').className='edit-msg';}}
+function closeEdit(){document.getElementById('profMain').style.display='';document.getElementById('editNameView').classList.remove('open');document.getElementById('editPassView').classList.remove('open');}
+function setEditMsg(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className=`edit-msg show ${type}`;}
+
+async function saveName(){
+  const name=document.getElementById('newName').value.trim();
+  if(!name){setEditMsg('nameMsg','Naam daalo','err');return;}
+  const btn=document.getElementById('saveNameBtn');btn.classList.add('ld');btn.disabled=true;
+  try{
+    const session=SS.get();
+    const r=await fetch(`${SB_URL}/auth/v1/user`,{method:'PUT',headers:{apikey:SB_KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({data:{name}})});
+    const data=await r.json();if(!r.ok)throw new Error(data.msg||'Error');
+    await sbFetch(`/rest/v1/users?id=eq.${session.user?.id}`,{method:'PATCH',body:JSON.stringify({name})});
+    if(session.user)session.user.user_metadata={...session.user.user_metadata,name};
+    SS.save(session);updateUserUI(session.user);setEditMsg('nameMsg','Name update ho gaya!','ok');setTimeout(closeEdit,1000);
+  }catch(e){setEditMsg('nameMsg',e.message||'Error','err');}
+  btn.classList.remove('ld');btn.disabled=false;
+}
+
+async function savePass(){
+  const np=document.getElementById('newPass').value,cp=document.getElementById('confPass').value;
+  if(np.length<8){setEditMsg('passMsg','Min 8 characters chahiye','err');return;}
+  if(np!==cp){setEditMsg('passMsg','Passwords match nahi karte','err');return;}
+  const btn=document.getElementById('savePassBtn');btn.classList.add('ld');btn.disabled=true;
+  try{
+    const r=await fetch(`${SB_URL}/auth/v1/user`,{method:'PUT',headers:{apikey:SB_KEY,Authorization:'Bearer '+SS.token(),'Content-Type':'application/json'},body:JSON.stringify({password:np})});
+    const data=await r.json();if(!r.ok)throw new Error(data.msg||'Error');
+    setEditMsg('passMsg','Password change ho gaya!','ok');setTimeout(closeEdit,1000);
+  }catch(e){setEditMsg('passMsg',e.message||'Error','err');}
+  btn.classList.remove('ld');btn.disabled=false;
+}
+
+/* ══════════════════════════════════════════════════
+   SONGS ENGINE
+══════════════════════════════════════════════════ */
+let songs=[],filtered=[];
+let favs=JSON.parse(localStorage.getItem('tt_favs')||'[]');
+let recent=JSON.parse(localStorage.getItem('tt_recent')||'[]');
+let curIdx=-1,playing=false,repeat=false,shuffle=false;
+let filterMode='all',searchVal='',miniUp=false,npOpen=false;
+let sleepOn=false,sleepTimer=null;
+const aud=document.getElementById('aud');
+
+function norm(s){return{id:s.id||s._id||String(Math.random()),title:s.title||s.name||'Unknown',artist:s.artist||s.uploader||s.channel||'Unknown',thumb:s.thumbnail||s.thumb||s.image||s.cover||'',url:s.audioUrl||s.audio_url||s.url||s.stream_url||'',dur:fmtDur(s.duration),quality:s.quality||s.bitrate||'',date:s.uploadedAt||s.created_at||s.createdAt||new Date().toISOString()};}
+function fmtDur(r){if(!r||r==='—')return'—';if(typeof r==='string'&&r.includes(':')){const[m,s]=r.split(':');return`${parseInt(m)||0}:${String(parseInt(s)||0).padStart(2,'0')}`;}const secs=parseFloat(r);if(isNaN(secs)||secs<=0)return'—';return`${Math.floor(secs/60)}:${String(Math.floor(secs%60)).padStart(2,'0')}`;}
+function fmtTime(s){if(isNaN(s)||s<=0)return'0:00';return`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;}
+
+async function loadSongs(){
+  document.getElementById('loadBox').style.display='flex';document.getElementById('errCard').style.display='none';document.getElementById('chipRow').style.display='none';document.getElementById('songsList').innerHTML='';
+  try{
+    const r=await fetch(`${API}/api/songs?limit=1000`);if(!r.ok)throw new Error('HTTP '+r.status);
+    const json=await r.json();songs=(json.data||json.songs||(Array.isArray(json)?json:[])).map(norm);
+    localStorage.setItem('tt_cache',JSON.stringify(songs));
+  }catch(e){
+    const c=JSON.parse(localStorage.getItem('tt_cache')||'[]');
+    if(c.length){songs=c;toast('Offline — cache se load hua','inf');}
+    else{document.getElementById('loadBox').style.display='none';document.getElementById('errCard').style.display='block';document.getElementById('errTxt').textContent='Server se connect nahi hua.';return;}
+  }
+  document.getElementById('loadBox').style.display='none';document.getElementById('chipRow').style.display='flex';
+  document.getElementById('heroCount').textContent=`${songs.length} songs available`;
+  renderSongs();renderRecent();renderFavBadge();
+  document.getElementById('shufFab').classList.add('visible');
+}
+
+function refreshSongs(){const btn=document.getElementById('refreshBtn');btn.classList.add('spin');loadSongs().finally(()=>setTimeout(()=>btn.classList.remove('spin'),700));}
+
+async function goPage(name,btn){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pg-'+name).classList.add('on');
+  if(btn)btn.classList.add('on');
+  document.getElementById('scrollArea').scrollTop=0;
+  if(name==='favs')renderFavs();
+  if(name==='np'){npOpen=true;renderUpNext();}else npOpen=false;
+  if(name==='premium'){
+    if(!isPremium) await checkPremium();
+    loadPlans();
+    updatePremiumUI();
+  }
+  const mini=document.getElementById('mini'),fab=document.getElementById('shufFab');
+  if(name==='np'){mini.classList.add('hidden-np');fab.classList.add('np-page');fab.classList.remove('no-mini');}
+  else{mini.classList.remove('hidden-np');fab.classList.remove('np-page');fab.classList.toggle('no-mini',!miniUp);}
+}
+
+function onSearch(){
+  searchVal=document.getElementById('searchQ').value;
+  document.getElementById('sClear').classList.toggle('on',searchVal.length>0);
+  document.getElementById('heroArea').style.display=searchVal?'none':'';
+  document.getElementById('recentArea').style.display=(searchVal||!recent.length)?'none':'';
+  renderSongs();
+  ytCheckAndShow(searchVal);
+}
+function clearSearch(){document.getElementById('searchQ').value='';searchVal='';document.getElementById('sClear').classList.remove('on');document.getElementById('heroArea').style.display='';ytHideAll();renderSongs();renderRecent();}
+function setFilter(mode,el){filterMode=mode;document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));if(el)el.classList.add('on');renderSongs();}
+
+function getFiltered(){let list=[...songs];if(searchVal){const q=searchVal.toLowerCase();list=list.filter(s=>s.title.toLowerCase().includes(q)||s.artist.toLowerCase().includes(q));}if(filterMode==='newest')list.sort((a,b)=>new Date(b.date)-new Date(a.date));else if(filterMode==='oldest')list.sort((a,b)=>new Date(a.date)-new Date(b.date));else if(filterMode==='az')list.sort((a,b)=>a.title.localeCompare(b.title));else if(filterMode==='artist')list.sort((a,b)=>a.artist.localeCompare(b.artist));return list;}
+
+function songIco(s){return s.thumb?`<img src="${s.thumb}" onerror="this.style.display='none'" loading="lazy">`:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;}
+function eqOrPlay(isNow){return isNow?`<div class="eq-bars ${playing?'':'paused'}"><div class="eq-b"></div><div class="eq-b"></div><div class="eq-b"></div></div>`:`<svg width="13" height="13" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;}
+function heartBtn(id,faved,ctx){if(ctx==='upnext')return'';return`<button class="s-heart ${faved?'on':''}" onclick="event.stopPropagation();toggleFav('${id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="${faved?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>`;}
+function makeRow(s,i,ctx){const isNow=curIdx!==-1&&songs[curIdx]?.id===s.id,faved=favs.includes(s.id),numCell=ctx!=='upnext'?`<div class="s-num">${i+1}</div>`:'',sz=ctx==='upnext'?'width:42px;height:42px':'',dur=s.dur!=='—'?`<span class="s-dur">${s.dur}</span>`:'';return`<div class="s-row ${isNow?'now-on':''}" onclick="playById('${s.id}')">${numCell}<div class="s-thumb" style="${sz}">${songIco(s)}<div class="s-ov">${eqOrPlay(isNow)}</div></div><div class="s-info"><div class="s-name">${s.title}</div><div class="s-art">${s.artist}</div></div>${dur}${heartBtn(s.id,faved,ctx)}</div>`;}
+
+function renderSongs(){filtered=getFiltered();const g=document.getElementById('songsList');if(!filtered.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><h3>${songs.length?'Koi result nahi':'Library Khali Hai'}</h3><p>${songs.length?'Kuch aur search try karo':'Admin panel se songs add karo'}</p></div>`;return;}g.innerHTML=filtered.map((s,i)=>makeRow(s,i,'home')).join('');}
+function renderFavs(){const list=songs.filter(s=>favs.includes(s.id));document.getElementById('favsCount').textContent=`${list.length} songs`;const g=document.getElementById('favsList');if(!list.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><h3>Koi Favorite Nahi</h3><p>Songs pe dil icon dabao</p></div>`;return;}g.innerHTML=list.map((s,i)=>makeRow(s,i,'favs')).join('');}
+function renderRecent(){const sec=document.getElementById('recentArea');if(!recent.length||searchVal){sec.style.display='none';return;}const rs=recent.map(id=>songs.find(s=>s.id===id)).filter(Boolean).slice(0,10);if(!rs.length){sec.style.display='none';return;}sec.style.display='';document.getElementById('recentList').innerHTML=rs.map(s=>`<div class="rc-card" onclick="playById('${s.id}')"><div class="rc-art">${s.thumb?`<img src="${s.thumb}" onerror="this.style.display='none'" loading="lazy">`:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`}<div class="rc-play-ov"><div class="rc-play-ring"><svg width="14" height="14" viewBox="0 0 24 24" fill="#111" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div></div><div class="rc-name">${s.title}</div><div class="rc-artist">${s.artist}</div></div>`).join('');}
+function renderUpNext(){const g=document.getElementById('upNextList');if(curIdx<0){g.innerHTML='';return;}const q=shuffle?[]:songs.slice(curIdx+1,curIdx+6);if(!q.length){g.innerHTML=`<div style="color:var(--tx3);font-size:12px;padding:10px 0">Queue khatam</div>`;return;}g.innerHTML=q.map((s,i)=>makeRow(s,i,'upnext')).join('');}
+function renderFavBadge(){const b=document.getElementById('favBadge');b.textContent=favs.length;b.style.display=favs.length?'block':'none';}
+
+/* ── PLAYBACK ── */
+function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;curIdx=idx;const s=songs[idx];recent=[s.id,...recent.filter(x=>x!==s.id)].slice(0,30);localStorage.setItem('tt_recent',JSON.stringify(recent));updateNPUI(s);if(!npOpen)showMini();if(!s.url){toast('Audio URL nahi hai','inf');return;}aud.src=s.url;aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;aud.play().catch(()=>toast('Play nahi hua','err'));renderSongs();renderRecent();renderUpNext();updateGlows();if('mediaSession' in navigator){
+    const artwork = s.thumb ? [
+      {src: s.thumb, sizes:'96x96',   type:'image/jpeg'},
+      {src: s.thumb, sizes:'128x128', type:'image/jpeg'},
+      {src: s.thumb, sizes:'192x192', type:'image/jpeg'},
+      {src: s.thumb, sizes:'256x256', type:'image/jpeg'},
+      {src: s.thumb, sizes:'512x512', type:'image/jpeg'}
+    ] : [];
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title:  s.title  || 'Unknown',
+      artist: s.artist || 'TubeTune',
+      album:  'TubeTune',
+      artwork
+    });
+    navigator.mediaSession.playbackState = 'playing';
+  }}
+function showMini(){miniUp=true;document.getElementById('mini').classList.add('up');document.getElementById('shufFab').classList.remove('no-mini');}
+function closeMini(){aud.pause();miniUp=false;document.getElementById('mini').classList.remove('up');document.getElementById('shufFab').classList.add('no-mini');}
+function closeNP(){goPage('home',document.getElementById('nb-home'));}
+function updateNPUI(s){document.getElementById('npTitle').textContent=s.title;document.getElementById('npArtist').textContent=s.artist;document.getElementById('miniTitle').textContent=s.title;document.getElementById('miniArt').textContent=s.artist;const badge=document.getElementById('npBadge');badge.textContent=s.quality;badge.style.display=s.quality?'inline-flex':'none';const artEl=document.getElementById('npArt'),miniTh=document.getElementById('miniThumb'),imgH=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;artEl.innerHTML=imgH;miniTh.innerHTML=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;const faved=favs.includes(s.id),hrt=document.getElementById('npHeart');hrt.classList.toggle('on',faved);hrt.querySelector('svg').setAttribute('fill',faved?'currentColor':'none');artEl.classList.toggle('spin',playing);}
+function updateGlows(){const colors=['#6C5CE7','#FD79A8','#FDCB6E','#00CEC9','#0984E3','#E17055'];document.querySelector('.ga-1').style.background=colors[curIdx%colors.length];document.querySelector('.ga-2').style.background=colors[(curIdx+1)%colors.length];}
+function togglePlay(){aud.paused?aud.play().catch(()=>{}):aud.pause();}
+function setPlayUI(isPlaying){playing=isPlaying;const ico=isPlaying?`<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>`:`<polygon points="5 3 19 12 5 21 5 3"/>`;document.getElementById('npPlayIco').innerHTML=ico;document.getElementById('miniPlayIco').innerHTML=ico;document.getElementById('npArt').classList.toggle('spin',isPlaying);renderSongs();if('mediaSession' in navigator)navigator.mediaSession.playbackState=isPlaying?'playing':'paused';}
+
+function updateMediaPosition(){
+  if(!('mediaSession' in navigator)||!aud.duration)return;
+  try{
+    navigator.mediaSession.setPositionState({
+      duration:     aud.duration,
+      playbackRate: aud.playbackRate||1,
+      position:     aud.currentTime
+    });
+  }catch(_){}
+}
+function nextS(){if(!songs.length)return;if(shuffle)curIdx=Math.floor(Math.random()*songs.length);else if(!repeat)curIdx=Math.min(curIdx+1,songs.length-1);playById(songs[curIdx].id);}
+function prevS(){if(aud.currentTime>3){aud.currentTime=0;return;}if(curIdx>0){curIdx--;playById(songs[curIdx].id);}else aud.currentTime=0;}
+function onEnded(){if(repeat){aud.currentTime=0;aud.play();}else nextS();}
+function shuffleAll(){if(!songs.length)return;shuffle=true;document.getElementById('npShuf').classList.add('on');curIdx=Math.floor(Math.random()*songs.length);playById(songs[curIdx].id);toast('Shuffle play shuru','ok');}
+function toggleFav(id){if(favs.includes(id)){favs=favs.filter(x=>x!==id);toast('Favorites se hataya','inf');}else{favs.push(id);toast('Favorites mein add kiya','ok');}localStorage.setItem('tt_favs',JSON.stringify(favs));renderFavBadge();renderSongs();renderFavs();if(curIdx>=0&&songs[curIdx]?.id===id){const faved=favs.includes(id),hrt=document.getElementById('npHeart');hrt.classList.toggle('on',faved);hrt.querySelector('svg').setAttribute('fill',faved?'currentColor':'none');}}
+function toggleFavNP(){if(curIdx<0)return;toggleFav(songs[curIdx].id);}
+function onTU(){if(!aud.duration)return;const pct=aud.currentTime/aud.duration*100;document.getElementById('npBar').style.width=pct+'%';document.getElementById('miniFill').style.width=pct+'%';document.getElementById('npRing').style.setProperty('--prog',pct+'%');document.getElementById('npCur').textContent=fmtTime(aud.currentTime);document.getElementById('npDur').textContent=fmtTime(aud.duration);updateMediaPosition();}
+function seekClick(e){if(!aud.duration)return;const r=document.getElementById('npTrack').getBoundingClientRect();aud.currentTime=((e.clientX-r.left)/r.width)*aud.duration;}
+function setVol(e){const r=document.getElementById('volTrack').getBoundingClientRect();const p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));aud.volume=p;document.getElementById('volFill').style.width=(p*100)+'%';}
+function toggleRepeat(){repeat=!repeat;document.getElementById('npRep').classList.toggle('on',repeat);toast(repeat?'Repeat ON':'Repeat OFF','inf');}
+function toggleShuffle(){shuffle=!shuffle;document.getElementById('npShuf').classList.toggle('on',shuffle);toast(shuffle?'Shuffle ON':'Shuffle OFF','inf');}
+function toggleSleep(){if(sleepOn){clearTimeout(sleepTimer);sleepOn=false;document.getElementById('npSleep').classList.remove('on');toast('Sleep timer off','inf');}else{sleepOn=true;document.getElementById('npSleep').classList.add('on');toast('Sleep: 30 min baad band hoga','inf');sleepTimer=setTimeout(()=>{aud.pause();sleepOn=false;document.getElementById('npSleep').classList.remove('on');toast('Music band ho gaya','inf');},30*60*1000);}}
+function shareNP(){if(curIdx<0)return;const s=songs[curIdx];if(navigator.share)navigator.share({title:s.title,text:`${s.title} — ${s.artist} | TubeTune`});else navigator.clipboard.writeText(s.url||s.title).then(()=>toast('Link copied!','ok'));}
+
+function toast(msg,type='inf'){const el=document.createElement('div');el.className=`toast ${type}`;el.innerHTML=`<div class="toast-dot"></div><span>${msg}</span>`;document.getElementById('toastBox').appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(14px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),320);},3000);}
+
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.code==='Space'){e.preventDefault();togglePlay();}if(e.code==='ArrowRight')nextS();if(e.code==='ArrowLeft')prevS();});
+document.getElementById('sPass').addEventListener('keydown',e=>{if(e.key==='Enter')doSignup();});
+document.getElementById('lPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+/* ══════════════════════════════════════════════════
+   YT FETCH — PREMIUM GATED
+══════════════════════════════════════════════════ */
+let ytFetchQuery='',ytFetchedSongId='',ytSearchDebounce=null;
+
+function ytCheckAndShow(query){
+  clearTimeout(ytSearchDebounce);
+  const q=(query||'').trim();
+  if(q.length<2){ytHideAll();return;}
+  ytSearchDebounce=setTimeout(async()=>{
+    const results=getFiltered();
+    if(results.length===0&&q.length>=2){
+      // Premium re-check karo agar pehle se nahi hai
+      if(!isPremium) await checkPremium();
+      if(isPremium){ytHideLock();ytShowBox(q);}
+      else{ytHideBox();ytShowLock(q);}
+    } else {ytHideAll();}
+  },600);
+}
+
+function ytShowBox(query){
+  ytFetchQuery=query;
+  const box=document.getElementById('ytSearchBox');
+  document.getElementById('ytBoxTitle').textContent=`"${query}" dhundho`;
+  document.getElementById('ytBoxSub').textContent='YouTube pe search karo';
+  // Reset to phase 1
+  document.getElementById('ytPhase1').style.display='block';
+  document.getElementById('ytPhase2').style.display='none';
+  document.getElementById('ytPhase3').style.display='none';
+  document.getElementById('ytResultCard').classList.remove('show');
+  document.getElementById('ytNoMatch').classList.remove('show');
+  const btn=document.getElementById('ytSearchBtn');
+  if(btn){btn.classList.remove('fetching');btn.disabled=false;}
+  box.classList.add('show');
+}
+function ytHideBox(){document.getElementById('ytSearchBox').classList.remove('show');ytFetchedSongId='';}
+function ytShowLock(query){document.getElementById('ytPremiumLock').classList.add('show');}
+function ytHideLock(){document.getElementById('ytPremiumLock').classList.remove('show');}
+function ytHideAll(){ytHideBox();ytHideLock();}
+
+function ytBackToSearch(){
+  document.getElementById('ytPhase2').style.display='none';
+  document.getElementById('ytPhase3').style.display='none';
+  document.getElementById('ytPhase1').style.display='block';
+  document.getElementById('ytBoxSub').textContent='YouTube pe search karo';
+}
+
+async function ytSearchYoutube(){
+  const query=ytFetchQuery.trim();if(!query)return;
+  const btn=document.getElementById('ytSearchBtn');
+  btn.classList.add('fetching');btn.disabled=true;
+  document.getElementById('ytBoxSub').textContent='Search ho raha hai...';
+  try{
+    const r=await fetch(`${API}/api/yt-search`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SS.token()},
+      body:JSON.stringify({query})
+    });
+    const txt=await r.text();
+    let d={};try{d=JSON.parse(txt);}catch(_){}
+    if(r.status===403){
+      if(!isPremium){ytHideBox();ytShowLock(query);}
+      else{
+        // Token refresh karke retry
+        btn.classList.remove('fetching');btn.disabled=false;
+        await ytSearchYoutube();
+      }
+      return;
+    }
+    if(!r.ok||!d.success) throw new Error(d.error||'Search fail hua');
+
+    // Phase 2 — results dikhao
+    document.getElementById('ytPhase1').style.display='none';
+    document.getElementById('ytPhase2').style.display='block';
+    const warningTxt = d.warning ? `⚠️ ${d.warning}` : `${d.results.length} results mile — ek chunno`;
+    document.getElementById('ytBoxSub').textContent=warningTxt;
+
+    const list=document.getElementById('ytResultsList');
+    list.innerHTML=d.results.map((v,i)=>`
+      <div class="yt-result-item" onclick="ytAddFromResult('${v.videoId}','${(v.title||'').replace(/'/g,"\\'")}','${(v.channel||'').replace(/'/g,"\\'")}','${v.thumbnail}')">
+        <img class="yt-result-item-thumb" src="${v.thumbnail}" loading="lazy" onerror="this.style.background='var(--s4)'">
+        <div class="yt-result-item-info">
+          <div class="yt-result-item-title">${v.title}</div>
+          <div class="yt-result-item-meta">${v.channel}${v.duration?' · '+v.duration:''}</div>
+        </div>
+        <button class="yt-result-item-add" onclick="event.stopPropagation();ytAddFromResult('${v.videoId}','${(v.title||'').replace(/'/g,"\\'")}','${(v.channel||'').replace(/'/g,"\\'")}','${v.thumbnail}')">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </button>
+      </div>`).join('');
+  }catch(err){
+    toast(err.message||'Search fail hua','err');
+    document.getElementById('ytBoxSub').textContent='Kuch problem hui';
+  }
+  btn.classList.remove('fetching');btn.disabled=false;
+}
+
+async function ytAddFromResult(videoId, title, channel, thumbnail){
+  // Phase 2 se Phase 3 pe switch karo
+  document.getElementById('ytPhase1').style.display='none';
+  document.getElementById('ytPhase2').style.display='none';
+  document.getElementById('ytPhase3').style.display='block';
+
+  // Steps show karo aur reset karo
+  document.getElementById('ytSteps').classList.add('show');
+  document.getElementById('ytResultCard').classList.remove('show');
+  document.getElementById('ytNoMatch').classList.remove('show');
+  ['ytStep1','ytStep2','ytStep3','ytStep4'].forEach(id=>document.getElementById(id).className='yt-step');
+
+  // Title update karo
+  document.getElementById('ytBoxTitle').textContent=`"${title}" add ho raha hai`;
+  document.getElementById('ytBoxSub').textContent='Kuch second wait karo...';
+
+  await ytFetchSong(false, videoId, title, channel, thumbnail);
+}
+
+function ytSetStep(stepNum,state){
+  for(let i=1;i<=4;i++){const el=document.getElementById('ytStep'+i);if(!el)continue;if(i<stepNum)el.className='yt-step done';else if(i===stepNum)el.className='yt-step '+state;else el.className='yt-step';}
+}
+
+async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedChannel='', fixedThumb=''){
+  const query=ytFetchQuery.trim();if(!query)return;
+  try{
+    // Step 1: YouTube pe search
+    ytSetStep(1,'active');
+    await new Promise(r=>setTimeout(r,700));
+
+    let token=SS.token();
+    if(isRetry){
+      const sess=SS.get();
+      if(sess?.refresh_token){
+        try{
+          const rr=await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:sess.refresh_token})});
+          const rd=await rr.json();
+          if(rr.ok&&rd.access_token){SS.save(rd);token=rd.access_token;}
+        }catch(_){}
+      }
+    }
+
+    // Step 2: Audio URL nikal raha hai
+    ytSetStep(2,'active');
+    const fetchRes=await fetch(`${API}/api/yt-fetch`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({query, videoId: fixedVideoId||undefined, title: fixedTitle||undefined, channel: fixedChannel||undefined})
+    });
+
+    // Step 3: Server pe upload
+    ytSetStep(3,'active');
+    await new Promise(r=>setTimeout(r,300));
+
+    const resTxt=await fetchRes.text();
+    let data={};try{data=JSON.parse(resTxt);}catch(_){}
+
+    if(!fetchRes.ok){
+      if(fetchRes.status===403){
+        if(!isRetry){
+          await ytFetchSong(true,fixedVideoId,fixedTitle,fixedChannel,fixedThumb);
+          return;
+        }
+        await checkPremium();
+        if(!isPremium){ytHideBox();ytShowLock(query);}
+        else{throw new Error('Backend premium verify nahi kar pa raha.');}
+        return;
+      }
+      if(fetchRes.status===422 && data.code==='NOT_MUSIC'){
+        throw new Error(data.error || 'Sirf songs add kar sakte ho — yeh music nahi lagta');
+      }
+      throw new Error(data.error||data.message||`Server error ${fetchRes.status}`);
+    }
+
+    if(!data.success) throw new Error(data.error||data.message||'Song nahi mila');
+
+    // Step 4: Library update
+    ytSetStep(4,'active');
+    await ytRefreshSongs();
+    ytSetStep(4,'done');
+    await new Promise(r=>setTimeout(r,400));
+
+    const newSong=data.song;ytFetchedSongId=newSong?.id||'';
+    document.getElementById('ytResultTitle').textContent=newSong?.title||fixedTitle||query;
+    document.getElementById('ytResultSub').textContent=`by ${newSong?.artist||fixedChannel||'Unknown'} • Library mein add ho gaya`;
+    const thumb=newSong?.thumb||newSong?.thumbnail||fixedThumb;
+    if(thumb){document.getElementById('ytResultThumb').innerHTML=`<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;border-radius:8px" onerror="this.style.display='none'">`;}
+    document.getElementById('ytPlayNowBtn').onclick=()=>{if(ytFetchedSongId)playById(ytFetchedSongId);else{const found=songs.find(s=>s.title.toLowerCase().includes((newSong?.title||query).toLowerCase()));if(found)playById(found.id);}ytHideAll();clearSearch();};
+    document.getElementById('ytResultCard').classList.add('show');
+    document.getElementById('ytBoxSub').textContent='Library mein add ho gaya! 🎉';
+    toast(`"${newSong?.title||fixedTitle||query}" add ho gaya`,'ok');
+  }catch(err){
+    console.error('YT Fetch Error:',err);
+    const activeStep=document.querySelector('#ytSteps .yt-step.active');if(activeStep)activeStep.className='yt-step err';
+    document.getElementById('ytNoMatchTxt').textContent=err.message||'Song nahi mila';
+    document.getElementById('ytNoMatch').classList.add('show');
+    document.getElementById('ytBoxSub').textContent='Kuch problem hui';
+    toast(err.message||'YouTube fetch fail hua','err');
+  }
+}
+
+async function ytRefreshSongs(){
+  try{
+    const r=await fetch(`${API}/api/songs?limit=1000`);if(!r.ok)return;
+    const json=await r.json();const newSongs=(json.data||json.songs||(Array.isArray(json)?json:[])).map(norm);
+    if(newSongs.length>0){songs=newSongs;localStorage.setItem('tt_cache',JSON.stringify(songs));document.getElementById('heroCount').textContent=`${songs.length} songs available`;renderSongs();renderFavBadge();}
+  }catch(e){console.warn('ytRefreshSongs:',e);}
+}
+
+boot();
+</script>
+</body>
+        </html>
