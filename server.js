@@ -354,12 +354,10 @@ app.get('/api/users/all', auth, async (req, res) => {
     const authData = await r.json();
     const authUsers = authData.users || [];
 
-    // Active subscriptions bhi lo
+    // Active subscriptions bhi lo (sirf jinke paas row hai)
     const { data: subs } = await supabaseAdmin
       .from('subscriptions')
-      .select('*')
-      .eq('status', 'active')
-      .gte('expires_at', new Date().toISOString());
+      .select('*');
 
     const subsMap = {};
     (subs || []).forEach(s => { subsMap[s.user_id] = s; });
@@ -434,14 +432,14 @@ app.post('/api/admin/revoke-premium', auth, async (req, res) => {
     const { user_id } = req.body;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id required' });
 
+    // Seedha DELETE karo — sirf update nahi, row hatao
     const { error } = await supabaseAdmin
       .from('subscriptions')
-      .update({ status: 'expired' })
-      .eq('user_id', user_id)
-      .eq('status', 'active');
+      .delete()
+      .eq('user_id', user_id);
     if (error) throw error;
 
-    res.json({ success: true });
+    res.json({ success: true, message: 'Subscription removed successfully' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
