@@ -1497,10 +1497,9 @@ async function boot(){
     navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});
   }
 
-  // FIX 2: Notification click → app resume → song restore karo
+  // visibilitychange — app foreground mein aane par state refresh
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible'){
-      // Sirf tab karo jab mainApp active ho aur song chal raha ho
       const appActive = document.getElementById('mainApp')?.classList.contains('on');
       if(appActive && curIdx>=0 && aud.src){
         setPlayUI(playing);
@@ -1512,15 +1511,6 @@ async function boot(){
       }
     }
   });
-
-  // FIX 3: Background mein bhi ended event fire ho iske liye extra check
-  window._bgInterval = setInterval(()=>{
-    const appActive = document.getElementById('mainApp')?.classList.contains('on');
-    if(!appActive || !aud.src || aud.paused || !songs.length) return;
-    if(aud.duration && aud.currentTime >= aud.duration - 0.5){
-      onEnded();
-    }
-  }, 1000);
   if(sbDev){document.getElementById('authRoot').classList.add('hidden');document.getElementById('mainApp').classList.add('on');document.getElementById('avInitial').textContent='D';document.getElementById('heroGreet').textContent='Hey, Dev';document.getElementById('profAv').textContent='D';document.getElementById('profName').textContent='Dev User';document.getElementById('profEmail').textContent='dev@tubetune.app';loadSongs();toast('Dev mode','inf');return;}
   showScreen('login');
   const session=SS.get();
@@ -1686,17 +1676,12 @@ function updateMediaPosition(){
     try{AndroidBridge.updatePosition(Math.floor(aud.currentTime), Math.floor(aud.duration));}catch(e){}
   }
 }
-let _endedCalled=false;
 function onEnded(){
-  if(_endedCalled)return; _endedCalled=true;
-  setTimeout(()=>_endedCalled=false,1000);
   if(repeat){aud.currentTime=0;aud.play();}
   else{
-    // Auto next — chahe background ho ya foreground
-    const wasIdx=curIdx;
     if(shuffle) curIdx=Math.floor(Math.random()*songs.length);
-    else curIdx=curIdx+1 < songs.length ? curIdx+1 : 0; // Loop back to start
-    if(curIdx!==wasIdx||repeat) playById(songs[curIdx].id);
+    else curIdx=curIdx+1 < songs.length ? curIdx+1 : 0;
+    playById(songs[curIdx].id);
   }
 }
 function nextS(){if(!songs.length)return;if(shuffle)curIdx=Math.floor(Math.random()*songs.length);else curIdx=curIdx+1<songs.length?curIdx+1:0;playById(songs[curIdx].id);}
