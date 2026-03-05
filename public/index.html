@@ -550,6 +550,27 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .sys-brand-dot{width:6px;height:6px;border-radius:50%;background:var(--p);opacity:.5}
 
 audio{display:none}
+
+/* ══ SYSTEM SCREENS (Maintenance / Update) ══ */
+.sys-screen{position:fixed;inset:0;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:36px 28px;text-align:center;background:#07080f}
+.sys-screen.show{display:flex}
+.sys-screen::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 500px 400px at 50% 20%,rgba(108,92,231,.1) 0%,transparent 65%)}
+.sys-ico-ring{position:relative;width:110px;height:110px;display:flex;align-items:center;justify-content:center;margin-bottom:32px}
+.sys-ico-ring::before,.sys-ico-ring::after{content:'';position:absolute;border-radius:50%;border:1.5px solid rgba(255,255,255,.07)}
+.sys-ico-ring::before{inset:-14px;animation:sysRing 3s ease-in-out infinite}
+.sys-ico-ring::after{inset:-26px;animation:sysRing 3s ease-in-out infinite .6s}
+@keyframes sysRing{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.2;transform:scale(1.04)}}
+.sys-ico-box{width:90px;height:90px;border-radius:26px;display:flex;align-items:center;justify-content:center}
+.sys-ico-box.maint{background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(251,191,36,.05));border:1.5px solid rgba(251,191,36,.25);box-shadow:0 0 48px rgba(251,191,36,.12)}
+.sys-ico-box.upd{background:linear-gradient(135deg,rgba(108,92,231,.2),rgba(162,155,254,.06));border:1.5px solid rgba(108,92,231,.28);box-shadow:0 0 48px rgba(108,92,231,.14)}
+.sys-title{font-size:28px;font-weight:900;letter-spacing:-.8px;color:#F1F2F6;margin-bottom:12px;position:relative;z-index:1}
+.sys-msg{font-size:14px;color:#9499B0;line-height:1.75;max-width:300px;position:relative;z-index:1}
+.sys-ver{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;color:#5C6080;margin-top:16px}
+.sys-update-btn{position:relative;z-index:1;margin-top:32px;display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#6C63FF,#8B5CF6);border:none;border-radius:16px;padding:16px 36px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;text-decoration:none;box-shadow:0 8px 32px rgba(108,92,231,.45);transition:all .2s;font-family:inherit}
+.sys-update-btn:hover{transform:translateY(-2px);box-shadow:0 14px 40px rgba(108,92,231,.6)}
+.sys-update-btn:active{transform:scale(.97)}
+.sys-brand{position:absolute;bottom:28px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;font-weight:700;color:#5C6080;letter-spacing:.5px}
+.sys-brand-dot{width:5px;height:5px;border-radius:50%;background:#6C63FF;opacity:.5}
 </style>
 </head>
 <body>
@@ -557,6 +578,38 @@ audio{display:none}
   <div class="ga ga-1"></div>
   <div class="ga ga-2"></div>
   <div class="ga ga-3"></div>
+</div>
+
+<!-- ══ MAINTENANCE SCREEN ══ -->
+<div class="sys-screen" id="maintScreen">
+  <div class="sys-ico-ring">
+    <div class="sys-ico-box maint">
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+    </div>
+  </div>
+  <div class="sys-title">Under Maintenance</div>
+  <div class="sys-msg" id="maintMsg">Hum thodi der mein wapas aayenge. Patience ke liye shukriya.</div>
+  <div class="sys-brand"><div class="sys-brand-dot"></div>TubeTune<div class="sys-brand-dot"></div></div>
+</div>
+
+<!-- ══ UPDATE SCREEN ══ -->
+<div class="sys-screen" id="updateScreen">
+  <div class="sys-ico-ring">
+    <div class="sys-ico-box upd">
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#A29BFE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+    </div>
+  </div>
+  <div class="sys-title" id="updScreenTitle">New Update Available!</div>
+  <div class="sys-msg" id="updScreenMsg">Nayi features aur improvements ke liye app update karo.</div>
+  <div class="sys-ver" id="updScreenVer" style="display:none">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="updScreenVerTxt">v2.0.0</span>
+  </div>
+  <a class="sys-update-btn" id="updNowBtn" href="#" target="_blank" rel="noopener noreferrer">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+    Update Now
+  </a>
+  <div class="sys-brand"><div class="sys-brand-dot"></div>TubeTune<div class="sys-brand-dot"></div></div>
 </div>
 
 <!-- ══ MAINTENANCE SCREEN ══ -->
@@ -1632,7 +1685,46 @@ async function checkAppStatus(){
   return false;
 }
 
+/* ══ APP STATUS CHECK ══ */
+async function checkAppStatus(){
+  try{
+    const H={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY};
+    const keys=['maintenance','maintenance_message','update_available','update_title','update_message','update_url','update_version'];
+    const results={};
+    await Promise.all(keys.map(async k=>{
+      const r=await fetch(`${SB_URL}/rest/v1/app_config?key=eq.${encodeURIComponent(k)}&select=value`,{headers:H});
+      if(r.ok){const d=await r.json();results[k]=d[0]?.value??null;}
+      else results[k]=null;
+    }));
+
+    // Maintenance — highest priority
+    if(results['maintenance']==='true'){
+      document.getElementById('maintMsg').textContent=results['maintenance_message']||'Hum thodi der mein wapas aayenge. Patience ke liye shukriya.';
+      document.getElementById('maintScreen').classList.add('show');
+      return true;
+    }
+
+    // Update
+    if(results['update_available']==='true'&&results['update_url']){
+      document.getElementById('updScreenTitle').textContent=results['update_title']||'New Update Available!';
+      document.getElementById('updScreenMsg').textContent=results['update_message']||'Nayi features ke liye update karo.';
+      document.getElementById('updNowBtn').href=results['update_url'];
+      if(results['update_version']){
+        document.getElementById('updScreenVerTxt').textContent=results['update_version'];
+        document.getElementById('updScreenVer').style.display='inline-flex';
+      }
+      document.getElementById('updateScreen').classList.add('show');
+      return true;
+    }
+  }catch(e){console.warn('Status check failed:',e);}
+  return false;
+}
+
 async function boot(){
+  // Sabse pehle maintenance / update check
+  const blocked = await checkAppStatus();
+  if(blocked) return;
+
   aud.addEventListener('timeupdate',onTU);
   aud.addEventListener('ended',onEnded);
   aud.addEventListener('play',()=>setPlayUI(true));
@@ -1842,7 +1934,16 @@ function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;cu
       artwork
     });
     navigator.mediaSession.playbackState = 'playing';
-  }}
+  }
+  // Jab audio load ho, turant seekbar + time set karo notification mein
+  aud.addEventListener('loadedmetadata', function onMeta(){
+    aud.removeEventListener('loadedmetadata', onMeta);
+    updateMediaPosition();
+  });
+  aud.addEventListener('canplay', function onCan(){
+    aud.removeEventListener('canplay', onCan);
+    updateMediaPosition();
+  });
 function showMini(){miniUp=true;const m=document.getElementById('mini');m.classList.add('up');m.classList.remove('hidden-np');document.getElementById('shufFab').classList.remove('no-mini');}
 function closeMini(){aud.pause();miniUp=false;const m=document.getElementById('mini');m.classList.remove('up');m.classList.remove('hidden-np');document.getElementById('shufFab').classList.add('no-mini');}
 function closeNP(){goPage('home',document.getElementById('nb-home'));}
@@ -1855,17 +1956,15 @@ function setPlayUI(isPlaying){playing=isPlaying;const ico=isPlaying?`<rect x="6"
 }
 
 function updateMediaPosition(){
-  if(!('mediaSession' in navigator)||!aud.duration)return;
+  if(!('mediaSession' in navigator))return;
+  const dur=aud.duration;
+  if(!dur||!isFinite(dur)||dur<=0)return;
+  const pos=Math.min(Math.max(0,aud.currentTime||0),dur);
   try{
-    navigator.mediaSession.setPositionState({
-      duration:     aud.duration,
-      playbackRate: aud.playbackRate||1,
-      position:     Math.min(aud.currentTime, aud.duration)
-    });
+    navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});
   }catch(_){}
-  // Android native seekbar update — har 2 sec mein
   if(window.AndroidBridge && curIdx>=0){
-    try{AndroidBridge.updatePosition(Math.floor(aud.currentTime), Math.floor(aud.duration));}catch(e){}
+    try{AndroidBridge.updatePosition(Math.floor(aud.currentTime), Math.floor(dur));}catch(e){}
   }
 }
 function onEnded(){
