@@ -1977,8 +1977,27 @@ let bgEndedPending = false;
 function onEnded(){
   bgEndedPending = false;
   if(repeat){ aud.currentTime=0; aud.play().catch(()=>{}); }
-  else{ _playNext(); }
+  else{
+    // Android screen off ke liye — Java side ko bhi batao
+    if(window.AndroidBridge && AndroidBridge.notifySongEnded){
+      try{ AndroidBridge.notifySongEnded(); }catch(e){ _playNext(); }
+    } else {
+      _playNext();
+    }
+  }
 }
+
+// Android screen wapas on hone par call hota hai
+window.onAndroidResume = function(){
+  if(bgEndedPending && curIdx>=0){
+    bgEndedPending = false;
+    if(repeat){ aud.currentTime=0; aud.play().catch(()=>{}); }
+    else { _playNext(); }
+  } else if(curIdx>=0 && aud.src){
+    setPlayUI(playing);
+    if(playing) showMini();
+  }
+};
 
 function _playNext(){
   if(!songs.length) return;
