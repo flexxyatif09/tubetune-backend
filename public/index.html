@@ -1888,7 +1888,36 @@ function renderUpNext(){const g=document.getElementById('upNextList');if(curIdx<
 function renderFavBadge(){const b=document.getElementById('favBadge');b.textContent=favs.length;b.style.display=favs.length?'block':'none';}
 
 /* ── PLAYBACK ── */
-function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;curIdx=idx;const s=songs[idx];recent=[s.id,...recent.filter(x=>x!==s.id)].slice(0,30);localStorage.setItem('tt_recent',JSON.stringify(recent));updateNPUI(s);if(!npOpen)showMini();if(!s.url){toast('Audio URL nahi hai','inf');return;}aud.src=s.url;aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;aud.play().catch(()=>toast('Play nahi hua','err'));renderSongs();renderRecent();renderUpNext();updateGlows();if('mediaSession' in navigator){
+function playById(id){
+  const idx=songs.findIndex(s=>s.id===id);
+  if(idx<0)return;
+  curIdx=idx;
+  const s=songs[idx];
+
+  // ── Fix 1: Progress bar turant reset karo — purana time nahi dikhega ──
+  document.getElementById('npBar').style.width='0%';
+  document.getElementById('miniFill').style.width='0%';
+  document.getElementById('npRing').style.setProperty('--prog','0%');
+  document.getElementById('npCur').textContent='0:00';
+  document.getElementById('npDur').textContent='0:00';
+
+  recent=[s.id,...recent.filter(x=>x!==s.id)].slice(0,30);
+  localStorage.setItem('tt_recent',JSON.stringify(recent));
+  updateNPUI(s);
+  if(!npOpen)showMini();
+  if(!s.url){toast('Audio URL nahi hai','inf');return;}
+
+  aud.src=s.url;
+  aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
+  aud.play().catch(()=>toast('Play nahi hua','err'));
+
+  // ── Fix 2: Heavy renders defer karo — play instantly hoga, lag nahi aayega ──
+  requestAnimationFrame(()=>{
+    renderSongs();
+    setTimeout(()=>{ renderRecent(); renderUpNext(); updateGlows(); }, 50);
+  });
+
+  if('mediaSession' in navigator){
     const artwork = s.thumb ? [
       {src: s.thumb, sizes:'96x96',   type:'image/jpeg'},
       {src: s.thumb, sizes:'128x128', type:'image/jpeg'},
@@ -1904,7 +1933,6 @@ function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;cu
     });
     navigator.mediaSession.playbackState = 'playing';
   }
-  // Jab audio load ho, turant seekbar + time set karo notification mein
   aud.addEventListener('loadedmetadata', function onMeta(){
     aud.removeEventListener('loadedmetadata', onMeta);
     updateMediaPosition();
@@ -1958,11 +1986,21 @@ function _playNext(){
   else curIdx = curIdx+1 < songs.length ? curIdx+1 : 0;
   const s = songs[curIdx];
   if(!s || !s.url) return;
-  // Direct src set — iOS background mein bhi kaam karta hai
+
+  // Progress bar reset
+  document.getElementById('npBar').style.width='0%';
+  document.getElementById('miniFill').style.width='0%';
+  document.getElementById('npRing').style.setProperty('--prog','0%');
+  document.getElementById('npCur').textContent='0:00';
+  document.getElementById('npDur').textContent='0:00';
+
   aud.src = s.url;
   updateNPUI(s);
-  renderSongs(); renderRecent(); renderUpNext(); updateGlows();
-  recent = [s.id,...recent.filter(x=>x!==s.id)].slice(0,30);
+  requestAnimationFrame(()=>{
+    renderSongs();
+    setTimeout(()=>{ renderRecent(); renderUpNext(); updateGlows(); }, 50);
+  });
+  recent=[s.id,...recent.filter(x=>x!==s.id)].slice(0,30);
   localStorage.setItem('tt_recent', JSON.stringify(recent));
   if('mediaSession' in navigator){
     try{
@@ -1976,7 +2014,6 @@ function _playNext(){
   if(window.AndroidBridge){
     try{AndroidBridge.updateMediaSession(s.title||'',s.artist||'',s.thumb||'',true);}catch(e){}
   }
-  // play with retry
   const doPlay = () => aud.play().catch(()=>{ setTimeout(()=>aud.play().catch(()=>{}), 500); });
   if(aud.readyState >= 2){ doPlay(); }
   else { aud.addEventListener('canplay', function cp(){ aud.removeEventListener('canplay',cp); doPlay(); }); }
