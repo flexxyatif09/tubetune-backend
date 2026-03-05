@@ -44,7 +44,7 @@ if('serviceWorker' in navigator){
   `;
   const swBlob = new Blob([swCode], {type:'text/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(swBlob), {scope: '/'})
-    .then(() => console.log('TubeTune PWA ready'))
+    .then(() => console.log('TubeTune PWA ready ✅'))
     .catch(e => console.warn('SW:', e));
 }
 </script>
@@ -1689,26 +1689,8 @@ async function checkAppStatus(){
 }
 
 async function boot(){
-  // ── INSTANT SESSION CHECK — login screen flash rokne ke liye ──
-  const quickSess = SS.get();
-  const nowTs = Math.floor(Date.now()/1000);
-  if(quickSess && quickSess.expires_at && quickSess.expires_at > nowTs+60){
-    // Valid session — auth screen chhupao, seedha app dikhao
-    document.getElementById('authRoot').style.visibility='hidden';
-    document.getElementById('authRoot').style.pointerEvents='none';
-    enterApp(quickSess.user);
-    // Background mein token refresh (silently)
-    if(quickSess.refresh_token){
-      fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:quickSess.refresh_token})})
-        .then(r=>r.json()).then(d=>{if(d.access_token)SS.save(d);}).catch(()=>{});
-    }
-    return;
-  }
 
-  // Sabse pehle maintenance / update check
-  const blocked = await checkAppStatus();
-  if(blocked) return;
-
+  // ── AUDIO LISTENERS PEHLE — kisi bhi await se pehle ──
   aud.addEventListener('timeupdate',onTU);
   aud.addEventListener('ended',onEnded);
   aud.addEventListener('play',()=>setPlayUI(true));
@@ -1737,9 +1719,30 @@ async function boot(){
       }
     }
   });
+
+  // ── INSTANT SESSION CHECK — login screen flash rokne ke liye ──
+  const quickSess = SS.get();
+  const nowTs = Math.floor(Date.now()/1000);
+  if(quickSess && quickSess.expires_at && quickSess.expires_at > nowTs+60){
+    // Valid session — auth screen chhupao, seedha app dikhao
+    document.getElementById('authRoot').style.visibility='hidden';
+    document.getElementById('authRoot').style.pointerEvents='none';
+    enterApp(quickSess.user);
+    // Background mein token refresh (silently)
+    if(quickSess.refresh_token){
+      fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:quickSess.refresh_token})})
+        .then(r=>r.json()).then(d=>{if(d.access_token)SS.save(d);}).catch(()=>{});
+    }
+    return;
+  }
+
+  // Maintenance / update check
+  const blocked = await checkAppStatus();
+  if(blocked) return;
+
   if(sbDev){document.getElementById('authRoot').classList.add('hidden');document.getElementById('mainApp').classList.add('on');document.getElementById('avInitial').textContent='D';document.getElementById('heroGreet').textContent='Hey, Dev';document.getElementById('profAv').textContent='D';document.getElementById('profName').textContent='Dev User';document.getElementById('profEmail').textContent='dev@tubetune.app';loadSongs();toast('Dev mode','inf');return;}
 
-  // No valid quick session — show login
+  // No valid session — show login
   document.getElementById('authRoot').style.visibility='';
   document.getElementById('authRoot').style.pointerEvents='';
   showScreen('login');
@@ -2005,9 +2008,9 @@ function handleDeeplink(){
     // Song dhundho aur play karo
     const idx=songs.findIndex(s=>s.id===songId||String(s.id)===String(songId));
     if(idx>=0){
-      setTimeout(()=>{ playById(songs[idx].id); toast('Song play ho raha hai...','ok'); }, 600);
+      setTimeout(()=>{ playById(songs[idx].id); toast('🎵 Song play ho raha hai...','ok'); }, 600);
     } else {
-      toast('Song nahi mila','err');
+      toast('Song nahi mila 😕','err');
     }
   }catch(e){}
 }
@@ -2018,7 +2021,7 @@ function shareNP(){
   // Bridge page URL — app installed ho to app khulega, nahi to download page
   const shareUrl='https://tubetune-backend-production.up.railway.app/open?song='+encodeURIComponent(s.id);
   const shareTitle='TubeTune — '+s.title;
-  const shareText=`"${s.title}" by ${s.artist} — TubeTune par suno! Bilkul free, koi ads nahi.\n`;
+  const shareText=`🎵 "${s.title}" by ${s.artist} — TubeTune par suno! Bilkul free, koi ads nahi.\n`;
   // Android WebView — native share sheet
   if(window.AndroidBridge&&AndroidBridge.nativeShare){
     try{ AndroidBridge.nativeShare(shareTitle, shareText, shareUrl); return; }catch(e){}
@@ -2030,7 +2033,7 @@ function shareNP(){
   }
   // Fallback — clipboard
   navigator.clipboard.writeText(shareUrl)
-    .then(()=>toast('Link copy ho gaya!','ok'))
+    .then(()=>toast('Link copy ho gaya! 🔗','ok'))
     .catch(()=>toast(shareUrl,'inf'));
 }
 
