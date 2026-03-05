@@ -1918,15 +1918,21 @@ function setPlayUI(isPlaying){playing=isPlaying;const ico=isPlaying?`<rect x="6"
 }
 
 function updateMediaPosition(){
-  if(!('mediaSession' in navigator))return;
   const dur=aud.duration;
-  if(!dur||!isFinite(dur)||dur<=0)return;
+  if(!dur||!isFinite(dur)||isNaN(dur)||dur<1)return;
   const pos=Math.min(Math.max(0,aud.currentTime||0),dur);
-  try{
-    navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});
-  }catch(_){}
-  if(window.AndroidBridge && curIdx>=0){
-    try{AndroidBridge.updatePosition(Math.floor(aud.currentTime), Math.floor(dur));}catch(e){}
+  const isIOS=/iP(hone|od|ad)/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&'ontouchend' in document);
+  // iOS — mediaSession seekbar
+  if(isIOS&&'mediaSession' in navigator){
+    try{navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});}catch(_){}
+  }
+  // Android — AndroidBridge seedha, mediaSession ke peeche nahi chhupta
+  if(!isIOS&&window.AndroidBridge&&curIdx>=0){
+    try{AndroidBridge.updatePosition(Math.floor(pos),Math.floor(dur));}catch(e){}
+  }
+  // Desktop/PWA — mediaSession support
+  if(!isIOS&&!window.AndroidBridge&&'mediaSession' in navigator){
+    try{navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});}catch(_){}
   }
 }
 function onEnded(){
@@ -1960,7 +1966,7 @@ function setVol(e){const r=document.getElementById('volTrack').getBoundingClient
 function toggleRepeat(){repeat=!repeat;document.getElementById('npRep').classList.toggle('on',repeat);toast(repeat?'Repeat ON':'Repeat OFF','inf');}
 function toggleShuffle(){shuffle=!shuffle;document.getElementById('npShuf').classList.toggle('on',shuffle);toast(shuffle?'Shuffle ON':'Shuffle OFF','inf');}
 function toggleSleep(){if(sleepOn){clearTimeout(sleepTimer);sleepOn=false;document.getElementById('npSleep').classList.remove('on');toast('Sleep timer off','inf');}else{sleepOn=true;document.getElementById('npSleep').classList.add('on');toast('Sleep: 30 min baad band hoga','inf');sleepTimer=setTimeout(()=>{aud.pause();sleepOn=false;document.getElementById('npSleep').classList.remove('on');toast('Music band ho gaya','inf');},30*60*1000);}}
-function shareNP(){if(curIdx<0)return;const s=songs[curIdx];const shareUrl='http://tubetune.free.nf/';const shareData={title:'TubeTune — Free Music',text:`🎵 "${s.title}" by ${s.artist} — TubeTune par suno! Bilkul free, koi ads nahi.`,url:shareUrl};if(navigator.share){navigator.share(shareData).catch(()=>{});}else{navigator.clipboard.writeText(shareUrl).then(()=>toast('Link copy ho gaya! 🔗','ok')).catch(()=>toast('tubetune.free.nf','inf'));}}
+function shareNP(){if(curIdx<0)return;const s=songs[curIdx];if(navigator.share)navigator.share({title:s.title,text:`${s.title} — ${s.artist} | TubeTune`});else navigator.clipboard.writeText(s.url||s.title).then(()=>toast('Link copied!','ok'));}
 
 function toast(msg,type='inf'){const el=document.createElement('div');el.className=`toast ${type}`;el.innerHTML=`<div class="toast-dot"></div><span>${msg}</span>`;document.getElementById('toastBox').appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(14px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),320);},3000);}
 
