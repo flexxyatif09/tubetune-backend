@@ -1624,7 +1624,8 @@ function enterApp(user){
   document.getElementById('authRoot').classList.add('hidden');
   document.getElementById('mainApp').classList.add('on');
   updateUserUI(user);
-  Promise.all([loadSongs(), checkPremium(), loadPlaylists(), loadFavsFromDB()]);
+  Promise.all([loadSongs(), checkPremium(), loadPlaylists(), loadFavsFromDB()])
+    .then(()=>{ handleDeeplink(); });
 }
 
 function updateUserUI(user){
@@ -1966,7 +1967,43 @@ function setVol(e){const r=document.getElementById('volTrack').getBoundingClient
 function toggleRepeat(){repeat=!repeat;document.getElementById('npRep').classList.toggle('on',repeat);toast(repeat?'Repeat ON':'Repeat OFF','inf');}
 function toggleShuffle(){shuffle=!shuffle;document.getElementById('npShuf').classList.toggle('on',shuffle);toast(shuffle?'Shuffle ON':'Shuffle OFF','inf');}
 function toggleSleep(){if(sleepOn){clearTimeout(sleepTimer);sleepOn=false;document.getElementById('npSleep').classList.remove('on');toast('Sleep timer off','inf');}else{sleepOn=true;document.getElementById('npSleep').classList.add('on');toast('Sleep: 30 min baad band hoga','inf');sleepTimer=setTimeout(()=>{aud.pause();sleepOn=false;document.getElementById('npSleep').classList.remove('on');toast('Music band ho gaya','inf');},30*60*1000);}}
-function shareNP(){if(curIdx<0)return;const s=songs[curIdx];const shareUrl='http://tubetune.free.nf/';const shareData={title:'TubeTune — Free Music',text:`🎵 "${s.title}" by ${s.artist} — TubeTune par suno! Bilkul free, koi ads nahi.`,url:shareUrl};if(navigator.share){navigator.share(shareData).catch(()=>{});}else{navigator.clipboard.writeText(shareUrl).then(()=>toast('Link copy ho gaya! 🔗','ok')).catch(()=>toast('tubetune.free.nf','inf'));}}
+/* ══════════════════════════════════════════════════════
+   DEEPLINK HANDLER
+   URL format: https://tubetune.free.nf/?song=SONG_ID
+   App open hone par ya already open hone par song play karo
+══════════════════════════════════════════════════════ */
+function handleDeeplink(){
+  try{
+    const params=new URLSearchParams(window.location.search);
+    const songId=params.get('song');
+    if(!songId)return;
+    // URL clean karo (history replace) taaki reload pe dobara na chale
+    const cleanUrl=window.location.pathname;
+    window.history.replaceState({},'',cleanUrl);
+    // Song dhundho aur play karo
+    const idx=songs.findIndex(s=>s.id===songId||String(s.id)===String(songId));
+    if(idx>=0){
+      setTimeout(()=>{ playById(songs[idx].id); toast('🎵 Song play ho raha hai...','ok'); }, 600);
+    } else {
+      toast('Song nahi mila 😕','err');
+    }
+  }catch(e){}
+}
+
+function shareNP(){
+  if(curIdx<0)return;
+  const s=songs[curIdx];
+  const shareUrl='https://tubetune.free.nf/?song='+encodeURIComponent(s.id);
+  const shareData={
+    title:'TubeTune — '+s.title,
+    text:`🎵 "${s.title}" by ${s.artist} — TubeTune par suno! Bilkul free, koi ads nahi.`,
+    url:shareUrl
+  };
+  if(navigator.share){navigator.share(shareData).catch(()=>{});}
+  else{navigator.clipboard.writeText(shareUrl).then(()=>toast('Link copy ho gaya! 🔗','ok')).catch(()=>toast(shareUrl,'inf'));}
+}
+
+boot();
 
 function toast(msg,type='inf'){const el=document.createElement('div');el.className=`toast ${type}`;el.innerHTML=`<div class="toast-dot"></div><span>${msg}</span>`;document.getElementById('toastBox').appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(14px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),320);},3000);}
 
@@ -2352,8 +2389,6 @@ async function ytRefreshSongs(){
     if(newSongs.length>0){songs=newSongs;localStorage.setItem('tt_cache',JSON.stringify(songs));document.getElementById('heroCount').textContent=`${songs.length} songs available`;renderSongs();renderFavBadge();}
   }catch(e){console.warn('ytRefreshSongs:',e);}
 }
-
-boot();
 </script>
 </body>
 </html>
