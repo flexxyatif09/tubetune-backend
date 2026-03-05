@@ -85,19 +85,19 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .ga-3{width:200px;height:200px;top:40%;left:30%;background:var(--acc2);opacity:.03}
 
 /* ── AUTH ── */
-.auth-root{position:fixed;inset:0;z-index:600;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.auth-root{position:fixed;inset:0;z-index:600;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;touch-action:pan-y}
 .auth-root.hidden{display:none}
 .auth-root::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 10%,rgba(108,92,231,.15) 0%,transparent 55%),radial-gradient(ellipse at 80% 90%,rgba(253,121,168,.12) 0%,transparent 55%);pointer-events:none}
-.auth-hero{flex-shrink:0;padding:60px 32px 32px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;z-index:1}
+.auth-hero{flex-shrink:0;padding:40px 32px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;z-index:1}
 .auth-icon-wrap{width:88px;height:88px;border-radius:26px;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 40px rgba(108,92,231,.45),0 0 0 1px rgba(255,255,255,.08);position:relative}
 .auth-brand{font-size:30px;font-weight:900;letter-spacing:-1.5px;color:var(--tx)}
 .auth-brand em{font-style:normal;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .auth-tagline{font-size:14px;color:var(--tx2);margin-top:6px;font-weight:400}
-.auth-card-area{flex:1;position:relative;overflow:hidden}
-.auth-slide{position:absolute;inset:0;overflow-y:auto;padding:0 20px 40px;transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .4s}
+.auth-card-area{flex:1;position:relative;overflow:hidden;min-height:0}
+.auth-slide{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:0 20px 60px;transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .4s;-webkit-overflow-scrolling:touch}
 .auth-slide::-webkit-scrollbar{display:none}
 .auth-card{background:rgba(13,15,28,.85);border:1px solid var(--bd2);border-radius:32px;padding:30px 24px 26px;backdrop-filter:blur(28px);box-shadow:0 32px 80px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.05) inset;position:relative;overflow:hidden}
-.auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent)}
+.auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);pointer-events:none;z-index:0}
 .auth-card-title{font-size:24px;font-weight:900;letter-spacing:-.6px;color:var(--tx);margin-bottom:5px}
 .auth-card-sub{font-size:13px;color:var(--tx2);margin-bottom:24px;line-height:1.5;font-weight:400}
 .auth-msg{padding:10px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-bottom:14px;display:none;gap:8px;align-items:center}
@@ -120,8 +120,8 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .strength-track{height:3px;background:var(--s4);border-radius:3px;overflow:hidden;margin-bottom:5px}
 .strength-bar{height:100%;border-radius:3px;transition:all .35s}
 .strength-txt{font-size:11px;color:var(--tx3)}
-.auth-btn{width:100%;padding:16px;background:var(--grad);border:none;border-radius:18px;color:#fff;font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;letter-spacing:.3px;cursor:pointer;margin-top:10px;box-shadow:0 10px 32px rgba(108,92,231,.45);transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden}
-.auth-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.14) 0%,transparent 60%)}
+.auth-btn{width:100%;padding:16px;background:var(--grad);border:none;border-radius:18px;color:#fff;font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;letter-spacing:.3px;cursor:pointer;margin-top:10px;box-shadow:0 10px 32px rgba(108,92,231,.45);transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden;z-index:2;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+.auth-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.14) 0%,transparent 60%);pointer-events:none}
 .auth-btn:hover{transform:translateY(-2px);box-shadow:0 14px 42px rgba(108,92,231,.55)}
 .auth-btn:active{transform:scale(.98)}
 .auth-btn:disabled{opacity:.5;cursor:not-allowed}
@@ -1652,42 +1652,6 @@ async function appConfigGet(key){
 
 async function checkAppStatus(){
   try{
-    const [maint,maintMsg,upd,updTitle,updMsg,updUrl,updVer]=await Promise.all([
-      appConfigGet('maintenance'),
-      appConfigGet('maintenance_message'),
-      appConfigGet('update_available'),
-      appConfigGet('update_title'),
-      appConfigGet('update_message'),
-      appConfigGet('update_url'),
-      appConfigGet('update_version')
-    ]);
-
-    // Maintenance check — highest priority
-    if(maint==='true'){
-      document.getElementById('maintScreenMsg').textContent=maintMsg||'Hum thodi der mein wapas aayenge. Patience ke liye shukriya.';
-      document.getElementById('maintScreen').classList.add('show');
-      return true; // block app
-    }
-
-    // Update check
-    if(upd==='true'&&updUrl){
-      document.getElementById('updateScreenTitle').textContent=updTitle||'New Update Available!';
-      document.getElementById('updateScreenMsg').textContent=updMsg||'Nayi features aur improvements ke liye app update karo.';
-      document.getElementById('updateNowBtn').href=updUrl;
-      if(updVer){
-        document.getElementById('updateVersionTxt').textContent=updVer;
-        document.getElementById('updateScreenVersion').style.display='inline-flex';
-      }
-      document.getElementById('updateScreen').classList.add('show');
-      return true; // block app
-    }
-  }catch(e){console.warn('App status check failed:',e);}
-  return false;
-}
-
-/* ══ APP STATUS CHECK ══ */
-async function checkAppStatus(){
-  try{
     const H={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY};
     const keys=['maintenance','maintenance_message','update_available','update_title','update_message','update_url','update_version'];
     const results={};
@@ -1739,9 +1703,6 @@ async function boot(){
     navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});
   }
 
-  // Maintenance / Update check sabse pehle
-  const blocked = await checkAppStatus();
-  if(blocked) return;
 
   // visibilitychange — app foreground mein aane par state refresh
   document.addEventListener('visibilitychange',()=>{
@@ -1944,6 +1905,7 @@ function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;cu
     aud.removeEventListener('canplay', onCan);
     updateMediaPosition();
   });
+}
 function showMini(){miniUp=true;const m=document.getElementById('mini');m.classList.add('up');m.classList.remove('hidden-np');document.getElementById('shufFab').classList.remove('no-mini');}
 function closeMini(){aud.pause();miniUp=false;const m=document.getElementById('mini');m.classList.remove('up');m.classList.remove('hidden-np');document.getElementById('shufFab').classList.add('no-mini');}
 function closeNP(){goPage('home',document.getElementById('nb-home'));}
