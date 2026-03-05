@@ -1931,7 +1931,6 @@ function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;cu
     });
     navigator.mediaSession.playbackState = 'playing';
   }
-  // Android seekbar ke liye durationchange pe setPositionState call karo
   function _onDur(){
     aud.removeEventListener('durationchange', _onDur);
     updateMediaPosition();
