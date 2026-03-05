@@ -1896,15 +1896,17 @@ function playById(id){const idx=songs.findIndex(s=>s.id===id);if(idx<0)return;cu
     });
     navigator.mediaSession.playbackState = 'playing';
   }
-  // Jab audio load ho, turant seekbar + time set karo notification mein
-  aud.addEventListener('loadedmetadata', function onMeta(){
-    aud.removeEventListener('loadedmetadata', onMeta);
+  // Android ke liye: durationchange pe seekbar + time set karo
+  function _onDur(){
+    aud.removeEventListener('durationchange', _onDur);
     updateMediaPosition();
-  });
-  aud.addEventListener('canplay', function onCan(){
-    aud.removeEventListener('canplay', onCan);
+  }
+  function _onMeta(){
+    aud.removeEventListener('loadedmetadata', _onMeta);
     updateMediaPosition();
-  });
+  }
+  aud.addEventListener('durationchange', _onDur);
+  aud.addEventListener('loadedmetadata', _onMeta);
 }
 function showMini(){miniUp=true;const m=document.getElementById('mini');m.classList.add('up');m.classList.remove('hidden-np');document.getElementById('shufFab').classList.remove('no-mini');}
 function closeMini(){aud.pause();miniUp=false;const m=document.getElementById('mini');m.classList.remove('up');m.classList.remove('hidden-np');document.getElementById('shufFab').classList.add('no-mini');}
@@ -1912,7 +1914,7 @@ function closeNP(){goPage('home',document.getElementById('nb-home'));}
 function updateNPUI(s){document.getElementById('npTitle').textContent=s.title;document.getElementById('npArtist').textContent=s.artist;document.getElementById('miniTitle').textContent=s.title;document.getElementById('miniArt').textContent=s.artist;const badge=document.getElementById('npBadge');badge.textContent=s.quality;badge.style.display=s.quality?'inline-flex':'none';const artEl=document.getElementById('npArt'),miniTh=document.getElementById('miniThumb'),imgH=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;artEl.innerHTML=imgH;miniTh.innerHTML=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;const faved=favs.includes(s.id),hrt=document.getElementById('npHeart');hrt.classList.toggle('on',faved);hrt.querySelector('svg').setAttribute('fill',faved?'currentColor':'none');artEl.classList.toggle('spin',playing);}
 function updateGlows(){const colors=['#6C5CE7','#FD79A8','#FDCB6E','#00CEC9','#0984E3','#E17055'];document.querySelector('.ga-1').style.background=colors[curIdx%colors.length];document.querySelector('.ga-2').style.background=colors[(curIdx+1)%colors.length];}
 function togglePlay(){aud.paused?aud.play().catch(()=>{}):aud.pause();}
-function setPlayUI(isPlaying){playing=isPlaying;const ico=isPlaying?`<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>`:`<polygon points="5 3 19 12 5 21 5 3"/>`;document.getElementById('npPlayIco').innerHTML=ico;document.getElementById('miniPlayIco').innerHTML=ico;document.getElementById('npArt').classList.toggle('spin',isPlaying);renderSongs();if('mediaSession' in navigator)navigator.mediaSession.playbackState=isPlaying?'playing':'paused';
+function setPlayUI(isPlaying){playing=isPlaying;const ico=isPlaying?`<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>`:`<polygon points="5 3 19 12 5 21 5 3"/>`;document.getElementById('npPlayIco').innerHTML=ico;document.getElementById('miniPlayIco').innerHTML=ico;document.getElementById('npArt').classList.toggle('spin',isPlaying);renderSongs();if('mediaSession' in navigator){navigator.mediaSession.playbackState=isPlaying?'playing':'paused';updateMediaPosition();}
   // Android native bridge
   if(window.AndroidBridge&&curIdx>=0){const s=songs[curIdx];try{AndroidBridge.updateMediaSession(s.title||'',s.artist||'',s.thumb||'',isPlaying);}catch(e){}}
 }
@@ -1920,13 +1922,18 @@ function setPlayUI(isPlaying){playing=isPlaying;const ico=isPlaying?`<rect x="6"
 function updateMediaPosition(){
   if(!('mediaSession' in navigator))return;
   const dur=aud.duration;
-  if(!dur||!isFinite(dur)||dur<=0)return;
+  if(!dur||!isFinite(dur)||dur<1)return;
   const pos=Math.min(Math.max(0,aud.currentTime||0),dur);
   try{
-    navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});
+    // Android ke liye: duration + position + playbackRate teeno zaroori hain seekbar ke liye
+    navigator.mediaSession.setPositionState({
+      duration: dur,
+      playbackRate: aud.playbackRate||1,
+      position: pos
+    });
   }catch(_){}
   if(window.AndroidBridge && curIdx>=0){
-    try{AndroidBridge.updatePosition(Math.floor(aud.currentTime), Math.floor(dur));}catch(e){}
+    try{AndroidBridge.updatePosition(Math.floor(pos), Math.floor(dur));}catch(e){}
   }
 }
 function onEnded(){
