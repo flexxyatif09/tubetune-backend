@@ -2032,6 +2032,8 @@ function _playNext(){
   }
   if(window.AndroidBridge){
     try{AndroidBridge.updateMediaSession(s.title||'',s.artist||'',s.thumb||'',true);}catch(e){}
+    // Position turant 0 reset karo — purana time nahi dikhega
+    try{AndroidBridge.updatePosition(0,0);}catch(e){}
   }
   const doPlay = () => aud.play().catch(()=>{ setTimeout(()=>aud.play().catch(()=>{}), 500); });
   if(aud.readyState >= 2){ doPlay(); }
