@@ -1621,10 +1621,7 @@ async function doLogout(){
 }
 
 function enterApp(user){
-  const authEl=document.getElementById('authRoot');
-  authEl.style.visibility='';
-  authEl.style.pointerEvents='';
-  authEl.classList.add('hidden');
+  document.getElementById('authRoot').classList.add('hidden');
   document.getElementById('mainApp').classList.add('on');
   updateUserUI(user);
   Promise.all([loadSongs(), checkPremium(), loadPlaylists(), loadFavsFromDB()])
@@ -1689,8 +1686,10 @@ async function checkAppStatus(){
 }
 
 async function boot(){
+  // Sabse pehle maintenance / update check
+  const blocked = await checkAppStatus();
+  if(blocked) return;
 
-  // ── AUDIO LISTENERS PEHLE — kisi bhi await se pehle ──
   aud.addEventListener('timeupdate',onTU);
   aud.addEventListener('ended',onEnded);
   aud.addEventListener('play',()=>setPlayUI(true));
@@ -1705,11 +1704,19 @@ async function boot(){
     navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});
   }
 
+
   // visibilitychange — app foreground mein aane par state refresh
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible'){
       const appActive = document.getElementById('mainApp')?.classList.contains('on');
       if(appActive && curIdx>=0 && aud.src){
+        // iOS fix: background mein 'ended' miss hua tha?
+        if(bgEndedPending && (aud.ended || aud.paused && aud.currentTime >= aud.duration - 0.5)){
+          bgEndedPending = false;
+          if(repeat){ aud.currentTime=0; aud.play().catch(()=>{}); }
+          else { _playNext(); }
+          return;
+        }
         setPlayUI(playing);
         if(playing) showMini();
         if(window.AndroidBridge){
@@ -1719,31 +1726,7 @@ async function boot(){
       }
     }
   });
-
-  // ── MAINTENANCE / UPDATE CHECK — hamesha pehle, chahe session ho ya na ho ──
-  const blocked = await checkAppStatus();
-  if(blocked) return;
-
   if(sbDev){document.getElementById('authRoot').classList.add('hidden');document.getElementById('mainApp').classList.add('on');document.getElementById('avInitial').textContent='D';document.getElementById('heroGreet').textContent='Hey, Dev';document.getElementById('profAv').textContent='D';document.getElementById('profName').textContent='Dev User';document.getElementById('profEmail').textContent='dev@tubetune.app';loadSongs();toast('Dev mode','inf');return;}
-
-  // ── INSTANT SESSION CHECK — login screen flash rokne ke liye ──
-  const quickSess = SS.get();
-  const nowTs = Math.floor(Date.now()/1000);
-  if(quickSess && quickSess.expires_at && quickSess.expires_at > nowTs+60){
-    document.getElementById('authRoot').style.visibility='hidden';
-    document.getElementById('authRoot').style.pointerEvents='none';
-    enterApp(quickSess.user);
-    // Background mein token refresh (silently)
-    if(quickSess.refresh_token){
-      fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:quickSess.refresh_token})})
-        .then(r=>r.json()).then(d=>{if(d.access_token)SS.save(d);}).catch(()=>{});
-    }
-    return;
-  }
-
-  // No valid session — show login
-  document.getElementById('authRoot').style.visibility='';
-  document.getElementById('authRoot').style.pointerEvents='';
   showScreen('login');
   const session=SS.get();
   if(!session)return;
@@ -1960,14 +1943,45 @@ function updateMediaPosition(){
     try{navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});}catch(_){}
   }
 }
+// iOS background autoplay fix — track karo song kab khatam hua
+let bgEndedPending = false;
+
 function onEnded(){
-  if(repeat){aud.currentTime=0;aud.play();}
-  else{
-    if(shuffle) curIdx=Math.floor(Math.random()*songs.length);
-    else curIdx=curIdx+1 < songs.length ? curIdx+1 : 0;
-    playById(songs[curIdx].id);
-  }
+  bgEndedPending = false;
+  if(repeat){ aud.currentTime=0; aud.play().catch(()=>{}); }
+  else{ _playNext(); }
 }
+
+function _playNext(){
+  if(!songs.length) return;
+  if(shuffle) curIdx = Math.floor(Math.random()*songs.length);
+  else curIdx = curIdx+1 < songs.length ? curIdx+1 : 0;
+  const s = songs[curIdx];
+  if(!s || !s.url) return;
+  // Direct src set — iOS background mein bhi kaam karta hai
+  aud.src = s.url;
+  updateNPUI(s);
+  renderSongs(); renderRecent(); renderUpNext(); updateGlows();
+  recent = [s.id,...recent.filter(x=>x!==s.id)].slice(0,30);
+  localStorage.setItem('tt_recent', JSON.stringify(recent));
+  if('mediaSession' in navigator){
+    try{
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: s.title, artist: s.artist, album: 'TubeTune',
+        artwork: s.thumb ? [{src:s.thumb,sizes:'512x512',type:'image/jpeg'}] : []
+      });
+      navigator.mediaSession.playbackState = 'playing';
+    }catch(_){}
+  }
+  if(window.AndroidBridge){
+    try{AndroidBridge.updateMediaSession(s.title||'',s.artist||'',s.thumb||'',true);}catch(e){}
+  }
+  // play with retry
+  const doPlay = () => aud.play().catch(()=>{ setTimeout(()=>aud.play().catch(()=>{}), 500); });
+  if(aud.readyState >= 2){ doPlay(); }
+  else { aud.addEventListener('canplay', function cp(){ aud.removeEventListener('canplay',cp); doPlay(); }); }
+}
+
 function nextS(){if(!songs.length)return;if(shuffle)curIdx=Math.floor(Math.random()*songs.length);else curIdx=curIdx+1<songs.length?curIdx+1:0;playById(songs[curIdx].id);}
 function prevS(){if(aud.currentTime>3){aud.currentTime=0;return;}curIdx=curIdx>0?curIdx-1:songs.length-1;playById(songs[curIdx].id);}
 function shuffleAll(){if(!songs.length)return;shuffle=true;document.getElementById('npShuf').classList.add('on');curIdx=Math.floor(Math.random()*songs.length);playById(songs[curIdx].id);toast('Shuffle play shuru','ok');}
@@ -1985,7 +1999,20 @@ function toggleFav(id){
   }
 }
 function toggleFavNP(){if(curIdx<0)return;toggleFav(songs[curIdx].id);}
-function onTU(){if(!aud.duration)return;const pct=aud.currentTime/aud.duration*100;document.getElementById('npBar').style.width=pct+'%';document.getElementById('miniFill').style.width=pct+'%';document.getElementById('npRing').style.setProperty('--prog',pct+'%');document.getElementById('npCur').textContent=fmtTime(aud.currentTime);document.getElementById('npDur').textContent=fmtTime(aud.duration);updateMediaPosition();}
+function onTU(){
+  if(!aud.duration) return;
+  const pct=aud.currentTime/aud.duration*100;
+  document.getElementById('npBar').style.width=pct+'%';
+  document.getElementById('miniFill').style.width=pct+'%';
+  document.getElementById('npRing').style.setProperty('--prog',pct+'%');
+  document.getElementById('npCur').textContent=fmtTime(aud.currentTime);
+  document.getElementById('npDur').textContent=fmtTime(aud.duration);
+  updateMediaPosition();
+  // iOS fix: jab song last 2 sec mein ho, flag set karo
+  // Agar background mein 'ended' fire nahi hua, visibilitychange pe check karenge
+  if(aud.duration - aud.currentTime <= 2) bgEndedPending = true;
+  else bgEndedPending = false;
+}
 function seekClick(e){if(!aud.duration)return;const r=document.getElementById('npTrack').getBoundingClientRect();aud.currentTime=((e.clientX-r.left)/r.width)*aud.duration;}
 function setVol(e){const r=document.getElementById('volTrack').getBoundingClientRect();const p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));aud.volume=p;document.getElementById('volFill').style.width=(p*100)+'%';}
 function toggleRepeat(){repeat=!repeat;document.getElementById('npRep').classList.toggle('on',repeat);toast(repeat?'Repeat ON':'Repeat OFF','inf');}
