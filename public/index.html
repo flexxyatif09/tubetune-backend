@@ -1720,11 +1720,16 @@ async function boot(){
     }
   });
 
+  // ── MAINTENANCE / UPDATE CHECK — hamesha pehle, chahe session ho ya na ho ──
+  const blocked = await checkAppStatus();
+  if(blocked) return;
+
+  if(sbDev){document.getElementById('authRoot').classList.add('hidden');document.getElementById('mainApp').classList.add('on');document.getElementById('avInitial').textContent='D';document.getElementById('heroGreet').textContent='Hey, Dev';document.getElementById('profAv').textContent='D';document.getElementById('profName').textContent='Dev User';document.getElementById('profEmail').textContent='dev@tubetune.app';loadSongs();toast('Dev mode','inf');return;}
+
   // ── INSTANT SESSION CHECK — login screen flash rokne ke liye ──
   const quickSess = SS.get();
   const nowTs = Math.floor(Date.now()/1000);
   if(quickSess && quickSess.expires_at && quickSess.expires_at > nowTs+60){
-    // Valid session — auth screen chhupao, seedha app dikhao
     document.getElementById('authRoot').style.visibility='hidden';
     document.getElementById('authRoot').style.pointerEvents='none';
     enterApp(quickSess.user);
@@ -1735,12 +1740,6 @@ async function boot(){
     }
     return;
   }
-
-  // Maintenance / update check
-  const blocked = await checkAppStatus();
-  if(blocked) return;
-
-  if(sbDev){document.getElementById('authRoot').classList.add('hidden');document.getElementById('mainApp').classList.add('on');document.getElementById('avInitial').textContent='D';document.getElementById('heroGreet').textContent='Hey, Dev';document.getElementById('profAv').textContent='D';document.getElementById('profName').textContent='Dev User';document.getElementById('profEmail').textContent='dev@tubetune.app';loadSongs();toast('Dev mode','inf');return;}
 
   // No valid session — show login
   document.getElementById('authRoot').style.visibility='';
