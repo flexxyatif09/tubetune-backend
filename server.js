@@ -860,5 +860,10 @@ app.get('/', (req, res) => {
   }
 });
 
+// ── DEEPLINK BRIDGE — /open?song=SONG_ID ──
+app.get('/open', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'open.html'));
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server on port ${PORT}`));
