@@ -1993,14 +1993,23 @@ function handleDeeplink(){
 function shareNP(){
   if(curIdx<0)return;
   const s=songs[curIdx];
-  const shareUrl='https://tubetune.free.nf/?song='+encodeURIComponent(s.id);
-  const shareData={
-    title:'TubeTune — '+s.title,
-    text:`🎵 "${s.title}" by ${s.artist} — TubeTune par suno! Bilkul free, koi ads nahi.`,
-    url:shareUrl
-  };
-  if(navigator.share){navigator.share(shareData).catch(()=>{});}
-  else{navigator.clipboard.writeText(shareUrl).then(()=>toast('Link copy ho gaya! 🔗','ok')).catch(()=>toast(shareUrl,'inf'));}
+  // Bridge page URL — app installed ho to app khulega, nahi to download page
+  const shareUrl='https://tubetune.free.nf/open?song='+encodeURIComponent(s.id);
+  const shareTitle='TubeTune — '+s.title;
+  const shareText=`🎵 "${s.title}" by ${s.artist} — TubeTune par suno! Bilkul free, koi ads nahi.\n`;
+  // Android WebView — native share sheet
+  if(window.AndroidBridge&&AndroidBridge.nativeShare){
+    try{ AndroidBridge.nativeShare(shareTitle, shareText, shareUrl); return; }catch(e){}
+  }
+  // Browser — Web Share API
+  if(navigator.share){
+    navigator.share({title:shareTitle, text:shareText, url:shareUrl}).catch(()=>{});
+    return;
+  }
+  // Fallback — clipboard
+  navigator.clipboard.writeText(shareUrl)
+    .then(()=>toast('Link copy ho gaya! 🔗','ok'))
+    .catch(()=>toast(shareUrl,'inf'));
 }
 
 boot();
@@ -2392,3 +2401,4 @@ async function ytRefreshSongs(){
 </script>
 </body>
 </html>
+
