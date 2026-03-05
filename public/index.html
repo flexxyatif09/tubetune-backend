@@ -1954,19 +1954,21 @@ function setPlayUI(isPlaying){playing=isPlaying;const ico=isPlaying?`<rect x="6"
 }
 
 function updateMediaPosition(){
-  if(!('mediaSession' in navigator))return;
   const dur=aud.duration;
-  if(!dur||!isFinite(dur)||dur<1)return;
+  if(!dur||!isFinite(dur)||isNaN(dur)||dur<1)return;
   const pos=Math.min(Math.max(0,aud.currentTime||0),dur);
-  try{
-    navigator.mediaSession.setPositionState({
-      duration: dur,
-      playbackRate: aud.playbackRate||1,
-      position: pos
-    });
-  }catch(_){}
-  if(window.AndroidBridge && curIdx>=0){
-    try{AndroidBridge.updatePosition(Math.floor(pos), Math.floor(dur));}catch(e){}
+  const isIOS=/iP(hone|od|ad)/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&'ontouchend' in document);
+  // iOS — mediaSession seekbar
+  if(isIOS&&'mediaSession' in navigator){
+    try{navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});}catch(_){}
+  }
+  // Android — AndroidBridge seedha, mediaSession ke peeche nahi chhupta
+  if(!isIOS&&window.AndroidBridge&&curIdx>=0){
+    try{AndroidBridge.updatePosition(Math.floor(pos),Math.floor(dur));}catch(e){}
+  }
+  // Desktop/PWA — mediaSession support
+  if(!isIOS&&!window.AndroidBridge&&'mediaSession' in navigator){
+    try{navigator.mediaSession.setPositionState({duration:dur,playbackRate:aud.playbackRate||1,position:pos});}catch(_){}
   }
 }
 function onEnded(){
