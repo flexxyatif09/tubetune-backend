@@ -1818,7 +1818,7 @@ async function saveFavToDB(songId, add){
 function norm(s){return{id:s.id||s._id||String(Math.random()),title:s.title||s.name||'Unknown',artist:s.artist||s.uploader||s.channel||'Unknown',thumb:s.thumbnail||s.thumb||s.image||s.cover||'',url:s.audioUrl||s.audio_url||s.url||s.stream_url||'',dur:fmtDur(s.duration),quality:s.quality||s.bitrate||'',date:s.uploadedAt||s.created_at||s.createdAt||new Date().toISOString()};}
 function fmtDur(r){if(!r||r==='—')return'—';if(typeof r==='string'&&r.includes(':')){const[m,s]=r.split(':');return`${parseInt(m)||0}:${String(parseInt(s)||0).padStart(2,'0')}`;}const secs=parseFloat(r);if(isNaN(secs)||secs<=0)return'—';return`${Math.floor(secs/60)}:${String(Math.floor(secs%60)).padStart(2,'0')}`;}
 function fmtTime(s){if(isNaN(s)||s<=0)return'0:00';return`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;}
-
+function parseDur(d){if(!d||d==='—')return 0;const p=d.split(':');if(p.length===2)return parseInt(p[0])*60+parseInt(p[1]);return 0;}
 async function loadSongs(){
   document.getElementById('loadBox').style.display='flex';document.getElementById('errCard').style.display='none';document.getElementById('chipRow').style.display='none';document.getElementById('songsList').innerHTML='';
   try{
@@ -1894,7 +1894,7 @@ function playById(id){
   curIdx=idx;
   const s=songs[idx];
 
-  // ── Fix 1: Progress bar turant reset karo — purana time nahi dikhega ──
+  // Progress bar turant reset
   document.getElementById('npBar').style.width='0%';
   document.getElementById('miniFill').style.width='0%';
   document.getElementById('npRing').style.setProperty('--prog','0%');
@@ -1911,30 +1911,24 @@ function playById(id){
   aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
   aud.play().catch(()=>toast('Play nahi hua','err'));
 
-  // ── Fix 2: Heavy renders defer karo — play instantly hoga, lag nahi aayega ──
+  // Renders defer karo — lag nahi aayega
   requestAnimationFrame(()=>{
     renderSongs();
-    setTimeout(()=>{ renderRecent(); renderUpNext(); updateGlows(); }, 50);
+    setTimeout(()=>{ renderRecent(); renderUpNext(); updateGlows(); }, 80);
   });
 
-  if('mediaSession' in navigator){
-    const artwork = s.thumb ? [
-      {src: s.thumb, sizes:'96x96',   type:'image/jpeg'},
-      {src: s.thumb, sizes:'128x128', type:'image/jpeg'},
-      {src: s.thumb, sizes:'192x192', type:'image/jpeg'},
-      {src: s.thumb, sizes:'256x256', type:'image/jpeg'},
-      {src: s.thumb, sizes:'512x512', type:'image/jpeg'}
-    ] : [];
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title:  s.title  || 'Unknown',
-      artist: s.artist || 'TubeTune',
-      album:  'TubeTune',
-      artwork
-    });
-    navigator.mediaSession.playbackState = 'playing';
+  // Android — notifyNewSong se turant seekbar + tracking shuru
+  if(window.AndroidBridge){
+    const durSec = s.dur && s.dur!=='—' ? parseDur(s.dur) : 0;
+    try{ AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',durSec); }catch(e){}
   }
+
+  // loadedmetadata pe real duration bhejo
   aud.addEventListener('loadedmetadata', function onMeta(){
     aud.removeEventListener('loadedmetadata', onMeta);
+    if(window.AndroidBridge){
+      try{ AndroidBridge.updatePosition(0, Math.floor(aud.duration||0)); }catch(e){}
+    }
     updateMediaPosition();
   });
   aud.addEventListener('canplay', function onCan(){
@@ -1950,26 +1944,25 @@ function updateGlows(){const colors=['#6C5CE7','#FD79A8','#FDCB6E','#00CEC9','#0
 function togglePlay(){aud.paused?aud.play().catch(()=>{}):aud.pause();}
 function setPlayUI(isPlaying){
   playing=isPlaying;
-  const ico=isPlaying?`<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>`:`<polygon points="5 3 19 12 5 21 5 3"/>`;
+  const ico=isPlaying
+    ?`<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>`
+    :`<polygon points="5 3 19 12 5 21 5 3"/>`;
   document.getElementById('npPlayIco').innerHTML=ico;
   document.getElementById('miniPlayIco').innerHTML=ico;
   document.getElementById('npArt').classList.toggle('spin',isPlaying);
   renderSongs();
   if('mediaSession' in navigator) navigator.mediaSession.playbackState=isPlaying?'playing':'paused';
-  if(window.AndroidBridge&&curIdx>=0){
-    const s=songs[curIdx];
-    try{AndroidBridge.updateMediaSession(s.title||'',s.artist||'',s.thumb||'',isPlaying);}catch(e){}
-    // Java ko play/pause state batao tracking ke liye
-    try{AndroidBridge.notifyPlaying(isPlaying);}catch(e){}
+  // Android — sirf play/pause state batao, image reload mat karo
+  if(window.AndroidBridge){
+    try{ AndroidBridge.notifyPlaying(isPlaying); }catch(e){}
   }
 }
 
 // Java side se call hota hai jab Java detect kare ki song end hua (screen off pe)
 window._javaAutoNext = function(){
   if(!songs.length||curIdx<0) return;
-  // Confirm karo — aud genuinely khatam hua?
   const remaining = aud.duration - aud.currentTime;
-  if(aud.ended || remaining < 2){
+  if(aud.ended || isNaN(remaining) || remaining < 2){
     onEnded();
   }
 };
@@ -2027,7 +2020,7 @@ function _playNext(){
   const s = songs[curIdx];
   if(!s || !s.url) return;
 
-  // Progress bar reset
+  // Progress bar turant reset
   document.getElementById('npBar').style.width='0%';
   document.getElementById('miniFill').style.width='0%';
   document.getElementById('npRing').style.setProperty('--prog','0%');
@@ -2036,27 +2029,32 @@ function _playNext(){
 
   aud.src = s.url;
   updateNPUI(s);
-  requestAnimationFrame(()=>{
-    renderSongs();
-    setTimeout(()=>{ renderRecent(); renderUpNext(); updateGlows(); }, 50);
-  });
+
   recent=[s.id,...recent.filter(x=>x!==s.id)].slice(0,30);
   localStorage.setItem('tt_recent', JSON.stringify(recent));
-  if('mediaSession' in navigator){
-    try{
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: s.title, artist: s.artist, album: 'TubeTune',
-        artwork: s.thumb ? [{src:s.thumb,sizes:'512x512',type:'image/jpeg'}] : []
-      });
-      navigator.mediaSession.playbackState = 'playing';
-    }catch(_){}
-  }
+
+  requestAnimationFrame(()=>{
+    renderSongs();
+    setTimeout(()=>{ renderRecent(); renderUpNext(); updateGlows(); }, 80);
+  });
+
+  // Android ko notifyNewSong — duration bhi bhejo agar pata hai
   if(window.AndroidBridge){
-    try{AndroidBridge.updateMediaSession(s.title||'',s.artist||'',s.thumb||'',true);}catch(e){}
-    // Position turant 0 reset karo — purana time nahi dikhega
-    try{AndroidBridge.updatePosition(0,0);}catch(e){}
+    const durSec = s.dur && s.dur!=='—' ? parseDur(s.dur) : 0;
+    try{ AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',durSec); }catch(e){}
   }
-  const doPlay = () => aud.play().catch(()=>{ setTimeout(()=>aud.play().catch(()=>{}), 500); });
+
+  const doPlay = () => {
+    aud.play().catch(()=>{ setTimeout(()=>aud.play().catch(()=>{}), 500); });
+  };
+  // Duration milne par Java ko update karo
+  aud.addEventListener('loadedmetadata', function onMeta(){
+    aud.removeEventListener('loadedmetadata', onMeta);
+    if(window.AndroidBridge){
+      try{ AndroidBridge.updatePosition(0, Math.floor(aud.duration||0)); }catch(e){}
+    }
+    updateMediaPosition();
+  });
   if(aud.readyState >= 2){ doPlay(); }
   else { aud.addEventListener('canplay', function cp(){ aud.removeEventListener('canplay',cp); doPlay(); }); }
 }
