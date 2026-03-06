@@ -84,6 +84,25 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .ga-2{width:320px;height:320px;bottom:-100px;left:-80px;background:var(--acc);opacity:.06}
 .ga-3{width:200px;height:200px;top:40%;left:30%;background:var(--acc2);opacity:.03}
 
+/* ── LOADING SCREEN ── */
+#ttSplash{position:fixed;inset:0;z-index:9000;background:#07080F;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;pointer-events:none}
+#ttSplash::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 600px 500px at 50% 40%,rgba(108,92,231,.18) 0%,transparent 70%),radial-gradient(ellipse 400px 300px at 80% 80%,rgba(253,121,168,.1) 0%,transparent 60%);pointer-events:none}
+.spl-logo-wrap{position:relative;width:96px;height:96px;display:flex;align-items:center;justify-content:center}
+.spl-logo-ring{position:absolute;inset:-10px;border-radius:34px;border:1.5px solid rgba(108,92,231,.35);animation:splRing 2.4s ease-in-out infinite}
+.spl-logo-ring2{position:absolute;inset:-20px;border-radius:42px;border:1px solid rgba(108,92,231,.15);animation:splRing 2.4s ease-in-out infinite .6s}
+.spl-logo-box{width:96px;height:96px;border-radius:28px;background:linear-gradient(135deg,#6C5CE7,#a855f7);display:flex;align-items:center;justify-content:center;box-shadow:0 20px 60px rgba(108,92,231,.55),0 0 0 1px rgba(255,255,255,.1) inset;position:relative;z-index:1}
+.spl-brand{font-size:32px;font-weight:900;letter-spacing:-.5px;color:#fff;margin-top:28px;font-family:'Outfit',sans-serif}
+.spl-brand em{font-style:normal;background:linear-gradient(90deg,#6C5CE7,#a855f7,#FD79A8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.spl-tagline{font-size:13px;color:rgba(255,255,255,.4);font-weight:500;margin-top:8px;letter-spacing:.3px}
+.spl-dots{display:flex;gap:7px;margin-top:52px}
+.spl-dot{width:7px;height:7px;border-radius:50%;background:rgba(108,92,231,.4);animation:splDot 1.4s ease-in-out infinite}
+.spl-dot:nth-child(2){animation-delay:.2s}
+.spl-dot:nth-child(3){animation-delay:.4s}
+.spl-fade-out{animation:splFadeOut .35s ease forwards!important}
+@keyframes splRing{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:.9;transform:scale(1.04)}}
+@keyframes splDot{0%,80%,100%{transform:scale(.7);background:rgba(108,92,231,.3)}40%{transform:scale(1.2);background:#6C5CE7}}
+@keyframes splFadeOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.04)}}
+
 /* ── AUTH ── */
 .auth-root{position:fixed;inset:0;z-index:600;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;touch-action:pan-y}
 .auth-root.hidden{display:none}
@@ -574,6 +593,29 @@ audio{display:none}
 </style>
 </head>
 <body>
+
+<!-- ══ LOADING SPLASH ══ -->
+<div id="ttSplash">
+  <div class="spl-logo-wrap">
+    <div class="spl-logo-ring"></div>
+    <div class="spl-logo-ring2"></div>
+    <div class="spl-logo-box">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18V5l12-2v13"/>
+        <circle cx="6" cy="18" r="3"/>
+        <circle cx="18" cy="16" r="3"/>
+      </svg>
+    </div>
+  </div>
+  <div class="spl-brand">Tube<em>Tune</em></div>
+  <div class="spl-tagline">Your music, your world</div>
+  <div class="spl-dots">
+    <div class="spl-dot"></div>
+    <div class="spl-dot"></div>
+    <div class="spl-dot"></div>
+  </div>
+</div>
+
 <div class="glow-bg">
   <div class="ga ga-1"></div>
   <div class="ga ga-2"></div>
@@ -1621,11 +1663,14 @@ async function doLogout(){
 }
 
 function enterApp(user){
-  document.getElementById('authRoot').classList.add('hidden');
+  hideSplash();
+  const authEl=document.getElementById('authRoot');
+  authEl.style.cssText='';
+  authEl.classList.add('hidden');
   document.getElementById('mainApp').classList.add('on');
   updateUserUI(user);
-  Promise.all([loadSongs(), checkPremium(), loadPlaylists(), loadFavsFromDB()])
-    .then(()=>{ handleDeeplink(); });
+  Promise.all([loadSongs(),checkPremium(),loadPlaylists(),loadFavsFromDB()])
+    .then(()=>{handleDeeplink();});
 }
 
 function updateUserUI(user){
@@ -1685,11 +1730,18 @@ async function checkAppStatus(){
   return false;
 }
 
-async function boot(){
-  // Sabse pehle maintenance / update check
-  const blocked = await checkAppStatus();
-  if(blocked) return;
+function hideSplash(){
+  const sp=document.getElementById('ttSplash');
+  if(!sp||sp.dataset.gone)return;
+  sp.dataset.gone='1';
+  sp.classList.add('spl-fade-out');
+  setTimeout(()=>{ if(sp.parentNode)sp.remove(); },380);
+  // Android native splash bhi hatao
+  if(window.AndroidBridge){ try{AndroidBridge.splashDone();}catch(e){} }
+}
 
+async function boot(){
+  // ── Audio listeners PEHLE ──
   aud.addEventListener('timeupdate',onTU);
   aud.addEventListener('ended',onEnded);
   aud.addEventListener('play',()=>setPlayUI(true));
@@ -1704,35 +1756,80 @@ async function boot(){
     navigator.mediaSession.setActionHandler('seekforward',(d)=>{aud.currentTime=Math.min(aud.duration||0,aud.currentTime+(d.seekOffset||10));updateMediaPosition();});
   }
 
-
-  // visibilitychange — app foreground mein aane par state refresh
+  // visibilitychange
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible'){
-      const appActive = document.getElementById('mainApp')?.classList.contains('on');
-      if(appActive && curIdx>=0 && aud.src){
-        // iOS fix: background mein 'ended' miss hua tha?
-        if(bgEndedPending && (aud.ended || aud.paused && aud.currentTime >= aud.duration - 0.5)){
-          bgEndedPending = false;
-          if(repeat){ aud.currentTime=0; aud.play().catch(()=>{}); }
-          else { _playNext(); }
+      const appActive=document.getElementById('mainApp')?.classList.contains('on');
+      if(appActive&&curIdx>=0&&aud.src){
+        if(bgEndedPending&&(aud.ended||aud.paused&&aud.currentTime>=aud.duration-0.5)){
+          bgEndedPending=false;
+          if(repeat){aud.currentTime=0;aud.play().catch(()=>{});}
+          else{_playNext();}
           return;
         }
         setPlayUI(playing);
-        if(playing) showMini();
+        if(playing)showMini();
         if(window.AndroidBridge){
           const s=songs[curIdx];
-          try{AndroidBridge.updateMediaSession(s.title||'',s.artist||'',s.thumb||'',playing);}catch(e){}
+          try{AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',parseDur(s.dur||''));}catch(e){}
         }
       }
     }
   });
-  if(sbDev){document.getElementById('authRoot').classList.add('hidden');document.getElementById('mainApp').classList.add('on');document.getElementById('avInitial').textContent='D';document.getElementById('heroGreet').textContent='Hey, Dev';document.getElementById('profAv').textContent='D';document.getElementById('profName').textContent='Dev User';document.getElementById('profEmail').textContent='dev@tubetune.app';loadSongs();toast('Dev mode','inf');return;}
+
+  // ── INSTANT SESSION CHECK — login flash rokne ke liye ──
+  const quickSess=SS.get();
+  const nowTs=Math.floor(Date.now()/1000);
+  if(quickSess&&quickSess.expires_at&&quickSess.expires_at>nowTs+60){
+    // Valid session — seedha app dikhao, splash band karo
+    document.getElementById('authRoot').style.cssText='visibility:hidden;pointer-events:none';
+    enterApp(quickSess.user);
+    // Maintenance check background mein
+    checkAppStatus().then(blocked=>{
+      if(blocked){
+        // Maintenance on hai — app band karo
+        document.getElementById('mainApp').classList.remove('on');
+        document.getElementById('authRoot').style.cssText='';
+        document.getElementById('authRoot').classList.add('hidden');
+      }
+    });
+    // Silent token refresh
+    if(quickSess.refresh_token){
+      fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:quickSess.refresh_token})})
+        .then(r=>r.json()).then(d=>{if(d.access_token)SS.save(d);}).catch(()=>{});
+    }
+    return;
+  }
+
+  // No valid session — maintenance check pehle, phir login dikhao
+  const blocked=await checkAppStatus();
+  if(blocked){hideSplash();return;}
+
+  if(sbDev){
+    document.getElementById('authRoot').classList.add('hidden');
+    document.getElementById('mainApp').classList.add('on');
+    document.getElementById('avInitial').textContent='D';
+    document.getElementById('heroGreet').textContent='Hey, Dev';
+    document.getElementById('profAv').textContent='D';
+    document.getElementById('profName').textContent='Dev User';
+    document.getElementById('profEmail').textContent='dev@tubetune.app';
+    loadSongs();toast('Dev mode','inf');hideSplash();return;
+  }
+
+  // Splash hatao, login screen dikhao
+  hideSplash();
   showScreen('login');
   const session=SS.get();
   if(!session)return;
   const now=Math.floor(Date.now()/1000);
   if(session.expires_at&&session.expires_at>now+60){enterApp(session.user);return;}
-  if(session.refresh_token){try{const r=await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:session.refresh_token})});const d=await r.json();if(r.ok){SS.save(d);enterApp(d.user);return;}}catch(_){}}
+  if(session.refresh_token){
+    try{
+      const r=await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:session.refresh_token})});
+      const d=await r.json();
+      if(r.ok){SS.save(d);enterApp(d.user);return;}
+    }catch(_){}
+  }
   SS.clear();
 }
 
