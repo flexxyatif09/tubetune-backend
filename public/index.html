@@ -1936,17 +1936,17 @@ async function loadSongs(){
 
 // Java ko poori song list do — screen off pe next song Java khud handle karega
 function syncQueueToJava(){
-  if(!window.AndroidBridge||!songs.length)return;
+  if(!window.AndroidBridge||!songs.length) return;
   try{
-    const queue=songs.map(s=>[
-      s.title||'',
-      s.artist||'',
+    const queue = songs.map(s=>[
+      (s.title||'').replace(/"/g,"'"),
+      (s.artist||'').replace(/"/g,"'"),
       s.thumb||'',
       s.url||'',
       s.id||'',
       String(parseDur(s.dur||''))
     ]);
-    AndroidBridge.syncSongQueue(JSON.stringify(queue),curIdx,shuffle,repeat);
+    AndroidBridge.syncSongQueue(JSON.stringify(queue), curIdx, shuffle, repeat);
   }catch(e){}
 }
 
@@ -2043,10 +2043,9 @@ function playById(id){
   if(window.AndroidBridge){
     const durSec = s.dur && s.dur!=='—' ? parseDur(s.dur) : 0;
     try{ AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',durSec); }catch(e){}
-    try{ AndroidBridge.updateCurrentIdx(curIdx); }catch(e){}
+    // Queue sync — curIdx ab sahi hai
+    syncQueueToJava();
   }
-
-  // loadedmetadata pe real duration bhejo
   aud.addEventListener('loadedmetadata', function onMeta(){
     aud.removeEventListener('loadedmetadata', onMeta);
     if(window.AndroidBridge){
@@ -2158,7 +2157,7 @@ function _playNext(){
   if(window.AndroidBridge){
     const durSec = s.dur && s.dur!=='—' ? parseDur(s.dur) : 0;
     try{ AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',durSec); }catch(e){}
-    try{ AndroidBridge.updateCurrentIdx(curIdx); }catch(e){}
+    syncQueueToJava();
   }
 
   const doPlay = () => {
