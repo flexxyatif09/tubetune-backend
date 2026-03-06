@@ -2039,12 +2039,11 @@ function playById(id){
     setTimeout(()=>{ renderRecent(); renderUpNext(); updateGlows(); }, 80);
   });
 
-  // Android ko notifyNewSong — duration bhi bhejo agar pata hai
+  // Android ko naya song batao
   if(window.AndroidBridge){
     const durSec = s.dur && s.dur!=='—' ? parseDur(s.dur) : 0;
     try{ AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',durSec); }catch(e){}
-    // Java mein current index update karo — screen off next ke liye
-    try{ AndroidBridge.syncSongQueue(JSON.stringify(songs.map(x=>[x.title||'',x.artist||'',x.thumb||'',x.url||'',x.id||'',String(parseDur(x.dur||''))])),curIdx,shuffle,repeat); }catch(e){}
+    try{ AndroidBridge.updateCurrentIdx(curIdx); }catch(e){}
   }
 
   // loadedmetadata pe real duration bhejo
@@ -2114,15 +2113,8 @@ let bgEndedPending = false;
 
 function onEnded(){
   bgEndedPending = false;
-  if(repeat){ aud.currentTime=0; aud.play().catch(()=>{}); }
-  else{
-    // Android screen off ke liye — Java side ko bhi batao
-    if(window.AndroidBridge && AndroidBridge.notifySongEnded){
-      try{ AndroidBridge.notifySongEnded(); }catch(e){ _playNext(); }
-    } else {
-      _playNext();
-    }
-  }
+  if(repeat){ aud.currentTime=0; aud.play().catch(()=>{}); return; }
+  _playNext();
 }
 
 // Android screen wapas on hone par call hota hai
@@ -2162,11 +2154,11 @@ function _playNext(){
     setTimeout(()=>{ renderRecent(); renderUpNext(); updateGlows(); }, 80);
   });
 
-  // Android ko notifyNewSong + curIdx sync
+  // Android ko naya song batao
   if(window.AndroidBridge){
     const durSec = s.dur && s.dur!=='—' ? parseDur(s.dur) : 0;
     try{ AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',durSec); }catch(e){}
-    try{ AndroidBridge.syncSongQueue(JSON.stringify(songs.map(x=>[x.title||'',x.artist||'',x.thumb||'',x.url||'',x.id||'',String(parseDur(x.dur||''))])),curIdx,shuffle,repeat); }catch(e){}
+    try{ AndroidBridge.updateCurrentIdx(curIdx); }catch(e){}
   }
 
   const doPlay = () => {
