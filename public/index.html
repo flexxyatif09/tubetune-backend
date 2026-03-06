@@ -1931,7 +1931,32 @@ async function loadSongs(){
   document.getElementById('heroCount').textContent=`${songs.length} songs available`;
   renderSongs();renderRecent();renderFavBadge();
   document.getElementById('shufFab').classList.add('visible');
+  syncQueueToJava();
 }
+
+// Java ko poori song list do — screen off pe next song Java khud handle karega
+function syncQueueToJava(){
+  if(!window.AndroidBridge||!songs.length)return;
+  try{
+    const queue=songs.map(s=>[
+      s.title||'',
+      s.artist||'',
+      s.thumb||'',
+      s.url||'',
+      s.id||'',
+      String(parseDur(s.dur||''))
+    ]);
+    AndroidBridge.syncSongQueue(JSON.stringify(queue),curIdx,shuffle,repeat);
+  }catch(e){}
+}
+
+// Java se call — screen off pe direct URL se play karo
+window._javaPlayUrl = function(url){
+  if(!url)return;
+  const idx=songs.findIndex(s=>s.url===url);
+  if(idx>=0){ curIdx=idx; const s=songs[idx]; aud.src=s.url; aud.play().catch(()=>{}); updateNPUI(s); }
+  else{ aud.src=url; aud.play().catch(()=>{}); }
+};
 
 function refreshSongs(){const btn=document.getElementById('refreshBtn');btn.classList.add('spin');loadSongs().finally(()=>setTimeout(()=>btn.classList.remove('spin'),700));}
 
@@ -2014,10 +2039,12 @@ function playById(id){
     setTimeout(()=>{ renderRecent(); renderUpNext(); updateGlows(); }, 80);
   });
 
-  // Android — notifyNewSong se turant seekbar + tracking shuru
+  // Android ko notifyNewSong — duration bhi bhejo agar pata hai
   if(window.AndroidBridge){
     const durSec = s.dur && s.dur!=='—' ? parseDur(s.dur) : 0;
     try{ AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',durSec); }catch(e){}
+    // Java mein current index update karo — screen off next ke liye
+    try{ AndroidBridge.syncSongQueue(JSON.stringify(songs.map(x=>[x.title||'',x.artist||'',x.thumb||'',x.url||'',x.id||'',String(parseDur(x.dur||''))])),curIdx,shuffle,repeat); }catch(e){}
   }
 
   // loadedmetadata pe real duration bhejo
@@ -2135,10 +2162,11 @@ function _playNext(){
     setTimeout(()=>{ renderRecent(); renderUpNext(); updateGlows(); }, 80);
   });
 
-  // Android ko notifyNewSong — duration bhi bhejo agar pata hai
+  // Android ko notifyNewSong + curIdx sync
   if(window.AndroidBridge){
     const durSec = s.dur && s.dur!=='—' ? parseDur(s.dur) : 0;
     try{ AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',durSec); }catch(e){}
+    try{ AndroidBridge.syncSongQueue(JSON.stringify(songs.map(x=>[x.title||'',x.artist||'',x.thumb||'',x.url||'',x.id||'',String(parseDur(x.dur||''))])),curIdx,shuffle,repeat); }catch(e){}
   }
 
   const doPlay = () => {
