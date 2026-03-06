@@ -1935,18 +1935,27 @@ async function loadSongs(){
 }
 
 // Java ko poori song list do — screen off pe next song Java khud handle karega
+let _lastQueueSyncLen = 0;
 function syncQueueToJava(){
   if(!window.AndroidBridge||!songs.length) return;
   try{
-    const queue = songs.map(s=>[
-      (s.title||'').replace(/"/g,"'"),
-      (s.artist||'').replace(/"/g,"'"),
-      s.thumb||'',
-      s.url||'',
-      s.id||'',
-      String(parseDur(s.dur||''))
-    ]);
-    AndroidBridge.syncSongQueue(JSON.stringify(queue), curIdx, shuffle, repeat);
+    // Full queue bhejo jab pehli baar ya songs change hon
+    const needFullSync = (songs.length !== _lastQueueSyncLen);
+    if(needFullSync){
+      _lastQueueSyncLen = songs.length;
+      const queue = songs.map(s=>[
+        (s.title||'').replace(/"/g,"'"),
+        (s.artist||'').replace(/"/g,"'"),
+        s.thumb||'',
+        s.url||'',
+        s.id||'',
+        String(parseDur(s.dur||''))
+      ]);
+      AndroidBridge.syncSongQueue(JSON.stringify(queue), curIdx, shuffle, repeat);
+    } else {
+      // Sirf index update karo
+      AndroidBridge.updateCurrentIdx(curIdx);
+    }
   }catch(e){}
 }
 
