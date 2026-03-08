@@ -1759,13 +1759,9 @@ async function boot(){
   // visibilitychange
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='hidden'){
-      // Page hidden (screen off ya background) — Java ko handoff karo
-      if(window.AndroidBridge && !aud.paused && !aud.ended && aud.src){
-        const pos = Math.floor(aud.currentTime||0);
-        const dur = Math.floor(aud.duration||0);
-        aud.pause(); // Java MediaPlayer sambhal lega
-        try{ AndroidBridge.takeoverFromJS(pos, dur); }catch(e){}
-      }
+      // App background ya screen off — audio chalta rahne do
+      // Java ACTION_SCREEN_OFF broadcast se handle karega agar screen genuinely off ho
+      // Yahan kuch mat karo — double audio ka cause tha
       return;
     }
     if(document.visibilityState==='visible'){
@@ -2664,3 +2660,4 @@ async function ytRefreshSongs(){
 </script>
 </body>
 </html>
+
