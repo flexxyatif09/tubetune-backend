@@ -1759,9 +1759,20 @@ async function boot(){
   // visibilitychange
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='hidden'){
-      // App background ya screen off — audio chalta rahne do
-      // Java ACTION_SCREEN_OFF broadcast se handle karega agar screen genuinely off ho
-      // Yahan kuch mat karo — double audio ka cause tha
+      // Screen off / background — Java ko exact remaining time bhejo
+      // Java ka scheduleAutoNext isse accurate timer lagaega
+      if(window.AndroidBridge && aud.src && !aud.paused && !aud.ended){
+        const remaining = Math.max(0, (aud.duration||0) - (aud.currentTime||0));
+        if(remaining > 1){
+          try{
+            // Remaining time bhejo — Java timer reschedule karega
+            AndroidBridge.updatePosition(
+              Math.floor(aud.currentTime||0),
+              Math.floor(aud.duration||0)
+            );
+          }catch(e){}
+        }
+      }
       return;
     }
     if(document.visibilityState==='visible'){
