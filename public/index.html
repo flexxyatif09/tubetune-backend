@@ -1758,6 +1758,16 @@ async function boot(){
 
   // visibilitychange
   document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='hidden'){
+      // Page hidden (screen off ya background) — Java ko handoff karo
+      if(window.AndroidBridge && !aud.paused && !aud.ended && aud.src){
+        const pos = Math.floor(aud.currentTime||0);
+        const dur = Math.floor(aud.duration||0);
+        aud.pause(); // Java MediaPlayer sambhal lega
+        try{ AndroidBridge.takeoverFromJS(pos, dur); }catch(e){}
+      }
+      return;
+    }
     if(document.visibilityState==='visible'){
       const appActive=document.getElementById('mainApp')?.classList.contains('on');
       if(appActive&&curIdx>=0&&aud.src){
