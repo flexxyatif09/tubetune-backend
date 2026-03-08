@@ -2187,9 +2187,15 @@ function _playNext(){
   }
 
   const doPlay = () => {
-    aud.play().catch(()=>{ setTimeout(()=>aud.play().catch(()=>{}), 500); });
+    const playPromise = aud.play();
+    if(playPromise !== undefined){
+      playPromise.catch(()=>{
+        // Play fail hua — thodi der baad retry
+        setTimeout(()=>aud.play().catch(()=>{}), 800);
+      });
+    }
   };
-  // Duration milne par Java ko update karo
+  // Duration milne par Java ko update karo — timer accurate hoga
   aud.addEventListener('loadedmetadata', function onMeta(){
     aud.removeEventListener('loadedmetadata', onMeta);
     if(window.AndroidBridge){
@@ -2197,6 +2203,7 @@ function _playNext(){
     }
     updateMediaPosition();
   });
+  // canplay — audio ready hai, play karo
   if(aud.readyState >= 2){ doPlay(); }
   else { aud.addEventListener('canplay', function cp(){ aud.removeEventListener('canplay',cp); doPlay(); }); }
 }
@@ -2671,4 +2678,3 @@ async function ytRefreshSongs(){
 </script>
 </body>
 </html>
-
