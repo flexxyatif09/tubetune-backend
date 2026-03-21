@@ -210,25 +210,12 @@ app.post('/api/upload', auth, async (req, res) => {
       ? `${Math.floor(rapidData.duration/60)}:${String(rapidData.duration%60).padStart(2,'0')}`
       : '0:00';
 
-    const audioRes = await fetch(mp3Url);
-    if (!audioRes.ok) throw new Error('Audio download failed');
-    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
-
-    const fileName = `${Date.now()}_${videoId}.mp3`;
-    const { error: uploadError } = await supabase.storage
-      .from('audio')
-      .upload(fileName, audioBuffer, { contentType: 'audio/mpeg', upsert: false });
-    if (uploadError) throw uploadError;
-
-    const { data: { publicUrl: audioUrl } } = supabase.storage
-      .from('audio')
-      .getPublicUrl(fileName);
-
+    // Direct MP3 URL save karo — download/upload nahi karna
     const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
       .insert({
         title, artist, thumbnail,
-        audio_url: audioUrl,
+        audio_url: mp3Url,
         duration,
         quality: quality + 'kbps',
         youtube_url: url
@@ -781,25 +768,12 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
       ? `${Math.floor(rapidData.duration / 60)}:${String(rapidData.duration % 60).padStart(2, '0')}`
       : '0:00';
 
-    const audioRes = await fetch(mp3Url);
-    if (!audioRes.ok) throw new Error('Audio download failed');
-    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
-
-    const fileName = `${Date.now()}_${videoId}.mp3`;
-    const { error: uploadError } = await supabase.storage
-      .from('audio')
-      .upload(fileName, audioBuffer, { contentType: 'audio/mpeg', upsert: false });
-    if (uploadError) throw uploadError;
-
-    const { data: { publicUrl: audioUrl } } = supabase.storage
-      .from('audio')
-      .getPublicUrl(fileName);
-
+    // Direct MP3 URL save karo — download/upload nahi karna
     const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
       .insert({
         title, artist, thumbnail,
-        audio_url:   audioUrl,
+        audio_url:   mp3Url,
         duration,
         quality:     '128kbps',
         youtube_url: `https://www.youtube.com/watch?v=${videoId}`
