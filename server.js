@@ -53,43 +53,32 @@ const razorpay = new Razorpay({
 // ── MP3 URL HELPER — Multiple APIs try karo ──
 async function getMp3Url(videoId) {
   const ytUrl = "https://www.youtube.com/watch?v=" + videoId;
-
-  // Cobalt API — free, open source, public CDN links deta hai
-  try {
-    console.log("Cobalt API trying:", videoId);
-    const r = await fetch("https://api.cobalt.tools/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept":        "application/json"
-      },
-      body: JSON.stringify({
-        url:            ytUrl,
-        downloadMode:   "audio",
-        audioFormat:    "mp3",
-        audioBitrate:   "128"
-      })
+  
+  // yt-dlp se audio URL extract karo (no download, sirf URL)
+  return new Promise((resolve, reject) => {
+    const { execFile } = require("child_process");
+    const args = [
+      "--get-url",
+      "--format", "bestaudio[ext=m4a]/bestaudio/best",
+      "--no-playlist",
+      "--no-warnings",
+      ytUrl
+    ];
+    
+    console.log("yt-dlp extracting URL for:", videoId);
+    execFile("yt-dlp", args, { timeout: 30000 }, (err, stdout, stderr) => {
+      if (err) {
+        console.log("yt-dlp error:", err.message, stderr);
+        return reject(new Error("yt-dlp failed: " + err.message));
+      }
+      const url = stdout.trim().split("\n")[0];
+      if (!url || !url.startsWith("http")) {
+        return reject(new Error("yt-dlp: invalid URL: " + url));
+      }
+      console.log("yt-dlp success:", url.slice(0, 80));
+      resolve({ url, duration: null, title: null });
     });
-    const d = await r.json();
-    console.log("Cobalt response:", JSON.stringify(d).slice(0, 300));
-
-    // Status: tunnel ya redirect — dono mein url milta hai
-    if ((d.status === "tunnel" || d.status === "redirect" || d.status === "stream") && d.url) {
-      console.log("Cobalt success:", d.url.slice(0, 80));
-      return { url: d.url, duration: null, title: d.filename || null };
-    }
-
-    // Picker response
-    if (d.status === "picker" && d.picker && d.picker[0]?.url) {
-      console.log("Cobalt picker success");
-      return { url: d.picker[0].url, duration: null, title: null };
-    }
-
-    throw new Error("Cobalt unexpected: " + JSON.stringify(d).slice(0, 200));
-  } catch(e) {
-    console.log("Cobalt failed:", e.message);
-    throw new Error("Audio URL nahi mila: " + e.message);
-  }
+  });
 }
 
 // ── ADMIN AUTH ──
