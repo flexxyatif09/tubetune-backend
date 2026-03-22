@@ -51,6 +51,38 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
+// ── ARCHIVE.ORG UPLOAD HELPER ──
+async function uploadToArchive(audioBuffer, fileName, title, artist) {
+  const identifier  = `tubetune-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const cleanTitle  = (title  || 'Unknown').replace(/[^\w\s-]/g, '').trim().slice(0, 80);
+  const cleanArtist = (artist || 'Unknown').replace(/[^\w\s-]/g, '').trim().slice(0, 80);
+  const uploadUrl   = `https://s3.us.archive.org/${identifier}/${fileName}`;
+
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Authorization':              `LOW ${process.env.ARCHIVE_ACCESS_KEY}:${process.env.ARCHIVE_SECRET_KEY}`,
+      'Content-Type':               'audio/mpeg',
+      'x-amz-auto-make-bucket':     '1',
+      'x-archive-meta-mediatype':   'audio',
+      'x-archive-meta-title':       cleanTitle,
+      'x-archive-meta-creator':     cleanArtist,
+      'x-archive-meta-subject':     'music',
+      'x-archive-meta-licenseurl':  'https://creativecommons.org/licenses/by/4.0/',
+      'Content-Length':             String(audioBuffer.length)
+    },
+    body: audioBuffer
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Archive.org upload failed: ${response.status} — ${errText.slice(0, 200)}`);
+  }
+
+  // Permanent direct download link
+  return `https://archive.org/download/${identifier}/${fileName}`;
+}
+
 // ── ADMIN AUTH ──
 function auth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -210,12 +242,20 @@ app.post('/api/upload', auth, async (req, res) => {
       ? `${Math.floor(rapidData.duration/60)}:${String(rapidData.duration%60).padStart(2,'0')}`
       : '0:00';
 
-    // Direct MP3 URL save karo — download/upload nahi karna
+    // Audio download karo
+    const audioRes = await fetch(mp3Url);
+    if (!audioRes.ok) throw new Error('Audio download failed');
+    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
+
+    // Archive.org pe upload karo — permanent link milega
+    const fileName = `${Date.now()}_${videoId}.mp3`;
+    const audioUrl = await uploadToArchive(audioBuffer, fileName, title, artist);
+
     const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
       .insert({
         title, artist, thumbnail,
-        audio_url: mp3Url,
+        audio_url: audioUrl,
         duration,
         quality: quality + 'kbps',
         youtube_url: url
@@ -768,12 +808,20 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
       ? `${Math.floor(rapidData.duration / 60)}:${String(rapidData.duration % 60).padStart(2, '0')}`
       : '0:00';
 
-    // Direct MP3 URL save karo — download/upload nahi karna
+    // Audio download karo
+    const audioRes = await fetch(mp3Url);
+    if (!audioRes.ok) throw new Error('Audio download failed');
+    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
+
+    // Archive.org pe upload karo — permanent link milega
+    const fileName = `${Date.now()}_${videoId}.mp3`;
+    const audioUrl = await uploadToArchive(audioBuffer, fileName, title, artist);
+
     const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
       .insert({
         title, artist, thumbnail,
-        audio_url:   mp3Url,
+        audio_url:   audioUrl,
         duration,
         quality:     '128kbps',
         youtube_url: `https://www.youtube.com/watch?v=${videoId}`
