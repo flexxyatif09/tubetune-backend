@@ -53,32 +53,65 @@ const razorpay = new Razorpay({
 // ── MP3 URL HELPER — Multiple APIs try karo ──
 async function getMp3Url(videoId) {
   const ytUrl = "https://www.youtube.com/watch?v=" + videoId;
-  
-  // yt-dlp se audio URL extract karo (no download, sirf URL)
-  return new Promise((resolve, reject) => {
-    const { execFile } = require("child_process");
-    const args = [
-      "--get-url",
-      "--format", "bestaudio[ext=m4a]/bestaudio/best",
-      "--no-playlist",
-      "--no-warnings",
-      ytUrl
-    ];
-    
-    console.log("yt-dlp extracting URL for:", videoId);
-    execFile("yt-dlp", args, { timeout: 30000 }, (err, stdout, stderr) => {
-      if (err) {
-        console.log("yt-dlp error:", err.message, stderr);
-        return reject(new Error("yt-dlp failed: " + err.message));
-      }
-      const url = stdout.trim().split("\n")[0];
-      if (!url || !url.startsWith("http")) {
-        return reject(new Error("yt-dlp: invalid URL: " + url));
-      }
-      console.log("yt-dlp success:", url.slice(0, 80));
-      resolve({ url, duration: null, title: null });
+
+  // innertube API — YouTube ka internal API, no bot detection
+  try {
+    console.log("Innertube API trying:", videoId);
+
+    // Step 1: Player config fetch karo
+    const playerRes = await fetch("https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "X-YouTube-Client-Name": "3",
+        "X-YouTube-Client-Version": "17.31.35",
+        "Origin": "https://www.youtube.com"
+      },
+      body: JSON.stringify({
+        videoId: videoId,
+        context: {
+          client: {
+            clientName: "ANDROID",
+            clientVersion: "17.31.35",
+            androidSdkVersion: 30,
+            hl: "en"
+          }
+        }
+      })
     });
-  });
+
+    const playerData = await playerRes.json();
+    console.log("Player status:", playerData?.playabilityStatus?.status);
+
+    const formats = playerData?.streamingData?.adaptiveFormats || playerData?.streamingData?.formats || [];
+    console.log("Formats count:", formats.length);
+
+    // Audio format dhundo
+    const audioFormats = formats.filter(f =>
+      f.mimeType && f.mimeType.includes("audio") && f.url
+    );
+
+    // Best quality audio
+    audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+    const best = audioFormats[0];
+
+    if (best?.url) {
+      console.log("Innertube success:", best.url.slice(0, 80));
+      const dur = playerData?.videoDetails?.lengthSeconds || null;
+      const ttl = playerData?.videoDetails?.title || null;
+      return {
+        url: best.url,
+        duration: dur ? parseInt(dur) : null,
+        title: ttl
+      };
+    }
+
+    throw new Error("No audio format found, formats: " + formats.length);
+  } catch(e) {
+    console.log("Innertube failed:", e.message);
+    throw new Error("Audio URL nahi mila: " + e.message);
+  }
 }
 
 // ── ADMIN AUTH ──
