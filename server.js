@@ -50,35 +50,55 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// ── MP3 URL HELPER — Serhat API (public CDN link) + fallback ──
+// ── MP3 URL HELPER — Multiple APIs try karo ──
 async function getMp3Url(videoId) {
-  // API 1: youtube-mp3-downloader2 by Serhat — direct dlink deta hai
+  const ytUrl = "https://www.youtube.com/watch?v=" + videoId;
+
+  // API 1: youtube-mp3-downloader4 (Serhat) — 2 step flow
   try {
     const r1 = await fetch(
-      `https://youtube-mp3-downloader2.p.rapidapi.com/ytmp3/ytmp3/?url=https://www.youtube.com/watch?v=${videoId}`,
-      { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp3-downloader2.p.rapidapi.com' } }
+      "https://youtube-mp3-downloader4.p.rapidapi.com/download.php?format=mp3&url=" + encodeURIComponent(ytUrl),
+      { method: "GET", headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp3-downloader4.p.rapidapi.com" } }
     );
     const d1 = await r1.json();
-    console.log('Serhat API response:', JSON.stringify(d1).slice(0, 300));
-    if (d1?.dlink && !d1.dlink.includes('lambda.123tokyo')) {
-      console.log('Serhat API success ✅');
-      return { url: d1.dlink, duration: d1.duration || null, title: d1.title || null };
+    console.log("Serhat step1:", JSON.stringify(d1).slice(0, 200));
+    const directLink = d1 && (d1.link || d1.url || d1.dlink || d1.download_url);
+    if (directLink && directLink.startsWith("http") && !directLink.includes("progress")) {
+      console.log("Serhat direct link success");
+      return { url: directLink, duration: d1.duration || null, title: d1.title || null };
     }
-  } catch(e) { console.log('Serhat API failed:', e.message); }
+    const progressUrl = d1 && d1.progress_url;
+    if (progressUrl) {
+      console.log("Serhat polling...");
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const rp = await fetch(progressUrl, { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp3-downloader4.p.rapidapi.com" } });
+        const dp = await rp.json();
+        console.log("Poll " + (i+1) + ":", JSON.stringify(dp).slice(0, 150));
+        const pollLink = dp && (dp.link || dp.url || dp.download_url || dp.mp3);
+        if (pollLink && pollLink.startsWith("http")) {
+          console.log("Serhat poll success");
+          return { url: pollLink, duration: dp.duration || d1.duration || null, title: dp.title || d1.title || null };
+        }
+      }
+    }
+    console.log("Serhat API timeout");
+  } catch(e) { console.log("Serhat API error:", e.message); }
 
   // API 2: youtube-mp36 fallback
-  console.log('Trying fallback API...');
+  console.log("Trying youtube-mp36...");
   const r2 = await fetch(
-    `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
-    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com' } }
+    "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
+    { method: "GET", headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
   );
   const d2 = await r2.json();
-  console.log('Fallback API response:', JSON.stringify(d2).slice(0, 300));
-  if (d2.status !== 'ok' || !d2.link) {
-    throw new Error('MP3 link nahi mila: ' + (d2.msg || JSON.stringify(d2)));
+  console.log("youtube-mp36:", JSON.stringify(d2).slice(0, 200));
+  if (d2.status === "ok" && d2.link) {
+    return { url: d2.link, duration: d2.duration || null, title: d2.title || null };
   }
-  return { url: d2.link, duration: d2.duration || null, title: null };
+  throw new Error("Saari APIs fail: " + (d2.msg || JSON.stringify(d2)));
 }
+
 
 // ── ADMIN AUTH ──
 function auth(req, res, next) {
