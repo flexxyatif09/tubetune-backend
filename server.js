@@ -50,67 +50,6 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// ── MP3 URL HELPER — Multiple APIs try karo ──
-// ── TELEGRAM UPLOAD HELPER ──
-async function uploadToTelegram(buffer, fileName) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const channelId = process.env.TELEGRAM_CHANNEL_ID;
-
-  // FormData manually banao
-  const boundary = '----FormBoundary' + Math.random().toString(36).slice(2);
-  const CRLF = '\r\n';
-
-  const header = Buffer.from(
-    '--' + boundary + CRLF +
-    'Content-Disposition: form-data; name="chat_id"' + CRLF + CRLF +
-    channelId + CRLF +
-    '--' + boundary + CRLF +
-    'Content-Disposition: form-data; name="audio"; filename="' + fileName + '"' + CRLF +
-    'Content-Type: audio/mpeg' + CRLF + CRLF
-  );
-  const footer = Buffer.from(CRLF + '--' + boundary + '--' + CRLF);
-  const body = Buffer.concat([header, buffer, footer]);
-
-  const https = require('https');
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.telegram.org',
-      path: `/bot${botToken}/sendAudio`,
-      method: 'POST',
-      headers: {
-        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-        'Content-Length': body.length
-      }
-    };
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', d => data += d);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          console.log('Telegram response:', JSON.stringify(json).slice(0, 200));
-          if (!json.ok) return reject(new Error('Telegram error: ' + json.description));
-          // file_id se permanent URL banta hai
-          const fileId = json.result?.audio?.file_id;
-          if (!fileId) return reject(new Error('No file_id in response'));
-          resolve(fileId);
-        } catch(e) { reject(e); }
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
-
-async function getTelegramFileUrl(fileId) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const r = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`);
-  const d = await r.json();
-  if (!d.ok) throw new Error('getFile failed: ' + d.description);
-  return `https://api.telegram.org/file/bot${botToken}/${d.result.file_path}`;
-}
-
 // ── DOWNLOAD HELPER ──
 function downloadBuffer(url) {
   return new Promise((resolve, reject) => {
@@ -133,6 +72,64 @@ function downloadBuffer(url) {
   });
 }
 
+// ── TELEGRAM UPLOAD HELPER ──
+async function uploadToTelegram(buffer, fileName) {
+  const botToken  = process.env.TELEGRAM_BOT_TOKEN;
+  const channelId = process.env.TELEGRAM_CHANNEL_ID;
+  const boundary  = '----TGBoundary' + Math.random().toString(36).slice(2);
+  const CRLF = '\r\n';
+
+  const header = Buffer.from(
+    '--' + boundary + CRLF +
+    'Content-Disposition: form-data; name="chat_id"' + CRLF + CRLF +
+    channelId + CRLF +
+    '--' + boundary + CRLF +
+    'Content-Disposition: form-data; name="audio"; filename="' + fileName + '"' + CRLF +
+    'Content-Type: audio/mpeg' + CRLF + CRLF
+  );
+  const footer = Buffer.from(CRLF + '--' + boundary + '--' + CRLF);
+  const body   = Buffer.concat([header, buffer, footer]);
+
+  const https = require('https');
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.telegram.org',
+      path:     '/bot' + botToken + '/sendAudio',
+      method:   'POST',
+      headers:  {
+        'Content-Type':   'multipart/form-data; boundary=' + boundary,
+        'Content-Length': body.length
+      }
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          console.log('Telegram response:', JSON.stringify(json).slice(0, 200));
+          if (!json.ok) return reject(new Error('Telegram error: ' + json.description));
+          const fileId = json.result?.audio?.file_id;
+          if (!fileId) return reject(new Error('No file_id in Telegram response'));
+          resolve(fileId);
+        } catch(e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+async function getTelegramFileUrl(fileId) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const r = await fetch('https://api.telegram.org/bot' + botToken + '/getFile?file_id=' + fileId);
+  const d = await r.json();
+  if (!d.ok) throw new Error('getFile failed: ' + d.description);
+  return 'https://api.telegram.org/file/bot' + botToken + '/' + d.result.file_path;
+}
+
+// ── MP3 + TELEGRAM UPLOAD ──
 async function getMp3AndUpload(videoId, title, artist) {
   // Step 1: RapidAPI se 123tokyo link lo
   const r = await fetch(
@@ -147,16 +144,16 @@ async function getMp3AndUpload(videoId, title, artist) {
     ? Math.floor(d.duration/60) + ":" + String(Math.round(d.duration%60)).padStart(2,"0")
     : "0:00";
 
-  // Step 2: 123tokyo se download karo
-  console.log("Downloading from 123tokyo...");
+  // Step 2: Turant download karo
+  console.log("Downloading MP3...");
   const mp3Buffer = await downloadBuffer(d.link);
   console.log("Downloaded:", mp3Buffer.length, "bytes");
 
   // Step 3: Telegram pe upload karo
   console.log("Uploading to Telegram...");
   const fileName = videoId + ".mp3";
-  const fileId = await uploadToTelegram(mp3Buffer, fileName);
-  console.log("Telegram file_id:", fileId);
+  const fileId   = await uploadToTelegram(mp3Buffer, fileName);
+  console.log("Telegram fileId:", fileId.slice(0, 40));
 
   // Step 4: Permanent URL lo
   const audioUrl = await getTelegramFileUrl(fileId);
@@ -164,7 +161,6 @@ async function getMp3AndUpload(videoId, title, artist) {
 
   return { audioUrl, duration };
 }
-
 
 
 
