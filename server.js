@@ -52,66 +52,57 @@ const razorpay = new Razorpay({
 
 // ── MP3 URL HELPER — Multiple APIs try karo ──
 async function getMp3Url(videoId) {
-  const ytUrl = "https://www.youtube.com/watch?v=" + videoId;
+  // RapidAPI se MP3 link lo
+  const r = await fetch(
+    "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
+    { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
+  );
+  const d = await r.json();
+  console.log("RapidAPI response:", JSON.stringify(d).slice(0, 300));
+  if (d.status !== "ok" || !d.link) throw new Error("MP3 link nahi mila: " + (d.msg || JSON.stringify(d)));
+  return { url: d.link, duration: d.duration || null, title: d.title || null };
+}
 
-  // innertube API — YouTube ka internal API, no bot detection
-  try {
-    console.log("Innertube API trying:", videoId);
-
-    // Step 1: Player config fetch karo
-    const playerRes = await fetch("https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0",
-        "X-YouTube-Client-Name": "3",
-        "X-YouTube-Client-Version": "17.31.35",
-        "Origin": "https://www.youtube.com"
-      },
-      body: JSON.stringify({
-        videoId: videoId,
-        context: {
-          client: {
-            clientName: "ANDROID",
-            clientVersion: "17.31.35",
-            androidSdkVersion: 30,
-            hl: "en"
-          }
+// ── SUPABASE STORAGE UPLOAD HELPER ──
+function downloadBuffer(url) {
+  return new Promise((resolve, reject) => {
+    const https = require("https");
+    const http  = require("http");
+    const client = url.startsWith("https") ? https : http;
+    const doRequest = (targetUrl) => {
+      client.get(targetUrl, { headers: { "User-Agent": "Mozilla/5.0" } }, (res) => {
+        if ([301,302,307,308].includes(res.statusCode) && res.headers.location) {
+          return doRequest(res.headers.location);
         }
-      })
-    });
+        if (res.statusCode !== 200) return reject(new Error("Download HTTP " + res.statusCode));
+        const chunks = [];
+        res.on("data", c => chunks.push(c));
+        res.on("end",  () => resolve(Buffer.concat(chunks)));
+        res.on("error", reject);
+      }).on("error", reject);
+    };
+    doRequest(url);
+  });
+}
 
-    const playerData = await playerRes.json();
-    console.log("Player status:", playerData?.playabilityStatus?.status);
+async function uploadToSupabase(mp3Url, videoId, title, artist) {
+  console.log("Downloading audio...");
+  const buf = await downloadBuffer(mp3Url);
+  console.log("Downloaded:", buf.length, "bytes");
 
-    const formats = playerData?.streamingData?.adaptiveFormats || playerData?.streamingData?.formats || [];
-    console.log("Formats count:", formats.length);
+  const fileName = Date.now() + "_" + videoId + ".mp3";
+  console.log("Uploading to Supabase storage...");
+  const { error: upErr } = await supabaseAdmin.storage
+    .from("audio")
+    .upload(fileName, buf, { contentType: "audio/mpeg", upsert: false });
+  if (upErr) throw new Error("Supabase upload error: " + upErr.message);
 
-    // Audio format dhundo
-    const audioFormats = formats.filter(f =>
-      f.mimeType && f.mimeType.includes("audio") && f.url
-    );
+  const { data: { publicUrl } } = supabaseAdmin.storage
+    .from("audio")
+    .getPublicUrl(fileName);
 
-    // Best quality audio
-    audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-    const best = audioFormats[0];
-
-    if (best?.url) {
-      console.log("Innertube success:", best.url.slice(0, 80));
-      const dur = playerData?.videoDetails?.lengthSeconds || null;
-      const ttl = playerData?.videoDetails?.title || null;
-      return {
-        url: best.url,
-        duration: dur ? parseInt(dur) : null,
-        title: ttl
-      };
-    }
-
-    throw new Error("No audio format found, formats: " + formats.length);
-  } catch(e) {
-    console.log("Innertube failed:", e.message);
-    throw new Error("Audio URL nahi mila: " + e.message);
-  }
+  console.log("Supabase upload success:", publicUrl.slice(0, 80));
+  return publicUrl;
 }
 
 // ── ADMIN AUTH ──
@@ -256,7 +247,7 @@ app.post('/api/upload', auth, async (req, res) => {
     duration = rawDur1
       ? `${Math.floor(rawDur1/60)}:${String(rawDur1%60).padStart(2,'0')}`
       : '0:00';
-    const audioUrl = mp3Url;
+    const audioUrl = await uploadToSupabase(mp3Url, videoId, title, artist);
 
     const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
@@ -801,7 +792,7 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
     const duration = rawDur2
       ? `${Math.floor(rawDur2 / 60)}:${String(rawDur2 % 60).padStart(2, '0')}`
       : '0:00';
-    const audioUrl = mp3Url;
+    const audioUrl = await uploadToSupabase(mp3Url, videoId, title, artist);
 
     const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
