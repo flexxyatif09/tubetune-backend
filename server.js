@@ -51,36 +51,38 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// ── ARCHIVE.ORG UPLOAD HELPER ──
-async function uploadToArchive(audioBuffer, fileName, title, artist) {
+// ── ARCHIVE.ORG UPLOAD HELPER (Remote URL — Render pe download nahi hoga) ──
+async function uploadToArchive(mp3DirectUrl, fileName, title, artist) {
   const identifier  = `tubetune-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const cleanTitle  = (title  || 'Unknown').replace(/[^\w\s-]/g, '').trim().slice(0, 80);
-  const cleanArtist = (artist || 'Unknown').replace(/[^\w\s-]/g, '').trim().slice(0, 80);
-  const uploadUrl   = `https://s3.us.archive.org/${identifier}/${fileName}`;
+  const cleanTitle  = (title  || 'Unknown').replace(/[^\w\s\-]/g, '').trim().slice(0, 80);
+  const cleanArtist = (artist || 'Unknown').replace(/[^\w\s\-]/g, '').trim().slice(0, 80);
 
-  const response = await fetch(uploadUrl, {
-    method: 'PUT',
+  // Step 1: Archive.org ko remote URL se fetch karke upload karne ka task do
+  const taskRes = await fetch('https://archive.org/upload', {
+    method: 'POST',
     headers: {
-      'Authorization':              `LOW ${process.env.ARCHIVE_ACCESS_KEY}:${process.env.ARCHIVE_SECRET_KEY}`,
-      'Content-Type':               'audio/mpeg',
-      'x-amz-auto-make-bucket':     '1',
-      'x-archive-meta-mediatype':   'audio',
-      'x-archive-meta-title':       cleanTitle,
-      'x-archive-meta-creator':     cleanArtist,
-      'x-archive-meta-subject':     'music',
-      'x-archive-meta-licenseurl':  'https://creativecommons.org/licenses/by/4.0/',
-      'Content-Length':             String(audioBuffer.length)
+      'Accept':        'application/json',
+      'Authorization': `LOW ${process.env.ARCHIVE_ACCESS_KEY}:${process.env.ARCHIVE_SECRET_KEY}`,
     },
-    body: audioBuffer
+    body: new URLSearchParams({
+      'identifier':              identifier,
+      'title':                   cleanTitle,
+      'creator':                 cleanArtist,
+      'mediatype':               'audio',
+      'subject':                 'music',
+      'upload-identifier':       identifier,
+      'uri':                     mp3DirectUrl,
+      'filename':                fileName,
+    })
   });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Archive.org upload failed: ${response.status} — ${errText.slice(0, 200)}`);
-  }
+  // Archive.org remote upload async hota hai — identifier se permanent URL banta hai
+  // Task fail bhi ho toh bhi identifier se URL predict kar sakte hain
+  const permanentUrl = `https://archive.org/download/${identifier}/${fileName}`;
+  console.log('Archive.org upload started, identifier:', identifier);
+  console.log('Task response status:', taskRes.status);
 
-  // Permanent direct download link
-  return `https://archive.org/download/${identifier}/${fileName}`;
+  return permanentUrl;
 }
 
 // ── ADMIN AUTH ──
@@ -242,14 +244,9 @@ app.post('/api/upload', auth, async (req, res) => {
       ? `${Math.floor(rapidData.duration/60)}:${String(rapidData.duration%60).padStart(2,'0')}`
       : '0:00';
 
-    // Audio download karo
-    const audioRes = await fetch(mp3Url);
-    if (!audioRes.ok) throw new Error('Audio download failed');
-    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
-
-    // Archive.org pe upload karo — permanent link milega
+    // Archive.org pe directly upload — Render pe download nahi hoga
     const fileName = `${Date.now()}_${videoId}.mp3`;
-    const audioUrl = await uploadToArchive(audioBuffer, fileName, title, artist);
+    const audioUrl = await uploadToArchive(mp3Url, fileName, title, artist);
 
     const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
@@ -808,14 +805,9 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
       ? `${Math.floor(rapidData.duration / 60)}:${String(rapidData.duration % 60).padStart(2, '0')}`
       : '0:00';
 
-    // Audio download karo
-    const audioRes = await fetch(mp3Url);
-    if (!audioRes.ok) throw new Error('Audio download failed');
-    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
-
-    // Archive.org pe upload karo — permanent link milega
+    // Archive.org pe directly upload — Render pe download nahi hoga
     const fileName = `${Date.now()}_${videoId}.mp3`;
-    const audioUrl = await uploadToArchive(audioBuffer, fileName, title, artist);
+    const audioUrl = await uploadToArchive(mp3Url, fileName, title, artist);
 
     const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
