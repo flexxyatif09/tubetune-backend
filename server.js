@@ -1,10 +1,10 @@
-const fetch = require('node-fetch');
+const https = require('https');
+const http  = require('http');
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const { createClient } = require('@supabase/supabase-js');
-
 const path = require('path');
 const app = express();
 app.use(cors());
@@ -51,37 +51,74 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// ── ARCHIVE.ORG UPLOAD HELPER (Remote URL — Render pe download nahi hoga) ──
-async function uploadToArchive(mp3DirectUrl, fileName, title, artist) {
-  const identifier  = `tubetune-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const cleanTitle  = (title  || 'Unknown').replace(/[^\w\s\-]/g, '').trim().slice(0, 80);
-  const cleanArtist = (artist || 'Unknown').replace(/[^\w\s\-]/g, '').trim().slice(0, 80);
+// ── DOWNLOAD HELPER (native https — Render pe work karta hai) ──
+function downloadBuffer(url) {
+  return new Promise((resolve, reject) => {
+    const client = url.startsWith('https') ? https : http;
+    client.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+      // Redirect handle karo
+      if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307) {
+        return downloadBuffer(res.headers.location).then(resolve).catch(reject);
+      }
+      if (res.statusCode !== 200) {
+        return reject(new Error('Download failed: HTTP ' + res.statusCode));
+      }
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      res.on('end',  ()    => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
 
-  // Step 1: Archive.org ko remote URL se fetch karke upload karne ka task do
-  const taskRes = await fetch('https://archive.org/upload', {
-    method: 'POST',
-    headers: {
-      'Accept':        'application/json',
-      'Authorization': `LOW ${process.env.ARCHIVE_ACCESS_KEY}:${process.env.ARCHIVE_SECRET_KEY}`,
-    },
-    body: new URLSearchParams({
-      'identifier':              identifier,
-      'title':                   cleanTitle,
-      'creator':                 cleanArtist,
-      'mediatype':               'audio',
-      'subject':                 'music',
-      'upload-identifier':       identifier,
-      'uri':                     mp3DirectUrl,
-      'filename':                fileName,
-    })
+// ── ARCHIVE.ORG UPLOAD HELPER (S3 API — permanent storage) ──
+async function uploadToArchive(mp3Url, fileName, title, artist) {
+  const identifier  = 'tubetune-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  const cleanTitle  = (title  || 'Unknown').replace(/[^\w\s-]/g, '').trim().slice(0, 80);
+  const cleanArtist = (artist || 'Unknown').replace(/[^\w\s-]/g, '').trim().slice(0, 80);
+
+  console.log('Downloading MP3 for archive upload...');
+  const audioBuffer = await downloadBuffer(mp3Url);
+  console.log('MP3 downloaded, size:', audioBuffer.length, 'bytes');
+
+  // Archive.org S3-compatible API se upload
+  const uploadUrl = `https://s3.us.archive.org/${identifier}/${fileName}`;
+  console.log('Uploading to archive.org, identifier:', identifier);
+
+  await new Promise((resolve, reject) => {
+    const urlObj = new URL(uploadUrl);
+    const options = {
+      method:   'PUT',
+      hostname: urlObj.hostname,
+      path:     urlObj.pathname,
+      headers: {
+        'Authorization':             'LOW ' + process.env.ARCHIVE_ACCESS_KEY + ':' + process.env.ARCHIVE_SECRET_KEY,
+        'Content-Type':              'audio/mpeg',
+        'Content-Length':            audioBuffer.length,
+        'x-amz-auto-make-bucket':    '1',
+        'x-archive-meta-mediatype':  'audio',
+        'x-archive-meta-title':      cleanTitle,
+        'x-archive-meta-creator':    cleanArtist,
+        'x-archive-meta-subject':    'music',
+        'x-archive-ignore-preexisting-bucket': '1'
+      }
+    };
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => {
+        console.log('Archive.org response:', res.statusCode, body.slice(0, 200));
+        if (res.statusCode === 200) resolve();
+        else reject(new Error('Archive upload failed: ' + res.statusCode + ' ' + body.slice(0, 300)));
+      });
+    });
+    req.on('error', reject);
+    req.write(audioBuffer);
+    req.end();
   });
 
-  // Archive.org remote upload async hota hai — identifier se permanent URL banta hai
-  // Task fail bhi ho toh bhi identifier se URL predict kar sakte hain
-  const permanentUrl = `https://archive.org/download/${identifier}/${fileName}`;
-  console.log('Archive.org upload started, identifier:', identifier);
-  console.log('Task response status:', taskRes.status);
-
+  const permanentUrl = 'https://archive.org/download/' + identifier + '/' + fileName;
+  console.log('Archive.org upload success:', permanentUrl);
   return permanentUrl;
 }
 
