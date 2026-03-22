@@ -1,10 +1,10 @@
-const https  = require('https');
-const http   = require('http');
+const fetch = require('node-fetch');
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const { createClient } = require('@supabase/supabase-js');
+
 const path = require('path');
 const app = express();
 app.use(cors());
@@ -51,32 +51,37 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// ── AUDIO PROXY HELPER — Render se stream karo ──
-// Note: RapidAPI URL directly DB mein save hoti hai
-// /api/stream/:id route us URL ko proxy karke serve karta hai
+// ── MP3 URL HELPER — Serhat API (public CDN link) + fallback ──
+async function getMp3Url(videoId) {
+  // API 1: youtube-mp3-downloader2 by Serhat — direct dlink deta hai
+  try {
+    const r1 = await fetch(
+      `https://youtube-mp3-downloader2.p.rapidapi.com/ytmp3/ytmp3/?url=https://www.youtube.com/watch?v=${videoId}`,
+      { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp3-downloader2.p.rapidapi.com' } }
+    );
+    const d1 = await r1.json();
+    console.log('Serhat API response:', JSON.stringify(d1).slice(0, 300));
+    if (d1?.dlink && !d1.dlink.includes('lambda.123tokyo')) {
+      console.log('Serhat API success ✅');
+      return { url: d1.dlink, duration: d1.duration || null, title: d1.title || null };
+    }
+  } catch(e) { console.log('Serhat API failed:', e.message); }
 
-function proxyAudio(audioUrl, res) {
-  const client = audioUrl.startsWith('https') ? https : http;
-  const options = { headers: { 'User-Agent': 'Mozilla/5.0', 'Range': 'bytes=0-' } };
-  client.get(audioUrl, options, (upstream) => {
-    if (upstream.statusCode === 301 || upstream.statusCode === 302 || upstream.statusCode === 307) {
-      return proxyAudio(upstream.headers.location, res);
-    }
-    res.setHeader('Content-Type', upstream.headers['content-type'] || 'audio/mpeg');
-    res.setHeader('Accept-Ranges', 'bytes');
-    if (upstream.headers['content-length']) {
-      res.setHeader('Content-Length', upstream.headers['content-length']);
-    }
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.status(upstream.statusCode === 206 ? 206 : 200);
-    upstream.pipe(res);
-  }).on('error', (err) => {
-    console.error('Proxy error:', err.message);
-    if (!res.headersSent) res.status(502).json({ error: 'Audio stream failed' });
-  });
+  // API 2: youtube-mp36 fallback
+  console.log('Trying fallback API...');
+  const r2 = await fetch(
+    `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
+    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com' } }
+  );
+  const d2 = await r2.json();
+  console.log('Fallback API response:', JSON.stringify(d2).slice(0, 300));
+  if (d2.status !== 'ok' || !d2.link) {
+    throw new Error('MP3 link nahi mila: ' + (d2.msg || JSON.stringify(d2)));
+  }
+  return { url: d2.link, duration: d2.duration || null, title: null };
 }
 
-// ── ADMIN AUTH ──// ── ADMIN AUTH ──
+// ── ADMIN AUTH ──
 function auth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (token !== process.env.ADMIN_PASSWORD) {
@@ -213,29 +218,11 @@ app.post('/api/upload', auth, async (req, res) => {
       }
     } catch(e) { console.log('oembed:', e.message); }
 
-    const rapidRes = await fetch(
-      `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
-      {
-        method: 'GET',
-        headers: {
-          'X-RapidAPI-Key':  process.env.RAPIDAPI_KEY,
-          'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com'
-        }
-      }
-    );
-    const rapidData = await rapidRes.json();
-    console.log('RapidAPI response:', rapidData);
-
-    if (rapidData.status !== 'ok' || !rapidData.link) {
-      throw new Error('MP3 link nahi mila: ' + (rapidData.msg || JSON.stringify(rapidData)));
-    }
-
-    const mp3Url = rapidData.link;
-    duration = rapidData.duration
-      ? `${Math.floor(rapidData.duration/60)}:${String(rapidData.duration%60).padStart(2,'0')}`
+    const { url: mp3Url, duration: rawDur1, title: apiTitle1 } = await getMp3Url(videoId);
+    if (apiTitle1 && title === 'Unknown Title') title = apiTitle1;
+    duration = rawDur1
+      ? `${Math.floor(rawDur1/60)}:${String(rawDur1%60).padStart(2,'0')}`
       : '0:00';
-
-    // MP3 URL directly save karo — /api/stream/:id proxy karke serve karega
     const audioUrl = mp3Url;
 
     const { data: song, error: dbError } = await supabaseAdmin
@@ -768,34 +755,19 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
       });
     }
 
-    const rapidRes = await fetch(
-      `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
-      {
-        method: 'GET',
-        headers: {
-          'X-RapidAPI-Key':  process.env.RAPIDAPI_KEY,
-          'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com'
-        }
-      }
-    );
-    const rapidData = await rapidRes.json();
-    if (rapidData.status !== 'ok' || !rapidData.link) {
-      throw new Error('MP3 link nahi mila: ' + (rapidData.msg || 'Unknown error'));
-    }
+    const { url: mp3Url, duration: rawDur2, title: apiTitle2 } = await getMp3Url(videoId);
+    if (apiTitle2 && title === query) title = apiTitle2;
 
-    // Music validation — duration + title check
-    const durationSecs = rapidData.duration || null;
+    // Music validation
+    const durationSecs = rawDur2 || null;
     const musicCheck   = validateMusic(title, durationSecs);
     if (!musicCheck.ok) {
       return res.status(422).json({ success: false, error: musicCheck.reason, code: 'NOT_MUSIC' });
     }
 
-    const mp3Url   = rapidData.link;
-    const duration = rapidData.duration
-      ? `${Math.floor(rapidData.duration / 60)}:${String(rapidData.duration % 60).padStart(2, '0')}`
+    const duration = rawDur2
+      ? `${Math.floor(rawDur2 / 60)}:${String(rawDur2 % 60).padStart(2, '0')}`
       : '0:00';
-
-    // MP3 URL directly save karo — /api/stream/:id proxy karke serve karega
     const audioUrl = mp3Url;
 
     const { data: song, error: dbError } = await supabaseAdmin
@@ -821,56 +793,6 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
   } catch (err) {
     console.error('YT Fetch Error:', err.message);
     res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-
-// ── AUDIO STREAM PROXY — RapidAPI URL ko proxy karke serve karo ──
-app.get('/api/stream/:id', async (req, res) => {
-  try {
-    const { data: song, error } = await supabase
-      .from('songs')
-      .select('audio_url')
-      .eq('id', req.params.id)
-      .single();
-
-    if (error || !song) return res.status(404).json({ error: 'Song not found' });
-
-    const audioUrl = song.audio_url;
-    if (!audioUrl) return res.status(404).json({ error: 'Audio URL missing' });
-
-    // Range header forward karo (seeking ke liye)
-    const rangeHeader = req.headers['range'];
-    const client = audioUrl.startsWith('https') ? https : http;
-    const reqHeaders = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    };
-    if (rangeHeader) reqHeaders['Range'] = rangeHeader;
-
-    const proxyReq = client.get(audioUrl, { headers: reqHeaders }, (upstream) => {
-      // Redirect handle karo
-      if ([301, 302, 307, 308].includes(upstream.statusCode)) {
-        const newUrl = upstream.headers.location;
-        return res.redirect('/api/stream/' + req.params.id);
-      }
-      const headers = {
-        'Content-Type':                upstream.headers['content-type'] || 'audio/mpeg',
-        'Accept-Ranges':               'bytes',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control':               'no-cache',
-      };
-      if (upstream.headers['content-length']) headers['Content-Length'] = upstream.headers['content-length'];
-      if (upstream.headers['content-range'])  headers['Content-Range']  = upstream.headers['content-range'];
-      res.writeHead(upstream.statusCode === 206 ? 206 : 200, headers);
-      upstream.pipe(res);
-    });
-    proxyReq.on('error', (err) => {
-      console.error('Stream proxy error:', err.message);
-      if (!res.headersSent) res.status(502).json({ error: 'Stream failed' });
-    });
-  } catch (err) {
-    console.error('Stream route error:', err.message);
-    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
 
