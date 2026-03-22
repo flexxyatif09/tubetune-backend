@@ -52,7 +52,7 @@ const razorpay = new Razorpay({
 
 // ── MP3 URL HELPER — Multiple APIs try karo ──
 async function getMp3AndUpload(videoId, title, artist) {
-  // Step 1: RapidAPI se link lo
+  // RapidAPI se link lo
   const r = await fetch(
     "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
     { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
@@ -61,51 +61,15 @@ async function getMp3AndUpload(videoId, title, artist) {
   console.log("RapidAPI:", d.status, d.link ? d.link.slice(0,60) : "no link");
   if (d.status !== "ok" || !d.link) throw new Error("MP3 link nahi mila: " + (d.msg || JSON.stringify(d)));
 
-  const mp3Url = d.link;
   const duration = d.duration
     ? Math.floor(d.duration/60) + ":" + String(d.duration%60).padStart(2,"0")
     : "0:00";
 
-  // Step 2: TURANT download — koi gap nahi
-  console.log("Downloading immediately...");
-  const buf = await downloadBuffer(mp3Url);
-  console.log("Downloaded:", buf.length, "bytes");
-
-  // Step 3: Supabase storage mein upload
-  const fileName = Date.now() + "_" + videoId + ".mp3";
-  const { error: upErr } = await supabaseAdmin.storage
-    .from("audio")
-    .upload(fileName, buf, { contentType: "audio/mpeg", upsert: false });
-  if (upErr) throw new Error("Supabase upload error: " + upErr.message);
-
-  const { data: { publicUrl } } = supabaseAdmin.storage
-    .from("audio")
-    .getPublicUrl(fileName);
-
-  console.log("Supabase success:", publicUrl.slice(0, 80));
-  return { audioUrl: publicUrl, duration };
+  // Link directly return karo — frontend stream karega
+  return { audioUrl: d.link, duration };
 }
 
-function downloadBuffer(url) {
-  return new Promise((resolve, reject) => {
-    const https = require("https");
-    const http  = require("http");
-    const doReq = (u) => {
-      const client = u.startsWith("https") ? https : http;
-      client.get(u, { headers: { "User-Agent": "Mozilla/5.0" } }, (res) => {
-        if ([301,302,307,308].includes(res.statusCode) && res.headers.location) {
-          return doReq(res.headers.location);
-        }
-        if (res.statusCode !== 200) return reject(new Error("Download HTTP " + res.statusCode));
-        const chunks = [];
-        res.on("data", c => chunks.push(c));
-        res.on("end",  () => resolve(Buffer.concat(chunks)));
-        res.on("error", reject);
-      }).on("error", reject);
-    };
-    doReq(url);
-  });
-}
+
 
 // ── ADMIN AUTH ──
 function auth(req, res, next) {
