@@ -54,51 +54,43 @@ const razorpay = new Razorpay({
 async function getMp3Url(videoId) {
   const ytUrl = "https://www.youtube.com/watch?v=" + videoId;
 
-  // API 1: youtube-mp3-downloader4 (Serhat) — 2 step flow
+  // Cobalt API — free, open source, public CDN links deta hai
   try {
-    const r1 = await fetch(
-      "https://youtube-mp3-downloader4.p.rapidapi.com/download.php?format=mp3&url=" + encodeURIComponent(ytUrl),
-      { method: "GET", headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp3-downloader4.p.rapidapi.com" } }
-    );
-    const d1 = await r1.json();
-    console.log("Serhat step1:", JSON.stringify(d1).slice(0, 200));
-    const directLink = d1 && (d1.link || d1.url || d1.dlink || d1.download_url);
-    if (directLink && directLink.startsWith("http") && !directLink.includes("progress")) {
-      console.log("Serhat direct link success");
-      return { url: directLink, duration: d1.duration || null, title: d1.title || null };
-    }
-    const progressUrl = d1 && d1.progress_url;
-    if (progressUrl) {
-      console.log("Serhat polling...");
-      for (let i = 0; i < 10; i++) {
-        await new Promise(r => setTimeout(r, 2000));
-        const rp = await fetch(progressUrl, { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp3-downloader4.p.rapidapi.com" } });
-        const dp = await rp.json();
-        console.log("Poll " + (i+1) + ":", JSON.stringify(dp).slice(0, 150));
-        const pollLink = dp && (dp.link || dp.url || dp.download_url || dp.mp3);
-        if (pollLink && pollLink.startsWith("http")) {
-          console.log("Serhat poll success");
-          return { url: pollLink, duration: dp.duration || d1.duration || null, title: dp.title || d1.title || null };
-        }
-      }
-    }
-    console.log("Serhat API timeout");
-  } catch(e) { console.log("Serhat API error:", e.message); }
+    console.log("Cobalt API trying:", videoId);
+    const r = await fetch("https://api.cobalt.tools/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept":        "application/json"
+      },
+      body: JSON.stringify({
+        url:            ytUrl,
+        downloadMode:   "audio",
+        audioFormat:    "mp3",
+        audioBitrate:   "128"
+      })
+    });
+    const d = await r.json();
+    console.log("Cobalt response:", JSON.stringify(d).slice(0, 300));
 
-  // API 2: youtube-mp36 fallback
-  console.log("Trying youtube-mp36...");
-  const r2 = await fetch(
-    "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
-    { method: "GET", headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
-  );
-  const d2 = await r2.json();
-  console.log("youtube-mp36:", JSON.stringify(d2).slice(0, 200));
-  if (d2.status === "ok" && d2.link) {
-    return { url: d2.link, duration: d2.duration || null, title: d2.title || null };
+    // Status: tunnel ya redirect — dono mein url milta hai
+    if ((d.status === "tunnel" || d.status === "redirect" || d.status === "stream") && d.url) {
+      console.log("Cobalt success:", d.url.slice(0, 80));
+      return { url: d.url, duration: null, title: d.filename || null };
+    }
+
+    // Picker response
+    if (d.status === "picker" && d.picker && d.picker[0]?.url) {
+      console.log("Cobalt picker success");
+      return { url: d.picker[0].url, duration: null, title: null };
+    }
+
+    throw new Error("Cobalt unexpected: " + JSON.stringify(d).slice(0, 200));
+  } catch(e) {
+    console.log("Cobalt failed:", e.message);
+    throw new Error("Audio URL nahi mila: " + e.message);
   }
-  throw new Error("Saari APIs fail: " + (d2.msg || JSON.stringify(d2)));
 }
-
 
 // ── ADMIN AUTH ──
 function auth(req, res, next) {
