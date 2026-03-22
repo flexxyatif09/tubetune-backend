@@ -1,5 +1,5 @@
-const https = require('https');
-const http  = require('http');
+const https  = require('https');
+const http   = require('http');
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
@@ -51,78 +51,32 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// ── DOWNLOAD HELPER (native https — Render pe work karta hai) ──
-function downloadBuffer(url) {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http;
-    client.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
-      // Redirect handle karo
-      if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307) {
-        return downloadBuffer(res.headers.location).then(resolve).catch(reject);
-      }
-      if (res.statusCode !== 200) {
-        return reject(new Error('Download failed: HTTP ' + res.statusCode));
-      }
-      const chunks = [];
-      res.on('data', chunk => chunks.push(chunk));
-      res.on('end',  ()    => resolve(Buffer.concat(chunks)));
-      res.on('error', reject);
-    }).on('error', reject);
+// ── AUDIO PROXY HELPER — Render se stream karo ──
+// Note: RapidAPI URL directly DB mein save hoti hai
+// /api/stream/:id route us URL ko proxy karke serve karta hai
+
+function proxyAudio(audioUrl, res) {
+  const client = audioUrl.startsWith('https') ? https : http;
+  const options = { headers: { 'User-Agent': 'Mozilla/5.0', 'Range': 'bytes=0-' } };
+  client.get(audioUrl, options, (upstream) => {
+    if (upstream.statusCode === 301 || upstream.statusCode === 302 || upstream.statusCode === 307) {
+      return proxyAudio(upstream.headers.location, res);
+    }
+    res.setHeader('Content-Type', upstream.headers['content-type'] || 'audio/mpeg');
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (upstream.headers['content-length']) {
+      res.setHeader('Content-Length', upstream.headers['content-length']);
+    }
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.status(upstream.statusCode === 206 ? 206 : 200);
+    upstream.pipe(res);
+  }).on('error', (err) => {
+    console.error('Proxy error:', err.message);
+    if (!res.headersSent) res.status(502).json({ error: 'Audio stream failed' });
   });
 }
 
-// ── ARCHIVE.ORG UPLOAD HELPER (S3 API — permanent storage) ──
-async function uploadToArchive(mp3Url, fileName, title, artist) {
-  const identifier  = 'tubetune-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-  const cleanTitle  = (title  || 'Unknown').replace(/[^\w\s-]/g, '').trim().slice(0, 80);
-  const cleanArtist = (artist || 'Unknown').replace(/[^\w\s-]/g, '').trim().slice(0, 80);
-
-  console.log('Downloading MP3 for archive upload...');
-  const audioBuffer = await downloadBuffer(mp3Url);
-  console.log('MP3 downloaded, size:', audioBuffer.length, 'bytes');
-
-  // Archive.org S3-compatible API se upload
-  const uploadUrl = `https://s3.us.archive.org/${identifier}/${fileName}`;
-  console.log('Uploading to archive.org, identifier:', identifier);
-
-  await new Promise((resolve, reject) => {
-    const urlObj = new URL(uploadUrl);
-    const options = {
-      method:   'PUT',
-      hostname: urlObj.hostname,
-      path:     urlObj.pathname,
-      headers: {
-        'Authorization':             'LOW ' + process.env.ARCHIVE_ACCESS_KEY + ':' + process.env.ARCHIVE_SECRET_KEY,
-        'Content-Type':              'audio/mpeg',
-        'Content-Length':            audioBuffer.length,
-        'x-amz-auto-make-bucket':    '1',
-        'x-archive-meta-mediatype':  'audio',
-        'x-archive-meta-title':      cleanTitle,
-        'x-archive-meta-creator':    cleanArtist,
-        'x-archive-meta-subject':    'music',
-        'x-archive-ignore-preexisting-bucket': '1'
-      }
-    };
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', d => body += d);
-      res.on('end', () => {
-        console.log('Archive.org response:', res.statusCode, body.slice(0, 200));
-        if (res.statusCode === 200) resolve();
-        else reject(new Error('Archive upload failed: ' + res.statusCode + ' ' + body.slice(0, 300)));
-      });
-    });
-    req.on('error', reject);
-    req.write(audioBuffer);
-    req.end();
-  });
-
-  const permanentUrl = 'https://archive.org/download/' + identifier + '/' + fileName;
-  console.log('Archive.org upload success:', permanentUrl);
-  return permanentUrl;
-}
-
-// ── ADMIN AUTH ──
+// ── ADMIN AUTH ──// ── ADMIN AUTH ──
 function auth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (token !== process.env.ADMIN_PASSWORD) {
@@ -281,9 +235,8 @@ app.post('/api/upload', auth, async (req, res) => {
       ? `${Math.floor(rapidData.duration/60)}:${String(rapidData.duration%60).padStart(2,'0')}`
       : '0:00';
 
-    // Archive.org pe directly upload — Render pe download nahi hoga
-    const fileName = `${Date.now()}_${videoId}.mp3`;
-    const audioUrl = await uploadToArchive(mp3Url, fileName, title, artist);
+    // MP3 URL directly save karo — /api/stream/:id proxy karke serve karega
+    const audioUrl = mp3Url;
 
     const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
@@ -842,9 +795,8 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
       ? `${Math.floor(rapidData.duration / 60)}:${String(rapidData.duration % 60).padStart(2, '0')}`
       : '0:00';
 
-    // Archive.org pe directly upload — Render pe download nahi hoga
-    const fileName = `${Date.now()}_${videoId}.mp3`;
-    const audioUrl = await uploadToArchive(mp3Url, fileName, title, artist);
+    // MP3 URL directly save karo — /api/stream/:id proxy karke serve karega
+    const audioUrl = mp3Url;
 
     const { data: song, error: dbError } = await supabaseAdmin
       .from('songs')
@@ -869,6 +821,56 @@ app.post('/api/yt-fetch', premiumAuth, async (req, res) => {
   } catch (err) {
     console.error('YT Fetch Error:', err.message);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+// ── AUDIO STREAM PROXY — RapidAPI URL ko proxy karke serve karo ──
+app.get('/api/stream/:id', async (req, res) => {
+  try {
+    const { data: song, error } = await supabase
+      .from('songs')
+      .select('audio_url')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error || !song) return res.status(404).json({ error: 'Song not found' });
+
+    const audioUrl = song.audio_url;
+    if (!audioUrl) return res.status(404).json({ error: 'Audio URL missing' });
+
+    // Range header forward karo (seeking ke liye)
+    const rangeHeader = req.headers['range'];
+    const client = audioUrl.startsWith('https') ? https : http;
+    const reqHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    };
+    if (rangeHeader) reqHeaders['Range'] = rangeHeader;
+
+    const proxyReq = client.get(audioUrl, { headers: reqHeaders }, (upstream) => {
+      // Redirect handle karo
+      if ([301, 302, 307, 308].includes(upstream.statusCode)) {
+        const newUrl = upstream.headers.location;
+        return res.redirect('/api/stream/' + req.params.id);
+      }
+      const headers = {
+        'Content-Type':                upstream.headers['content-type'] || 'audio/mpeg',
+        'Accept-Ranges':               'bytes',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control':               'no-cache',
+      };
+      if (upstream.headers['content-length']) headers['Content-Length'] = upstream.headers['content-length'];
+      if (upstream.headers['content-range'])  headers['Content-Range']  = upstream.headers['content-range'];
+      res.writeHead(upstream.statusCode === 206 ? 206 : 200, headers);
+      upstream.pipe(res);
+    });
+    proxyReq.on('error', (err) => {
+      console.error('Stream proxy error:', err.message);
+      if (!res.headersSent) res.status(502).json({ error: 'Stream failed' });
+    });
+  } catch (err) {
+    console.error('Stream route error:', err.message);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
 
