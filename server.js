@@ -50,43 +50,27 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// ── CLOUDFLARE WORKER SE UPLOAD ──
+// ── CLOUDFLARE WORKER SE MP3 + TELEGRAM UPLOAD ──
 async function getMp3AndUpload(videoId, title, artist) {
-  // Step 1: RapidAPI se 123tokyo link lo
-  const r = await fetch(
-    "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
-    { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
-  );
-  const d = await r.json();
-  console.log("RapidAPI:", d.status, d.link ? d.link.slice(0,60) : "no link");
-  if (d.status !== "ok" || !d.link) throw new Error("MP3 link nahi mila: " + (d.msg || JSON.stringify(d)));
+  console.log("Calling Cloudflare Worker for:", videoId);
 
-  const duration = d.duration
-    ? Math.floor(d.duration/60) + ":" + String(Math.round(d.duration%60)).padStart(2,"0")
-    : "0:00";
-
-  // Step 2: Cloudflare Worker ko call karo — download + Telegram upload
-  console.log("Calling Cloudflare Worker...");
   const workerRes = await fetch("https://tubetune-audio.azmiatif720.workers.dev", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      mp3Url:    d.link,
-      videoId:   videoId,
-      botToken:  process.env.TELEGRAM_BOT_TOKEN,
-      channelId: process.env.TELEGRAM_CHANNEL_ID
+      videoId:    videoId,
+      rapidApiKey: process.env.RAPIDAPI_KEY,
+      botToken:   process.env.TELEGRAM_BOT_TOKEN,
+      channelId:  process.env.TELEGRAM_CHANNEL_ID
     })
   });
 
-  const workerData = await workerRes.json();
-  console.log("Worker response:", JSON.stringify(workerData).slice(0, 200));
+  const data = await workerRes.json();
+  console.log("Worker response:", JSON.stringify(data).slice(0, 200));
 
-  if (!workerData.success) {
-    throw new Error("Worker failed: " + workerData.error);
-  }
+  if (!data.success) throw new Error("Worker failed: " + data.error);
 
-  console.log("Permanent URL:", workerData.audioUrl.slice(0, 80));
-  return { audioUrl: workerData.audioUrl, duration };
+  return { audioUrl: data.audioUrl, duration: data.duration || "0:00" };
 }
 
 
