@@ -2260,7 +2260,7 @@ function shareNP(){
   if(curIdx<0)return;
   const s=songs[curIdx];
   // Bridge page URL — app installed ho to app khulega, nahi to download page
-  const shareUrl='https://tubetune-backend.onrender.com/open?song='+encodeURIComponent(s.id);
+  const shareUrl='https://tubetune-backend-production.up.railway.app/open?song='+encodeURIComponent(s.id);
   const shareTitle='TubeTune — '+s.title;
   const shareText=`🎵 "${s.title}" by ${s.artist} — TubeTune par suno! Bilkul free, koi ads nahi.\n`;
   // Android WebView — native share sheet
