@@ -121,8 +121,8 @@ async function uploadToArchive(buffer, videoId, title, artist) {
 async function getMp3AndUpload(videoId, title, artist) {
   // Step 1: RapidAPI se link lo
   const r = await fetch(
-    "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
-    { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
+    "https://ytjar.p.rapidapi.com/dl?id=" + videoId,
+    { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "ytjar.p.rapidapi.com" } }
   );
   const d = await r.json();
   console.log("RapidAPI:", d.status, d.link ? d.link.slice(0,60) : "no link");
