@@ -50,27 +50,98 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// ── CLOUDFLARE WORKER SE MP3 + TELEGRAM UPLOAD ──
-async function getMp3AndUpload(videoId, title, artist) {
-  console.log("Calling Cloudflare Worker for:", videoId);
-
-  const workerRes = await fetch("https://tubetune-audio.azmiatif720.workers.dev", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      videoId:    videoId,
-      rapidApiKey: process.env.RAPIDAPI_KEY,
-      botToken:   process.env.TELEGRAM_BOT_TOKEN,
-      channelId:  process.env.TELEGRAM_CHANNEL_ID
-    })
+// ── ARCHIVE.ORG UPLOAD ──
+function downloadBuffer(url) {
+  return new Promise((resolve, reject) => {
+    const https = require('https');
+    const http  = require('http');
+    const doReq = (u) => {
+      const client = u.startsWith('https') ? https : http;
+      client.get(u, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+        if ([301,302,307,308].includes(res.statusCode) && res.headers.location) {
+          return doReq(res.headers.location);
+        }
+        if (res.statusCode !== 200) return reject(new Error('Download HTTP ' + res.statusCode));
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end',  () => resolve(Buffer.concat(chunks)));
+        res.on('error', reject);
+      }).on('error', reject);
+    };
+    doReq(url);
   });
+}
 
-  const data = await workerRes.json();
-  console.log("Worker response:", JSON.stringify(data).slice(0, 200));
+async function uploadToArchive(buffer, videoId, title, artist) {
+  const https = require('https');
+  const identifier  = 'tubetune-' + Date.now() + '-' + videoId;
+  const cleanTitle  = (title  || 'Unknown').replace(/[^\w\s-]/g, '').trim().slice(0, 80);
+  const cleanArtist = (artist || 'Unknown').replace(/[^\w\s-]/g, '').trim().slice(0, 80);
+  const fileName    = videoId + '.mp3';
 
-  if (!data.success) throw new Error("Worker failed: " + data.error);
+  return new Promise((resolve, reject) => {
+    const urlPath = '/' + identifier + '/' + fileName;
+    const options = {
+      hostname: 's3.us.archive.org',
+      path:     urlPath,
+      method:   'PUT',
+      headers: {
+        'Authorization':             'LOW ' + process.env.ARCHIVE_ACCESS_KEY + ':' + process.env.ARCHIVE_SECRET_KEY,
+        'Content-Type':              'audio/mpeg',
+        'Content-Length':            buffer.length,
+        'x-amz-auto-make-bucket':    '1',
+        'x-archive-meta-mediatype':  'audio',
+        'x-archive-meta-title':      cleanTitle,
+        'x-archive-meta-creator':    cleanArtist,
+        'x-archive-meta-subject':    'music',
+        'x-archive-ignore-preexisting-bucket': '1'
+      }
+    };
 
-  return { audioUrl: data.audioUrl, duration: data.duration || "0:00" };
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => {
+        console.log('Archive.org status:', res.statusCode, body.slice(0, 100));
+        if (res.statusCode === 200) {
+          const permanentUrl = 'https://archive.org/download/' + identifier + '/' + fileName;
+          console.log('Archive.org success:', permanentUrl);
+          resolve(permanentUrl);
+        } else {
+          reject(new Error('Archive upload failed: ' + res.statusCode + ' ' + body.slice(0, 200)));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(buffer);
+    req.end();
+  });
+}
+
+async function getMp3AndUpload(videoId, title, artist) {
+  // Step 1: RapidAPI se link lo
+  const r = await fetch(
+    "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
+    { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
+  );
+  const d = await r.json();
+  console.log("RapidAPI:", d.status, d.link ? d.link.slice(0,60) : "no link");
+  if (d.status !== "ok" || !d.link) throw new Error("MP3 link nahi mila: " + (d.msg || JSON.stringify(d)));
+
+  const duration = d.duration
+    ? Math.floor(d.duration/60) + ":" + String(Math.round(d.duration%60)).padStart(2,"0")
+    : "0:00";
+
+  // Step 2: Turant download karo
+  console.log("Downloading MP3...");
+  const mp3Buffer = await downloadBuffer(d.link);
+  console.log("Downloaded:", mp3Buffer.length, "bytes");
+
+  // Step 3: Archive.org pe upload karo
+  console.log("Uploading to Archive.org...");
+  const audioUrl = await uploadToArchive(mp3Buffer, videoId, title, artist);
+
+  return { audioUrl, duration };
 }
 
 
