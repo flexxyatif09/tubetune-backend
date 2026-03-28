@@ -55,11 +55,20 @@ function downloadBuffer(url) {
   return new Promise((resolve, reject) => {
     const https = require('https');
     const http  = require('http');
-    const doReq = (u) => {
+    const doReq = (u, redirectCount) => {
+      if (!redirectCount) redirectCount = 0;
+      if (redirectCount > 5) return reject(new Error('Too many redirects'));
       const client = u.startsWith('https') ? https : http;
-      client.get(u, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+      client.get(u, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'audio/mpeg,*/*',
+          'Referer': 'https://youtube-mp36.p.rapidapi.com/'
+        }
+      }, (res) => {
         if ([301,302,307,308].includes(res.statusCode) && res.headers.location) {
-          return doReq(res.headers.location);
+          console.log('Redirect ->', res.headers.location.slice(0,70));
+          return doReq(res.headers.location, redirectCount + 1);
         }
         if (res.statusCode !== 200) return reject(new Error('Download HTTP ' + res.statusCode));
         const chunks = [];
@@ -68,7 +77,7 @@ function downloadBuffer(url) {
         res.on('error', reject);
       }).on('error', reject);
     };
-    doReq(url);
+    doReq(url, 0);
   });
 }
 
@@ -118,6 +127,32 @@ async function uploadToArchive(buffer, videoId, title, artist) {
   });
 }
 
+async function getMp3AndUpload(videoId, title, artist) {
+  // Step 1: RapidAPI se link lo
+  const r = await fetch(
+    "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
+    { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
+  );
+  const d = await r.json();
+  console.log("RapidAPI:", d.status, d.link ? d.link.slice(0,60) : "no link");
+  if (d.status !== "ok" || !d.link) throw new Error("MP3 link nahi mila: " + (d.msg || JSON.stringify(d)));
+
+  const duration = d.duration
+    ? Math.floor(d.duration/60) + ":" + String(Math.round(d.duration%60)).padStart(2,"0")
+    : "0:00";
+
+  // Step 2: Turant download karo
+  console.log("Downloading MP3...");
+  const mp3Buffer = await downloadBuffer(d.link);
+  console.log("Downloaded:", mp3Buffer.length, "bytes");
+
+  // Step 3: Telegram pe upload karo
+  console.log("Uploading to Telegram...");
+  const audioUrl = await uploadToTelegram(mp3Buffer, videoId, title);
+
+  return { audioUrl, duration };
+}
+
 // ── TELEGRAM UPLOAD ──
 async function uploadToTelegram(buffer, videoId, title) {
   const https = require('https');
@@ -127,9 +162,8 @@ async function uploadToTelegram(buffer, videoId, title) {
 
   return new Promise((resolve, reject) => {
     const boundary = '----FormBoundary' + Date.now().toString(16);
-    
-    // Multipart form body banao
-    const titlePart = Buffer.from(
+
+    const chatIdPart = Buffer.from(
       '--' + boundary + '\r\n' +
       'Content-Disposition: form-data; name="chat_id"\r\n\r\n' +
       channelId + '\r\n'
@@ -140,8 +174,8 @@ async function uploadToTelegram(buffer, videoId, title) {
       'Content-Type: audio/mpeg\r\n\r\n'
     );
     const fileFooter = Buffer.from('\r\n--' + boundary + '--\r\n');
-    
-    const body = Buffer.concat([titlePart, fileHeader, buffer, fileFooter]);
+
+    const body = Buffer.concat([chatIdPart, fileHeader, buffer, fileFooter]);
 
     const options = {
       hostname: 'api.telegram.org',
@@ -161,10 +195,10 @@ async function uploadToTelegram(buffer, videoId, title) {
           const result = JSON.parse(data);
           console.log('Telegram status:', result.ok, result.description || '');
           if (!result.ok) return reject(new Error('Telegram upload failed: ' + result.description));
-          
+
           const fileId = result.result.audio.file_id;
-          // file_path fetch karo
-          const fileReq = https.get(
+          // file_path fetch karo taaki direct URL mile
+          https.get(
             'https://api.telegram.org/bot' + botToken + '/getFile?file_id=' + fileId,
             (fileRes) => {
               let fileData = '';
@@ -173,12 +207,11 @@ async function uploadToTelegram(buffer, videoId, title) {
                 const parsed = JSON.parse(fileData);
                 const filePath = parsed.result.file_path;
                 const url = 'https://api.telegram.org/file/bot' + botToken + '/' + filePath;
-                console.log('Telegram success, url ready');
+                console.log('Telegram success:', url.slice(0, 60));
                 resolve(url);
               });
             }
-          );
-          fileReq.on('error', reject);
+          ).on('error', reject);
         } catch(e) { reject(e); }
       });
     });
@@ -186,32 +219,6 @@ async function uploadToTelegram(buffer, videoId, title) {
     req.write(body);
     req.end();
   });
-}
-
-async function getMp3AndUpload(videoId, title, artist) {
-  // Step 1: RapidAPI se link lo
-  const r = await fetch(
-    "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
-    { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
-  );
-  const d = await r.json();
-  console.log("RapidAPI:", d.status, d.link ? d.link.slice(0,60) : "no link");
-  if (d.status !== "ok" || !d.link) throw new Error("MP3 link nahi mila: " + (d.msg || JSON.stringify(d)));
-
-  const duration = d.duration
-    ? Math.floor(d.duration/60) + ":" + String(Math.round(d.duration%60)).padStart(2,"0")
-    : "0:00";
-
-  // Step 2: Download karo
-  console.log("Downloading MP3...");
-  const mp3Buffer = await downloadBuffer(d.link);
-  console.log("Downloaded:", mp3Buffer.length, "bytes");
-
-  // Step 3: Telegram pe upload karo
-  console.log("Uploading to Telegram...");
-  const audioUrl = await uploadToTelegram(mp3Buffer, videoId, title);
-
-  return { audioUrl, duration };
 }
 
 
