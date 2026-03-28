@@ -55,11 +55,20 @@ function downloadBuffer(url) {
   return new Promise((resolve, reject) => {
     const https = require('https');
     const http  = require('http');
-    const doReq = (u) => {
+    const doReq = (u, redirectCount) => {
+      if (!redirectCount) redirectCount = 0;
+      if (redirectCount > 5) return reject(new Error('Too many redirects'));
       const client = u.startsWith('https') ? https : http;
-      client.get(u, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+      client.get(u, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'audio/mpeg,*/*',
+          'Referer': 'https://youtube-mp36.p.rapidapi.com/'
+        }
+      }, (res) => {
         if ([301,302,307,308].includes(res.statusCode) && res.headers.location) {
-          return doReq(res.headers.location);
+          console.log('Redirect ->', res.headers.location.slice(0,70));
+          return doReq(res.headers.location, redirectCount + 1);
         }
         if (res.statusCode !== 200) return reject(new Error('Download HTTP ' + res.statusCode));
         const chunks = [];
@@ -68,7 +77,7 @@ function downloadBuffer(url) {
         res.on('error', reject);
       }).on('error', reject);
     };
-    doReq(url);
+    doReq(url, 0);
   });
 }
 
@@ -119,73 +128,29 @@ async function uploadToArchive(buffer, videoId, title, artist) {
 }
 
 async function getMp3AndUpload(videoId, title, artist) {
-  const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
-  let mp3Link = null;
+  // Step 1: RapidAPI se link lo
+  const r = await fetch(
+    "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
+    { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
+  );
+  const d = await r.json();
+  console.log("RapidAPI:", d.status, d.link ? d.link.slice(0,60) : "no link");
+  if (d.status !== "ok" || !d.link) throw new Error("MP3 link nahi mila: " + (d.msg || JSON.stringify(d)));
 
-  // ── Method 1: cobalt.tools (free, no key needed) ──
-  try {
-    console.log("Trying cobalt.tools...");
-    const cobaltRes = await fetch("https://cobalt-api.kwiatekmiki.com/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({ url: ytUrl, downloadMode: "audio", audioFormat: "mp3", audioBitrate: "128" })
-    });
-    const cobaltData = await cobaltRes.json();
-    console.log("Cobalt status:", cobaltData.status);
-    if (cobaltData.status === "tunnel" || cobaltData.status === "redirect") {
-      mp3Link = cobaltData.url;
-    }
-  } catch(e) { console.log("Cobalt failed:", e.message); }
+  const duration = d.duration
+    ? Math.floor(d.duration/60) + ":" + String(Math.round(d.duration%60)).padStart(2,"0")
+    : "0:00";
 
-  // ── Method 2: loader.to (free polling API) ──
-  if (!mp3Link) {
-    try {
-      console.log("Trying loader.to...");
-      const loaderRes = await fetch(
-        `https://loader.to/api/button/?url=${encodeURIComponent(ytUrl)}&f=mp3`,
-        { headers: { "User-Agent": "Mozilla/5.0" } }
-      );
-      const loaderData = await loaderRes.json();
-      if (loaderData && loaderData.id) {
-        for (let i = 0; i < 15; i++) {
-          await new Promise(r => setTimeout(r, 3000));
-          const pollRes = await fetch(`https://loader.to/api/json/?id=${loaderData.id}`,
-            { headers: { "User-Agent": "Mozilla/5.0" } });
-          const pollData = await pollRes.json();
-          console.log("loader.to poll:", pollData && pollData.progress);
-          if (pollData && pollData.success == 1 && pollData.download_url) {
-            mp3Link = pollData.download_url;
-            break;
-          }
-        }
-      }
-    } catch(e) { console.log("Loader.to failed:", e.message); }
-  }
-
-  // ── Method 3: RapidAPI fallback (original) ──
-  if (!mp3Link) {
-    try {
-      console.log("Trying RapidAPI fallback...");
-      const r = await fetch(
-        "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
-        { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
-      );
-      const d = await r.json();
-      console.log("RapidAPI:", d.status, d.link ? d.link.slice(0,60) : "no link");
-      if (d.status === "ok" && d.link) mp3Link = d.link;
-    } catch(e) { console.log("RapidAPI failed:", e.message); }
-  }
-
-  if (!mp3Link) throw new Error("MP3 link nahi mila — sab APIs fail ho gayi");
-
+  // Step 2: Turant download karo
   console.log("Downloading MP3...");
-  const mp3Buffer = await downloadBuffer(mp3Link);
+  const mp3Buffer = await downloadBuffer(d.link);
   console.log("Downloaded:", mp3Buffer.length, "bytes");
 
+  // Step 3: Archive.org pe upload karo
   console.log("Uploading to Archive.org...");
   const audioUrl = await uploadToArchive(mp3Buffer, videoId, title, artist);
 
-  return { audioUrl, duration: "0:00" };
+  return { audioUrl, duration };
 }
 
 
