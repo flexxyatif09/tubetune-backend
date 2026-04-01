@@ -246,7 +246,7 @@ app.get('/api/songs', async (req, res) => {
     const offset = (page - 1) * limit;
     let query = supabase
       .from('songs')
-      .select('*')
+      .select('id, title, artist, thumbnail, audio_url, duration, quality, youtube_url, created_at')
       .order('created_at', { ascending: false })
       .range(offset, offset + Number(limit) - 1);
     if (search) {
@@ -766,12 +766,12 @@ app.post('/api/yt-search', premiumAuth, async (req, res) => {
         const check = validateMusic(v.title, v.durationSecs);
         return check.ok;
       })
-      .slice(0, 5)
+      .slice(0, 20)
       .map(({ durationSecs, ...v }) => v); // durationSecs frontend ko nahi chahiye
 
     if (!results.length) {
-      // Agar sab filter ho gaye — unfiltered top 3 dikhao with warning
-      const fallback = allResults.slice(0, 3).map(({ durationSecs, ...v }) => v);
+      // Agar sab filter ho gaye — unfiltered top 10 dikhao with warning
+      const fallback = allResults.slice(0, 10).map(({ durationSecs, ...v }) => v);
       return res.json({ success: true, results: fallback, warning: 'Music results nahi mile, yeh related videos hain' });
     }
     res.json({ success: true, results });
