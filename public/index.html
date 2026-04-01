@@ -842,7 +842,7 @@ audio{display:none}
           <div class="yt-steps" id="ytSteps">
             <div class="yt-step" id="ytStep1"><div class="yt-step-dot"></div><span>YouTube pe search kar raha hai...</span></div>
             <div class="yt-step" id="ytStep2"><div class="yt-step-dot"></div><span>Audio URL nikal raha hai...</span></div>
-            <div class="yt-step" id="ytStep3"><div class="yt-step-dot"></div><span>Server pe upload ho raha hai...</span></div>
+            <div class="yt-step" id="ytStep3"><div class="yt-step-dot"></div><span>Audio link ready ho raha hai...</span></div>
             <div class="yt-step" id="ytStep4"><div class="yt-step-dot"></div><span>Library update ho rahi hai...</span></div>
           </div>
           <div class="yt-result-card" id="ytResultCard">
@@ -851,9 +851,14 @@ audio{display:none}
               <div class="yt-result-title" id="ytResultTitle">—</div>
               <div class="yt-result-sub" id="ytResultSub">Add ho raha hai...</div>
             </div>
-            <button class="yt-play-now-btn" id="ytPlayNowBtn">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="margin-right:4px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Play
-            </button>
+            <div style="display:flex;flex-direction:column;gap:6px;min-width:90px">
+              <button class="yt-play-now-btn" id="ytPlayNowBtn">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="margin-right:4px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Play
+              </button>
+              <button id="ytSaveLibBtn" style="padding:6px 10px;background:rgba(108,92,231,0.2);border:1px solid rgba(108,92,231,0.4);border-radius:10px;color:var(--p2);font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
+                + My Library
+              </button>
+            </div>
           </div>
           <div class="yt-no-match" id="ytNoMatch">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -900,6 +905,7 @@ audio{display:none}
       <div class="err-card" id="errCard"><h4>Connection failed</h4><span id="errTxt"></span></div>
       <div class="chips-row" id="chipRow" style="display:none">
         <div class="chip on" onclick="setFilter('all',this)">All Songs</div>
+        <div class="chip" onclick="setFilter('mine',this)">⭐ My Songs</div>
         <div class="chip" onclick="setFilter('newest',this)">Newest First</div>
         <div class="chip" onclick="setFilter('oldest',this)">Oldest First</div>
         <div class="chip" onclick="setFilter('az',this)">A – Z</div>
@@ -1893,6 +1899,79 @@ async function savePass(){
 let songs=[],filtered=[];
 let favs=JSON.parse(localStorage.getItem('tt_favs')||'[]');
 let recent=JSON.parse(localStorage.getItem('tt_recent')||'[]');
+
+// ── YouTube searched songs — localStorage mein save karo ──
+let ytSongsCache=JSON.parse(localStorage.getItem('tt_yt_songs')||'[]');
+
+// ── MY LIBRARY — User ke personal songs ──
+async function saveToMyLibrary(videoId, title, artist, thumbnail, duration) {
+  const token = SS.token();
+  if(!token) throw new Error('Login zaroori hai');
+
+  const r = await fetch(`${API}/api/my-songs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ videoId, title, artist, thumbnail, duration })
+  });
+  const data = await r.json();
+  if(!data.success) throw new Error(data.error || 'Save failed');
+
+  // Local songs array mein bhi add karo
+  const songId = data.id || ('yt_' + videoId);
+  const newSong = {
+    id: songId, title, artist,
+    thumb: thumbnail, url: '',
+    dur: duration, quality: '128kbps',
+    date: new Date().toISOString()
+  };
+  if(!songs.find(s=>s.id===songId)) songs.unshift(newSong);
+  renderSongs();
+  return data;
+}
+
+async function loadMyLibrary() {
+  const token = SS.token();
+  if(!token) return;
+  try {
+    const r = await fetch(`${API}/api/my-songs`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await r.json();
+    if(!data.success) return;
+    // Songs mein merge karo
+    (data.songs || []).forEach(s => {
+      if(!songs.find(x => x.id === s.id)) {
+        songs.push({
+          id: s.id, title: s.title, artist: s.artist,
+          thumb: s.thumbnail, url: '',
+          dur: s.duration, quality: '128kbps',
+          date: s.created_at, isUserSong: true
+        });
+      }
+    });
+  } catch(e) { console.warn('loadMyLibrary:', e.message); }
+}
+
+function saveYtSong(song){
+  // Sirf yt_ songs save karo
+  if(!song.id.startsWith('yt_')) return;
+  const existing=ytSongsCache.findIndex(s=>s.id===song.id);
+  const toSave={id:song.id,title:song.title,artist:song.artist,thumb:song.thumb,dur:song.dur,quality:song.quality,date:song.date};
+  if(existing>=0) ytSongsCache[existing]=toSave;
+  else ytSongsCache.unshift(toSave);
+  ytSongsCache=ytSongsCache.slice(0,50); // max 50 songs
+  localStorage.setItem('tt_yt_songs',JSON.stringify(ytSongsCache));
+}
+
+function loadYtSongsIntoArray(){
+  if(!ytSongsCache.length) return;
+  ytSongsCache.forEach(saved=>{
+    if(!songs.find(s=>s.id===saved.id)){
+      // url blank rakho — playById pe fresh link milegi
+      songs.push({...saved, url:''});
+    }
+  });
+}
 let curIdx=-1,playing=false,repeat=false,shuffle=false;
 let filterMode='all',searchVal='',miniUp=false,npOpen=false;
 let sleepOn=false,sleepTimer=null;
@@ -1929,7 +2008,8 @@ async function saveFavToDB(songId, add){
   }catch(e){}
 }
 
-function norm(s){return{id:s.id||s._id||String(Math.random()),title:s.title||s.name||'Unknown',artist:s.artist||s.uploader||s.channel||'Unknown',thumb:s.thumbnail||s.thumb||s.image||s.cover||'',url:s.audioUrl||s.audio_url||s.url||s.stream_url||'',dur:fmtDur(s.duration),quality:s.quality||s.bitrate||'',date:s.uploadedAt||s.created_at||s.createdAt||new Date().toISOString()};}
+function norm(s){return{id:s.id||s._id||String(Math.random()),title:s.title||s.name||'Unknown',artist:s.artist||s.uploader||s.channel||'Unknown',thumb:s.thumbnail||s.thumb||s.image||s.cover||'',url:s.audioUrl||s.audio_url||s.url||s.stream_url||'',dur:fmtDur(s.duration),quality:s.quality||s.bitrate||'',date:s.uploadedAt||s.created_at||s.createdAt||new Date().toISOString(),youtubeUrl:s.youtube_url||s.youtubeUrl||''};}
+function extractVideoId(ytUrl){if(!ytUrl)return null;const m=ytUrl.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);return m?m[1]:null;}
 function fmtDur(r){if(!r||r==='—')return'—';if(typeof r==='string'&&r.includes(':')){const[m,s]=r.split(':');return`${parseInt(m)||0}:${String(parseInt(s)||0).padStart(2,'0')}`;}const secs=parseFloat(r);if(isNaN(secs)||secs<=0)return'—';return`${Math.floor(secs/60)}:${String(Math.floor(secs%60)).padStart(2,'0')}`;}
 function fmtTime(s){if(isNaN(s)||s<=0)return'0:00';return`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;}
 function parseDur(d){if(!d||d==='—')return 0;const p=d.split(':');if(p.length===2)return parseInt(p[0])*60+parseInt(p[1]);return 0;}
@@ -1946,6 +2026,8 @@ async function loadSongs(){
   }
   document.getElementById('loadBox').style.display='none';document.getElementById('chipRow').style.display='flex';
   document.getElementById('heroCount').textContent=`${songs.length} songs available`;
+  loadYtSongsIntoArray(); // YouTube searched songs restore karo
+  await loadMyLibrary();  // User ki personal library load karo
   renderSongs();renderRecent();renderFavBadge();
   document.getElementById('shufFab').classList.add('visible');
   syncQueueToJava();
@@ -2022,28 +2104,79 @@ function onSearch(){
 function clearSearch(){document.getElementById('searchQ').value='';searchVal='';document.getElementById('sClear').classList.remove('on');document.getElementById('heroArea').style.display='';ytHideAll();renderSongs();renderRecent();}
 function setFilter(mode,el){filterMode=mode;document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));if(el)el.classList.add('on');renderSongs();}
 
-function getFiltered(){let list=[...songs];if(searchVal){const q=searchVal.toLowerCase();list=list.filter(s=>s.title.toLowerCase().includes(q)||s.artist.toLowerCase().includes(q));}if(filterMode==='newest')list.sort((a,b)=>new Date(b.date)-new Date(a.date));else if(filterMode==='oldest')list.sort((a,b)=>new Date(a.date)-new Date(b.date));else if(filterMode==='az')list.sort((a,b)=>a.title.localeCompare(b.title));else if(filterMode==='artist')list.sort((a,b)=>a.artist.localeCompare(b.artist));return list;}
+function getFiltered(){
+  let list=[...songs];
+  if(filterMode==='mine'){
+    // My Songs — user added songs (yt_ ya isUserSong)
+    list=list.filter(s=>s.isUserSong||s.id.startsWith('yt_'));
+  } else {
+    // All Songs — sirf admin library songs
+    list=list.filter(s=>!s.isUserSong&&!s.id.startsWith('yt_'));
+  }
+  if(searchVal){const q=searchVal.toLowerCase();list=list.filter(s=>s.title.toLowerCase().includes(q)||s.artist.toLowerCase().includes(q));}
+  if(filterMode==='newest')list.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  else if(filterMode==='oldest')list.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  else if(filterMode==='az')list.sort((a,b)=>a.title.localeCompare(b.title));
+  else if(filterMode==='artist')list.sort((a,b)=>a.artist.localeCompare(b.artist));
+  return list;
+}
 
 function songIco(s){return s.thumb?`<img src="${s.thumb}" onerror="this.style.display='none'" loading="lazy">`:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;}
 function eqOrPlay(isNow){return isNow?`<div class="eq-bars ${playing?'':'paused'}"><div class="eq-b"></div><div class="eq-b"></div><div class="eq-b"></div></div>`:`<svg width="13" height="13" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;}
 function heartBtn(id,faved,ctx){if(ctx==='upnext')return'';return`<button class="s-heart ${faved?'on':''}" onclick="event.stopPropagation();toggleFav('${id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="${faved?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>`;}
 function makeRow(s,i,ctx){const isNow=curIdx!==-1&&songs[curIdx]?.id===s.id,faved=favs.includes(s.id),numCell=ctx!=='upnext'?`<div class="s-num">${i+1}</div>`:'',sz=ctx==='upnext'?'width:42px;height:42px':'',dur=s.dur!=='—'?`<span class="s-dur">${s.dur}</span>`:'';const addPl=ctx!=='upnext'?`<button onclick="event.stopPropagation();showAddToPlaylist('${s.id}')" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="Playlist mein add karo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`:'';return`<div class="s-row ${isNow?'now-on':''}" onclick="playById('${s.id}')">${numCell}<div class="s-thumb" style="${sz}">${songIco(s)}<div class="s-ov">${eqOrPlay(isNow)}</div></div><div class="s-info"><div class="s-name">${s.title}</div><div class="s-art">${s.artist}</div></div>${dur}${addPl}${heartBtn(s.id,faved,ctx)}</div>`;}
 
-function renderSongs(){filtered=getFiltered();const g=document.getElementById('songsList');if(!filtered.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><h3>${songs.length?'Koi result nahi':'Library Khali Hai'}</h3><p>${songs.length?'Kuch aur search try karo':'Admin panel se songs add karo'}</p></div>`;return;}g.innerHTML=filtered.map((s,i)=>makeRow(s,i,'home')).join('');}
+function renderSongs(){filtered=getFiltered();const g=document.getElementById('songsList');if(!filtered.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><h3>${filterMode==='mine'?'Koi song nahi':songs.length?'Koi result nahi':'Library Khali Hai'}</h3><p>${filterMode==='mine'?'YouTube se search karo aur + My Library dabao':songs.length?'Kuch aur search try karo':'Admin panel se songs add karo'}</p></div>`;return;}g.innerHTML=filtered.map((s,i)=>makeRow(s,i,'home')).join('');}
 function renderFavs(){const list=songs.filter(s=>favs.includes(s.id));document.getElementById('favsCount').textContent=`${list.length} songs`;const g=document.getElementById('favsList');if(!list.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><h3>Koi Favorite Nahi</h3><p>Songs pe dil icon dabao</p></div>`;return;}g.innerHTML=list.map((s,i)=>makeRow(s,i,'favs')).join('');}
 function renderRecent(){const sec=document.getElementById('recentArea');if(!recent.length||searchVal){sec.style.display='none';return;}const rs=recent.map(id=>songs.find(s=>s.id===id)).filter(Boolean).slice(0,10);if(!rs.length){sec.style.display='none';return;}sec.style.display='';document.getElementById('recentList').innerHTML=rs.map(s=>`<div class="rc-card" onclick="playById('${s.id}')"><div class="rc-art">${s.thumb?`<img src="${s.thumb}" onerror="this.style.display='none'" loading="lazy">`:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`}<div class="rc-play-ov"><div class="rc-play-ring"><svg width="14" height="14" viewBox="0 0 24 24" fill="#111" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div></div><div class="rc-name">${s.title}</div><div class="rc-artist">${s.artist}</div></div>`).join('');}
 function renderUpNext(){const g=document.getElementById('upNextList');if(curIdx<0){g.innerHTML='';return;}const q=shuffle?[]:songs.slice(curIdx+1,curIdx+6);if(!q.length){g.innerHTML=`<div style="color:var(--tx3);font-size:12px;padding:10px 0">Queue khatam</div>`;return;}g.innerHTML=q.map((s,i)=>makeRow(s,i,'upnext')).join('');}
 function renderFavBadge(){const b=document.getElementById('favBadge');b.textContent=favs.length;b.style.display=favs.length?'block':'none';}
 
 /* ── PLAYBACK ── */
-function playById(id){
+async function playById(id){
   const idx=songs.findIndex(s=>s.id===id);
   if(idx<0)return;
   curIdx=idx;
   const s=songs[idx];
-  if(!s.url){toast('Audio URL nahi hai','inf');return;}
   if(!npOpen)showMini();
   aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
+
+  // VideoId nikalo — yt_ songs ya normal library songs dono ke liye
+  let videoId=null;
+  if(s.id.startsWith('yt_')){
+    videoId=s.id.replace('yt_','');
+  } else {
+    videoId=extractVideoId(s.youtubeUrl);
+  }
+
+  // Agar videoId mila — fresh stream URL lo (expire problem fix)
+  if(videoId){
+    try{
+      updateNPUI(s);
+      const r=await fetch(`${API}/api/stream-url`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({videoId})
+      });
+      const d=await r.json();
+      if(d.success&&d.url){
+        songs[idx].url=d.url;
+        _loadAndPlay(songs[idx]);
+      } else {
+        // Fresh URL nahi mila — cached URL se try karo
+        if(s.url) _loadAndPlay(s);
+        else toast('Stream URL nahi mila','err');
+      }
+    }catch(e){
+      // Network error — cached URL fallback
+      if(s.url) _loadAndPlay(s);
+      else toast('Play error: '+e.message,'err');
+    }
+    return;
+  }
+
+  // Koi videoId nahi — seedha cached URL use karo
+  if(!s.url){toast('Audio URL nahi hai','inf');return;}
   _loadAndPlay(s);
 }
 function showMini(){miniUp=true;const m=document.getElementById('mini');m.classList.add('up');m.classList.remove('hidden-np');document.getElementById('shufFab').classList.remove('no-mini');}
@@ -2507,6 +2640,46 @@ function ytBackToSearch(){
   document.getElementById('ytBoxSub').textContent='YouTube pe search karo';
 }
 
+// YouTube search results pagination state
+let ytAllResults=[], ytResultPage=0;
+const YT_PAGE_SIZE=5;
+
+function ytRenderResultPage(){
+  const start=ytResultPage*YT_PAGE_SIZE;
+  const pageItems=ytAllResults.slice(start,start+YT_PAGE_SIZE);
+  const total=ytAllResults.length;
+  const hasMore=start+YT_PAGE_SIZE<total;
+  const hasPrev=ytResultPage>0;
+
+  const list=document.getElementById('ytResultsList');
+  list.innerHTML=pageItems.map(v=>`
+    <div class="yt-result-item" onclick="ytAddFromResult('${v.videoId}','${(v.title||'').replace(/'/g,"\\'")}','${(v.channel||'').replace(/'/g,"\\'")}','${v.thumbnail}')">
+      <img class="yt-result-item-thumb" src="${v.thumbnail}" loading="lazy" onerror="this.style.background='var(--s4)'">
+      <div class="yt-result-item-info">
+        <div class="yt-result-item-title">${v.title}</div>
+        <div class="yt-result-item-meta">${v.channel}${v.duration?' · '+v.duration:''}</div>
+      </div>
+      <button class="yt-result-item-add" onclick="event.stopPropagation();ytAddFromResult('${v.videoId}','${(v.title||'').replace(/'/g,"\\'")}','${(v.channel||'').replace(/'/g,"\\'")}','${v.thumbnail}')">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+    </div>`).join('');
+
+  const showing=Math.min(start+YT_PAGE_SIZE,total);
+  list.insertAdjacentHTML('beforeend',`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--bd);gap:8px">
+      <button onclick="ytPrevPage()" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--bd2);background:${hasPrev?'rgba(108,92,231,.12)':'rgba(255,255,255,.03)'};color:${hasPrev?'var(--p2)':'var(--tx3)'};font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:${hasPrev?'pointer':'not-allowed'};"${hasPrev?'':' disabled'}>← Prev</button>
+      <span style="font-size:11px;color:var(--tx3);text-align:center;flex:1.5">${start+1}–${showing} / ${total}</span>
+      <button onclick="ytNextPage()" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--bd2);background:${hasMore?'rgba(108,92,231,.12)':'rgba(255,255,255,.03)'};color:${hasMore?'var(--p2)':'var(--tx3)'};font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:${hasMore?'pointer':'not-allowed'};"${hasMore?'':' disabled'}>Next →</button>
+    </div>`);
+}
+
+function ytNextPage(){
+  if((ytResultPage+1)*YT_PAGE_SIZE<ytAllResults.length){ytResultPage++;ytRenderResultPage();}
+}
+function ytPrevPage(){
+  if(ytResultPage>0){ytResultPage--;ytRenderResultPage();}
+}
+
 async function ytSearchYoutube(){
   const query=ytFetchQuery.trim();if(!query)return;
   const btn=document.getElementById('ytSearchBtn');
@@ -2523,7 +2696,6 @@ async function ytSearchYoutube(){
     if(r.status===403){
       if(!isPremium){ytHideBox();ytShowLock(query);}
       else{
-        // Token refresh karke retry
         btn.classList.remove('fetching');btn.disabled=false;
         await ytSearchYoutube();
       }
@@ -2531,30 +2703,21 @@ async function ytSearchYoutube(){
     }
     if(!r.ok||!d.success) throw new Error(d.error||'Search fail hua');
 
-    // Phase 2 — results dikhao
     document.getElementById('ytPhase1').style.display='none';
     document.getElementById('ytPhase2').style.display='block';
     const warningTxt = d.warning ? d.warning : `${d.results.length} results mile — ek chunno`;
     document.getElementById('ytBoxSub').textContent=warningTxt;
 
-    const list=document.getElementById('ytResultsList');
-    list.innerHTML=d.results.map((v,i)=>`
-      <div class="yt-result-item" onclick="ytAddFromResult('${v.videoId}','${(v.title||'').replace(/'/g,"\\'")}','${(v.channel||'').replace(/'/g,"\\'")}','${v.thumbnail}')">
-        <img class="yt-result-item-thumb" src="${v.thumbnail}" loading="lazy" onerror="this.style.background='var(--s4)'">
-        <div class="yt-result-item-info">
-          <div class="yt-result-item-title">${v.title}</div>
-          <div class="yt-result-item-meta">${v.channel}${v.duration?' · '+v.duration:''}</div>
-        </div>
-        <button class="yt-result-item-add" onclick="event.stopPropagation();ytAddFromResult('${v.videoId}','${(v.title||'').replace(/'/g,"\\'")}','${(v.channel||'').replace(/'/g,"\\'")}','${v.thumbnail}')">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </button>
-      </div>`).join('');
+    ytAllResults=d.results||[];
+    ytResultPage=0;
+    ytRenderResultPage();
   }catch(err){
     toast(err.message||'Search fail hua','err');
     document.getElementById('ytBoxSub').textContent='Kuch problem hui';
   }
   btn.classList.remove('fetching');btn.disabled=false;
 }
+
 
 async function ytAddFromResult(videoId, title, channel, thumbnail){
   // Phase 2 se Phase 3 pe switch karo
@@ -2584,7 +2747,7 @@ async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedC
   try{
     // Step 1: YouTube pe search
     ytSetStep(1,'active');
-    await new Promise(r=>setTimeout(r,700));
+    await new Promise(r=>setTimeout(r,500));
 
     let token=SS.token();
     if(isRetry){
@@ -2598,55 +2761,106 @@ async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedC
       }
     }
 
-    // Step 2: Audio URL nikal raha hai
+    // Step 2: YouTube se search results lo
     ytSetStep(2,'active');
-    const fetchRes=await fetch(`${API}/api/yt-fetch`,{
+    const searchRes=await fetch(`${API}/api/yt-search`,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({query, videoId: fixedVideoId||undefined, title: fixedTitle||undefined, channel: fixedChannel||undefined})
+      body:JSON.stringify({query})
     });
 
-    // Step 3: Server pe upload
-    ytSetStep(3,'active');
-    await new Promise(r=>setTimeout(r,300));
-
-    const resTxt=await fetchRes.text();
-    let data={};try{data=JSON.parse(resTxt);}catch(_){}
-
-    if(!fetchRes.ok){
-      if(fetchRes.status===403){
-        if(!isRetry){
-          await ytFetchSong(true,fixedVideoId,fixedTitle,fixedChannel,fixedThumb);
-          return;
-        }
+    if(!searchRes.ok){
+      if(searchRes.status===403){
+        if(!isRetry){await ytFetchSong(true,fixedVideoId,fixedTitle,fixedChannel,fixedThumb);return;}
         await checkPremium();
         if(!isPremium){ytHideBox();ytShowLock(query);}
         else{throw new Error('Backend premium verify nahi kar pa raha.');}
         return;
       }
-      if(fetchRes.status===422 && data.code==='NOT_MUSIC'){
-        throw new Error(data.error || 'Sirf songs add kar sakte ho — yeh music nahi lagta');
-      }
-      throw new Error(data.error||data.message||`Server error ${fetchRes.status}`);
+      throw new Error('Search failed: '+searchRes.status);
     }
 
-    if(!data.success) throw new Error(data.error||data.message||'Song nahi mila');
+    const searchData=await searchRes.json();
+    const results=searchData.results||[];
 
-    // Step 4: Library update
+    // VideoId decide karo
+    let videoId=fixedVideoId;
+    let title=fixedTitle||query;
+    let channel=fixedChannel||'Unknown';
+    let thumb=fixedThumb||'';
+
+    if(!videoId){
+      if(!results.length) throw new Error('Koi result nahi mila');
+      videoId=results[0].videoId;
+      title=results[0].title||query;
+      channel=results[0].channel||'Unknown';
+      thumb=results[0].thumbnail||'';
+    }
+
+    // Step 3: Fresh stream URL lo
+    ytSetStep(3,'active');
+    const streamRes=await fetch(`${API}/api/stream-url`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({videoId})
+    });
+    const streamData=await streamRes.json();
+    if(!streamData.success||!streamData.url) throw new Error(streamData.error||'Stream URL nahi mila');
+
+    // Step 4: Seedha play karo — koi upload nahi!
     ytSetStep(4,'active');
-    await ytRefreshSongs();
-    ytSetStep(4,'done');
-    await new Promise(r=>setTimeout(r,400));
+    const tempSong={
+      id:'yt_'+videoId,
+      title, artist:channel,
+      thumb, url:streamData.url,
+      dur:streamData.duration||'—',
+      quality:'128kbps',
+      date:new Date().toISOString()
+    };
 
-    const newSong=data.song;ytFetchedSongId=newSong?.id||'';
-    document.getElementById('ytResultTitle').textContent=newSong?.title||fixedTitle||query;
-    document.getElementById('ytResultSub').textContent=`by ${newSong?.artist||fixedChannel||'Unknown'} • Library mein add ho gaya`;
-    const thumb=newSong?.thumb||newSong?.thumbnail||fixedThumb;
+    const existIdx=songs.findIndex(s=>s.id===tempSong.id);
+    if(existIdx>=0){songs[existIdx]=tempSong;curIdx=existIdx;}
+    else{songs.unshift(tempSong);curIdx=0;}
+
+    // localStorage mein save karo — app wapas aane pe bhi milega
+    saveYtSong(tempSong);
+    await new Promise(r=>setTimeout(r,200));
+
+    ytFetchedSongId=tempSong.id;
+    document.getElementById('ytResultTitle').textContent=title;
+    document.getElementById('ytResultSub').textContent=`by ${channel} • Play karo!`;
     if(thumb){document.getElementById('ytResultThumb').innerHTML=`<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;border-radius:8px" onerror="this.style.display='none'">`;}
-    document.getElementById('ytPlayNowBtn').onclick=()=>{if(ytFetchedSongId)playById(ytFetchedSongId);else{const found=songs.find(s=>s.title.toLowerCase().includes((newSong?.title||query).toLowerCase()));if(found)playById(found.id);}ytHideAll();clearSearch();};
+    
+    // Play button
+    document.getElementById('ytPlayNowBtn').onclick=()=>{
+      if(!npOpen)showMini();
+      _loadAndPlay(tempSong);
+      ytHideAll();clearSearch();
+    };
+
+    // My Library mein save button
+    const saveBtn=document.getElementById('ytSaveLibBtn');
+    saveBtn.textContent='+ My Library';
+    saveBtn.disabled=false;
+    saveBtn.onclick=async()=>{
+      saveBtn.textContent='Saving...';
+      saveBtn.disabled=true;
+      try{
+        await saveToMyLibrary(videoId, title, channel, thumb, streamData.duration||'0:00');
+        saveBtn.textContent='✓ Saved!';
+        saveBtn.style.color='var(--grn)';
+        toast(`"${title}" library mein add ho gaya!`,'ok');
+      }catch(e){
+        saveBtn.textContent='Error!';
+        saveBtn.disabled=false;
+        toast('Save nahi hua: '+e.message,'err');
+      }
+    };
+
     document.getElementById('ytResultCard').classList.add('show');
-    document.getElementById('ytBoxSub').textContent='Library mein add ho gaya!';
-    toast(`"${newSong?.title||fixedTitle||query}" add ho gaya`,'ok');
+    document.getElementById('ytBoxSub').textContent='Ready hai — Play karo!';
+    toast(`"${title}" ready!`,'ok');
+
   }catch(err){
     console.error('YT Fetch Error:',err);
     const activeStep=document.querySelector('#ytSteps .yt-step.active');if(activeStep)activeStep.className='yt-step err';
