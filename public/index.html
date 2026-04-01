@@ -1916,15 +1916,26 @@ async function saveToMyLibrary(videoId, title, artist, thumbnail, duration) {
   const data = await r.json();
   if(!data.success) throw new Error(data.error || 'Save failed');
 
-  // Local songs array mein bhi add karo
-  const songId = data.id || ('yt_' + videoId);
+  // Local songs array mein bhi add karo — yt_ id use karo taaki stream-url kaam kare
+  const songId = 'yt_' + videoId;
+  // Existing yt_ song se current URL le lo (agar pehle se play hua tha)
+  const existingYt = songs.find(s => s.id === songId);
+  const currentUrl = existingYt?.url || '';
   const newSong = {
     id: songId, title, artist,
-    thumb: thumbnail, url: '',
+    thumb: thumbnail, url: currentUrl,
     dur: duration, quality: '128kbps',
-    date: new Date().toISOString()
+    date: new Date().toISOString(),
+    isUserSong: true
   };
-  if(!songs.find(s=>s.id===songId)) songs.unshift(newSong);
+  const existIdx = songs.findIndex(s => s.id === songId);
+  if(existIdx >= 0) {
+    songs[existIdx].isUserSong = true; // mark karo sirf
+  } else {
+    songs.unshift(newSong);
+  }
+  // ytSongsCache mein bhi isUserSong update karo
+  saveYtSong({...newSong, url: currentUrl});
   renderSongs();
   return data;
 }
@@ -1938,11 +1949,18 @@ async function loadMyLibrary() {
     });
     const data = await r.json();
     if(!data.success) return;
-    // Songs mein merge karo
+    // Sirf existing songs ko isUserSong mark karo
+    // Naye songs add MAT karo — jab tak user "Add to Library" click na kare
     (data.songs || []).forEach(s => {
-      if(!songs.find(x => x.id === s.id)) {
+      const ytId = 'yt_' + s.youtube_id;
+      const existing = songs.find(x => x.id === ytId || x.id === s.id);
+      if(existing) {
+        existing.isUserSong = true;
+      } else {
+        // DB mein saved hai but local mein nahi — yt_ id ke saath add karo
         songs.push({
-          id: s.id, title: s.title, artist: s.artist,
+          id: ytId,
+          title: s.title, artist: s.artist,
           thumb: s.thumbnail, url: '',
           dur: s.duration, quality: '128kbps',
           date: s.created_at, isUserSong: true
@@ -1956,7 +1974,7 @@ function saveYtSong(song){
   // Sirf yt_ songs save karo
   if(!song.id.startsWith('yt_')) return;
   const existing=ytSongsCache.findIndex(s=>s.id===song.id);
-  const toSave={id:song.id,title:song.title,artist:song.artist,thumb:song.thumb,dur:song.dur,quality:song.quality,date:song.date};
+  const toSave={id:song.id,title:song.title,artist:song.artist,thumb:song.thumb,dur:song.dur,quality:song.quality,date:song.date,isUserSong:song.isUserSong||false};
   if(existing>=0) ytSongsCache[existing]=toSave;
   else ytSongsCache.unshift(toSave);
   ytSongsCache=ytSongsCache.slice(0,50); // max 50 songs
