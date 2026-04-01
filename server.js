@@ -135,15 +135,12 @@ app.post('/api/my-songs', async (req, res) => {
 
 app.get('/api/my-songs', async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    const user = await getUserFromToken(token);
-    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
-
+    // Sabhi users ke songs return karo — community library
     const { data, error } = await supabaseAdmin
       .from('user_songs')
       .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
 
     if (error) throw error;
     res.json({ success: true, songs: data || [] });
