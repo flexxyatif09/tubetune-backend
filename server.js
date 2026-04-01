@@ -91,6 +91,86 @@ app.post('/api/stream-url', async (req, res) => {
   }
 });
 
+// ── MY SONGS — User ki personal library ──
+app.post('/api/my-songs', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const user = await getUserFromToken(token);
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+
+    const { videoId, title, artist, thumbnail, duration } = req.body;
+    if (!videoId || !title) return res.status(400).json({ success: false, error: 'videoId aur title required' });
+
+    // Check karo already saved hai ki nahi
+    const { data: existing } = await supabaseAdmin
+      .from('user_songs')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('youtube_id', videoId)
+      .maybeSingle();
+
+    if (existing) {
+      return res.json({ success: true, id: existing.id, message: 'Already saved hai' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('user_songs')
+      .insert({
+        user_id:   user.id,
+        youtube_id: videoId,
+        title,
+        artist:    artist || 'Unknown',
+        thumbnail: thumbnail || '',
+        duration:  duration || '0:00'
+      })
+      .select('id')
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, id: data.id });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/my-songs', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const user = await getUserFromToken(token);
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+
+    const { data, error } = await supabaseAdmin
+      .from('user_songs')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ success: true, songs: data || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/my-songs/:id', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const user = await getUserFromToken(token);
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+
+    const { error } = await supabaseAdmin
+      .from('user_songs')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── ADMIN AUTH ──
 function auth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
