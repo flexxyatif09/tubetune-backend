@@ -153,16 +153,45 @@ app.delete('/api/my-songs/:id', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     const user = await getUserFromToken(token);
-    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+    
+    // Admin bhi delete kar sake (admin password se)
+    const isAdmin = token === process.env.ADMIN_PASSWORD;
+    
+    if (!isAdmin && !user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
 
-    const { error } = await supabaseAdmin
-      .from('user_songs')
-      .delete()
-      .eq('id', req.params.id)
-      .eq('user_id', user.id);
+    const query = supabaseAdmin.from('user_songs').delete().eq('id', req.params.id);
+    // Normal user sirf apna song delete kar sake
+    if (!isAdmin && user?.id) query.eq('user_id', user.id);
 
+    const { error } = await query;
     if (error) throw error;
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── MY SONGS ADMIN UPDATE — Title, artist, duration edit ──
+app.put('/api/my-songs/:id', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const isAdmin = token === process.env.ADMIN_PASSWORD;
+    const user = isAdmin ? null : await getUserFromToken(token);
+    if (!isAdmin && !user?.id) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { title, artist, duration, thumbnail } = req.body;
+    const updateData = {};
+    if (title) updateData.title = title;
+    if (artist) updateData.artist = artist;
+    if (duration) updateData.duration = duration;
+    if (thumbnail !== undefined) updateData.thumbnail = thumbnail;
+
+    const query = supabaseAdmin.from('user_songs').update(updateData).eq('id', req.params.id);
+    if (!isAdmin && user?.id) query.eq('user_id', user.id);
+
+    const { data, error } = await query.select().single();
+    if (error) throw error;
+    res.json({ success: true, song: data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
