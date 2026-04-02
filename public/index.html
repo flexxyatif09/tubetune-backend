@@ -2320,7 +2320,25 @@ function _playNext(){
   if(shuffle) curIdx = Math.floor(Math.random()*songs.length);
   else curIdx = curIdx+1 < songs.length ? curIdx+1 : 0;
   const s = songs[curIdx];
-  if(!s || !s.url) return;
+  if(!s) return;
+
+  // yt_ songs ka url blank hota hai — fresh link fetch karo
+  if(s.id.startsWith('yt_') || s.isUserSong) {
+    const videoId = s.youtube_id || s.id.replace('yt_','');
+    fetch(`${API}/api/stream-url`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({videoId})
+    }).then(r=>r.json()).then(d=>{
+      if(d.success && d.url){
+        songs[curIdx].url = d.url;
+        _loadAndPlay(songs[curIdx]);
+      }
+    }).catch(e=>console.warn('_playNext stream error:',e));
+    return;
+  }
+
+  if(!s.url) return;
   _loadAndPlay(s);
 }
 
