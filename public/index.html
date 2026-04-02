@@ -855,9 +855,6 @@ audio{display:none}
               <button class="yt-play-now-btn" id="ytPlayNowBtn">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="margin-right:4px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Play
               </button>
-              <button id="ytSaveLibBtn" style="padding:6px 10px;background:rgba(108,92,231,0.2);border:1px solid rgba(108,92,231,0.4);border-radius:10px;color:var(--p2);font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
-                + My Library
-              </button>
             </div>
           </div>
           <div class="yt-no-match" id="ytNoMatch">
@@ -1903,6 +1900,62 @@ let songs=[],filtered=[];
 let favs=JSON.parse(localStorage.getItem('tt_favs')||'[]');
 let recent=JSON.parse(localStorage.getItem('tt_recent')||'[]');
 
+// ── Android Back Button — SPA Page History ──
+let _pageHistory=[];
+let _currentPage='home';
+
+window._androidBack=function(){
+  // 1. Profile overlay open hai?
+  const prof=document.getElementById('profOverlay');
+  if(prof&&prof.classList.contains('open')){closeProfile();return true;}
+
+  // 2. Koi bhi modal open hai?
+  const modal=document.querySelector('.modal-bg.open,.tt-modal.open,.sheet-overlay.open');
+  if(modal){modal.classList.remove('open');return true;}
+
+  // 3. YouTube search box open hai?
+  const ytBox=document.getElementById('ytBox');
+  if(ytBox&&ytBox.classList.contains('open')){
+    if(typeof ytHideAll==='function')ytHideAll();
+    return true;
+  }
+
+  // 4. Now Playing screen open hai?
+  if(typeof npOpen!=='undefined'&&npOpen){
+    if(typeof closeNP==='function')closeNP();
+    return true;
+  }
+
+  // 5. Search active hai?
+  const sq=document.getElementById('searchQ');
+  if(sq&&sq.value){
+    if(typeof clearSearch==='function')clearSearch();
+    return true;
+  }
+
+  // 6. Home page par hain — app minimize karo
+  if(_currentPage==='home'||!_currentPage){return false;}
+
+  // 7. History mein previous page hai?
+  if(_pageHistory.length>0){
+    const prev=_pageHistory.pop();
+    _currentPage=prev;
+    document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+    const pg=document.getElementById('pg-'+prev);
+    if(pg)pg.classList.add('on');
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
+    const nb=document.getElementById('nb-'+prev);
+    if(nb)nb.classList.add('on');
+    if(typeof npOpen!=='undefined')npOpen=(prev==='np');
+    return true;
+  }
+
+  // 8. Kisi aur page par hain — home par jao
+  const homeBtn=document.getElementById('nb-home');
+  if(typeof goPage==='function')goPage('home',homeBtn);
+  return true;
+};
+
 // ── YouTube searched songs — localStorage mein save karo ──
 let ytSongsCache=JSON.parse(localStorage.getItem('tt_yt_songs')||'[]');
 
@@ -2072,6 +2125,14 @@ window._javaPlayUrl = function(url){
 function refreshSongs(){const btn=document.getElementById('refreshBtn');btn.classList.add('spin');loadSongs().finally(()=>setTimeout(()=>btn.classList.remove('spin'),700));}
 
 async function goPage(name,btn){
+  // Back history track karo — same page pe dobara push mat karo
+  if(typeof _currentPage!=='undefined' && _currentPage && _currentPage!==name){
+    if(!_pageHistory.length || _pageHistory[_pageHistory.length-1]!==_currentPage){
+      _pageHistory.push(_currentPage);
+      if(_pageHistory.length>20) _pageHistory.shift(); // max 20
+    }
+  }
+  _currentPage=name;
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
   const pg=document.getElementById('pg-'+name);
@@ -2841,28 +2902,16 @@ async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedC
       ytHideAll();clearSearch();
     };
 
-    // My Library mein save button
-    const saveBtn=document.getElementById('ytSaveLibBtn');
-    saveBtn.textContent='+ My Library';
-    saveBtn.disabled=false;
-    saveBtn.onclick=async()=>{
-      saveBtn.textContent='Saving...';
-      saveBtn.disabled=true;
-      try{
-        await saveToMyLibrary(videoId, title, channel, thumb, streamData.duration||'0:00');
-        saveBtn.textContent='✓ Saved!';
-        saveBtn.style.color='var(--grn)';
-        toast(`"${title}" library mein add ho gaya!`,'ok');
-      }catch(e){
-        saveBtn.textContent='Error!';
-        saveBtn.disabled=false;
-        toast('Save nahi hua: '+e.message,'err');
-      }
-    };
+    // Auto save to My Library — button ki zaroorat nahi
+    try{
+      await saveToMyLibrary(videoId, title, channel, thumb, streamData.duration||'0:00');
+    }catch(e){
+      console.warn('Auto-save failed:', e.message);
+    }
 
     document.getElementById('ytResultCard').classList.add('show');
     document.getElementById('ytBoxSub').textContent='Ready hai — Play karo!';
-    toast(`"${title}" ready!`,'ok');
+    toast(`"${title}" My Library mein add ho gaya!`,'ok');
 
   }catch(err){
     console.error('YT Fetch Error:',err);
