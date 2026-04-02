@@ -2096,21 +2096,23 @@ let _lastQueueSyncLen = 0;
 function syncQueueToJava(){
   if(!window.AndroidBridge||!songs.length) return;
   try{
-    // Full queue bhejo jab pehli baar ya songs change hon
     const needFullSync = (songs.length !== _lastQueueSyncLen);
     if(needFullSync){
       _lastQueueSyncLen = songs.length;
-      const queue = songs.map(s=>[
-        (s.title||'').replace(/"/g,"'"),
-        (s.artist||'').replace(/"/g,"'"),
-        s.thumb||'',
-        s.url||'',
-        s.id||'',
-        String(parseDur(s.dur||''))
-      ]);
+      const queue = songs.map(s=>{
+        const url = (s.id.startsWith('yt_') || s.isUserSong) ? '' : (s.url||'');
+        const dur = parseDur(s.dur||'') || 240; // default 4 min agar nahi pata
+        return [
+          (s.title||'').replace(/"/g,"'"),
+          (s.artist||'').replace(/"/g,"'"),
+          s.thumb||'',
+          url,
+          s.id||'',
+          String(dur)
+        ];
+      });
       AndroidBridge.syncSongQueue(JSON.stringify(queue), curIdx, shuffle, repeat);
     } else {
-      // Sirf index update karo
       AndroidBridge.updateCurrentIdx(curIdx);
     }
   }catch(e){}
@@ -2359,7 +2361,7 @@ function _loadAndPlay(s){
 
   // Android notify
   if(window.AndroidBridge){
-    const durSec = s.dur && s.dur!=='—' ? parseDur(s.dur) : 0;
+    const durSec = (s.dur && s.dur!=='—') ? parseDur(s.dur) : 240;
     try{ AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',durSec); }catch(e){}
     syncQueueToJava();
   }
