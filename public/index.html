@@ -2002,7 +2002,7 @@ async function loadMyLibrary() {
           thumb: s.thumbnail, url: '',
           dur: s.duration, quality: '128kbps',
           date: s.created_at, isUserSong: true,
-          // youtube_id se youtubeUrl banao — playById fresh stream URL fetch karega
+          youtube_id: s.youtube_id || '',
           youtubeUrl: s.youtube_id ? `https://www.youtube.com/watch?v=${s.youtube_id}` : ''
         });
       }
@@ -2209,15 +2209,13 @@ async function playById(id){
   if(!npOpen)showMini();
   aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
 
-  // VideoId nikalo — yt_ songs ya normal library songs dono ke liye
+  // videoId nikalo
   let videoId=null;
-  if(s.id.startsWith('yt_')){
-    videoId=s.id.replace('yt_','');
-  } else {
-    videoId=extractVideoId(s.youtubeUrl);
-  }
+  if(s.id.startsWith('yt_')) videoId=s.id.replace('yt_','');
+  else if(s.youtube_id) videoId=s.youtube_id;
+  else if(s.isUserSong) videoId=extractVideoId(s.youtubeUrl||'');
+  else videoId=extractVideoId(s.youtubeUrl||'');
 
-  // Agar videoId mila — fresh stream URL lo (expire problem fix)
   if(videoId){
     try{
       updateNPUI(s);
@@ -2229,21 +2227,19 @@ async function playById(id){
       const d=await r.json();
       if(d.success&&d.url){
         songs[idx].url=d.url;
+        if(d.duration) songs[idx].dur=d.duration;
         _loadAndPlay(songs[idx]);
       } else {
-        // Fresh URL nahi mila — cached URL se try karo
         if(s.url) _loadAndPlay(s);
         else toast('Stream URL nahi mila','err');
       }
     }catch(e){
-      // Network error — cached URL fallback
       if(s.url) _loadAndPlay(s);
       else toast('Play error: '+e.message,'err');
     }
     return;
   }
 
-  // Koi videoId nahi — seedha cached URL use karo
   if(!s.url){toast('Audio URL nahi hai','inf');return;}
   _loadAndPlay(s);
 }
@@ -2324,9 +2320,13 @@ function _playNext(){
   const s = songs[curIdx];
   if(!s) return;
 
-  // yt_ songs ka url blank hota hai — fresh link fetch karo
-  if(s.id.startsWith('yt_') || s.isUserSong) {
-    const videoId = s.youtube_id || s.id.replace('yt_','');
+  // videoId nikalo
+  let videoId = null;
+  if(s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
+  else if(s.youtube_id) videoId = s.youtube_id;
+  else if(s.isUserSong) videoId = extractVideoId(s.youtubeUrl||'');
+
+  if(videoId){
     fetch(`${API}/api/stream-url`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
@@ -2334,6 +2334,7 @@ function _playNext(){
     }).then(r=>r.json()).then(d=>{
       if(d.success && d.url){
         songs[curIdx].url = d.url;
+        if(d.duration) songs[curIdx].dur = d.duration;
         _loadAndPlay(songs[curIdx]);
       }
     }).catch(e=>console.warn('_playNext stream error:',e));
