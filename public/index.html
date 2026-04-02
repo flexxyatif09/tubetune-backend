@@ -1720,13 +1720,16 @@ async function checkAppStatus(){
       return true;
     }
 
-    // Update
-    if(results['update_available']==='true'&&results['update_url']){
+    // Update — version comparison se decide karo
+    // APP_VERSION_CODE = hardcoded app ka current version
+    const APP_VERSION_CODE = 5;
+    const serverVersion = parseInt(results['update_version'] || '0', 10);
+    if(serverVersion > APP_VERSION_CODE && results['update_url']){
       document.getElementById('updScreenTitle').textContent=results['update_title']||'New Update Available!';
       document.getElementById('updScreenMsg').textContent=results['update_message']||'Nayi features ke liye update karo.';
       document.getElementById('updNowBtn').href=results['update_url'];
       if(results['update_version']){
-        document.getElementById('updScreenVerTxt').textContent=results['update_version'];
+        document.getElementById('updScreenVerTxt').textContent='v'+results['update_version'];
         document.getElementById('updScreenVer').style.display='inline-flex';
       }
       document.getElementById('updateScreen').classList.add('show');
@@ -1900,59 +1903,6 @@ let songs=[],filtered=[];
 let favs=JSON.parse(localStorage.getItem('tt_favs')||'[]');
 let recent=JSON.parse(localStorage.getItem('tt_recent')||'[]');
 
-// ── Android Back Button — SPA navigation history ──
-let _pageHistory = [];
-let _currentPage = 'home';
-
-// Android Java se call hoga jab back button dabaya jaaye
-window._androidBack = function() {
-  // NowPlaying screen open hai — pehle home par jao
-  if(npOpen) {
-    closeNP();
-    return true;
-  }
-  // Profile sheet open hai — band karo
-  const profOverlay = document.getElementById('profOverlay');
-  if(profOverlay && profOverlay.classList.contains('open')) {
-    closeProfile();
-    return true;
-  }
-  // YouTube box open hai
-  const ytBox = document.getElementById('ytBox');
-  if(ytBox && ytBox.classList.contains('open')) {
-    ytHideAll();
-    return true;
-  }
-  // Koi modal open hai — band karo
-  const openModal = document.querySelector('.tt-modal.open, .prof-overlay.open');
-  if(openModal) {
-    openModal.classList.remove('open');
-    return true;
-  }
-  // Page history mein kuch hai — previous page par jao
-  if(_pageHistory.length > 0) {
-    const prevPage = _pageHistory.pop();
-    _currentPage = prevPage;
-    document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
-    const pg = document.getElementById('pg-'+prevPage);
-    if(pg) pg.classList.add('on');
-    // Nav button bhi update karo
-    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
-    const nb = document.getElementById('nb-'+prevPage);
-    if(nb) nb.classList.add('on');
-    // NP state update
-    npOpen = (prevPage === 'np');
-    return true;
-  }
-  // Home page par hain — app minimize karo (Java handle karega)
-  if(_currentPage === 'home' || _currentPage === '' || !_currentPage) {
-    return false;
-  }
-  // Kisi aur page par hain — home par le jao
-  goPage('home', document.getElementById('nb-home'));
-  return true;
-};
-
 // ── YouTube searched songs — localStorage mein save karo ──
 let ytSongsCache=JSON.parse(localStorage.getItem('tt_yt_songs')||'[]');
 
@@ -2122,12 +2072,6 @@ window._javaPlayUrl = function(url){
 function refreshSongs(){const btn=document.getElementById('refreshBtn');btn.classList.add('spin');loadSongs().finally(()=>setTimeout(()=>btn.classList.remove('spin'),700));}
 
 async function goPage(name,btn){
-  // Back history track karo
-  if(typeof _currentPage !== 'undefined' && _currentPage && _currentPage !== name) {
-    _pageHistory.push(_currentPage);
-  }
-  _currentPage = name;
-
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
   const pg=document.getElementById('pg-'+name);
