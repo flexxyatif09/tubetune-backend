@@ -2001,7 +2001,9 @@ async function loadMyLibrary() {
           id: s.id, title: s.title, artist: s.artist,
           thumb: s.thumbnail, url: '',
           dur: s.duration, quality: '128kbps',
-          date: s.created_at, isUserSong: true
+          date: s.created_at, isUserSong: true,
+          // youtube_id se youtubeUrl banao — playById fresh stream URL fetch karega
+          youtubeUrl: s.youtube_id ? `https://www.youtube.com/watch?v=${s.youtube_id}` : ''
         });
       }
     });
