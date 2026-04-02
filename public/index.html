@@ -2270,7 +2270,8 @@ window._javaAutoNext = function(){
   if(!songs.length||curIdx<0) return;
   const remaining = aud.duration - aud.currentTime;
   if(aud.ended || isNaN(remaining) || remaining < 2){
-    onEnded();
+    // _playNext call karo — yeh fresh URL fetch karega yt_ songs ke liye
+    _playNext();
   }
 };
 
@@ -2307,7 +2308,34 @@ window.onAndroidResume = function(){
     bgEndedPending = false;
     if(repeat){ aud.currentTime=0; aud.play().catch(()=>{}); }
     else { _playNext(); }
-  } else if(curIdx>=0 && aud.src){
+  } else if(curIdx>=0){
+    // Check karo song chal raha hai ya nahi
+    if(aud.paused && playing){
+      const s = songs[curIdx];
+      if(s){
+        // yt_ ya user song — fresh URL chahiye
+        let videoId = null;
+        if(s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
+        else if(s.youtube_id) videoId = s.youtube_id;
+
+        if(videoId && (!aud.src || aud.src.includes('123tokyo') || !s.url)){
+          // Fresh URL fetch karo
+          fetch(`${API}/api/stream-url`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({videoId})
+          }).then(r=>r.json()).then(d=>{
+            if(d.success&&d.url){
+              songs[curIdx].url=d.url;
+              aud.src=d.url;
+              aud.play().catch(()=>{});
+            }
+          }).catch(()=>{});
+        } else {
+          aud.play().catch(()=>{});
+        }
+      }
+    }
     setPlayUI(playing);
     if(playing) showMini();
   }
