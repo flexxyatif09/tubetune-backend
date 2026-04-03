@@ -2209,16 +2209,19 @@ async function playById(id){
   if(!npOpen)showMini();
   aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
 
-  // videoId nikalo
+  // videoId nikalo — sabhi cases cover karo
   let videoId=null;
   if(s.id.startsWith('yt_')) videoId=s.id.replace('yt_','');
   else if(s.youtube_id) videoId=s.youtube_id;
-  else if(s.isUserSong) videoId=extractVideoId(s.youtubeUrl||'');
-  else videoId=extractVideoId(s.youtubeUrl||'');
+  else if(s.isUserSong && s.youtubeUrl) videoId=extractVideoId(s.youtubeUrl);
+  else if(s.youtubeUrl) videoId=extractVideoId(s.youtubeUrl);
 
   if(videoId){
+    // Hamesha fresh stream URL fetch karo — chahe s.url ho ya na ho
+    // YouTube URLs expire hoti hain, cached URL se play nahi hoga foreground mein bhi
+    updateNPUI(s);
+    toast('Loading...','inf');
     try{
-      updateNPUI(s);
       const r=await fetch(`${API}/api/stream-url`,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -2230,12 +2233,21 @@ async function playById(id){
         if(d.duration) songs[idx].dur=d.duration;
         _loadAndPlay(songs[idx]);
       } else {
-        if(s.url) _loadAndPlay(s);
-        else toast('Stream URL nahi mila','err');
+        // Fresh URL nahi mila — agar purani URL hai try karo
+        if(s.url){
+          toast('Purani URL se try ho raha hai...','inf');
+          _loadAndPlay(s);
+        } else {
+          toast('Stream URL nahi mila: '+(d.error||'Unknown error'),'err');
+        }
       }
     }catch(e){
-      if(s.url) _loadAndPlay(s);
-      else toast('Play error: '+e.message,'err');
+      if(s.url){
+        toast('Network error — purani URL se try...','inf');
+        _loadAndPlay(s);
+      } else {
+        toast('Play error: '+e.message,'err');
+      }
     }
     return;
   }
@@ -2309,31 +2321,39 @@ window.onAndroidResume = function(){
     if(repeat){ aud.currentTime=0; aud.play().catch(()=>{}); }
     else { _playNext(); }
   } else if(curIdx>=0){
-    // Check karo song chal raha hai ya nahi
-    if(aud.paused && playing){
-      const s = songs[curIdx];
-      if(s){
-        // yt_ ya user song — fresh URL chahiye
-        let videoId = null;
-        if(s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
-        else if(s.youtube_id) videoId = s.youtube_id;
+    const s = songs[curIdx];
+    if(s){
+      // yt_, isUserSong, ya koi bhi YouTube song — videoId nikalo
+      let videoId = null;
+      if(s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
+      else if(s.youtube_id) videoId = s.youtube_id;
+      else if(s.isUserSong && s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl);
+      else if(s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl);
 
-        if(videoId && (!aud.src || !s.url || aud.paused || aud.error)){
-          // URL nahi hai ya audio error/stale — fresh URL fetch karo
-          fetch(`${API}/api/stream-url`,{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({videoId})
-          }).then(r=>r.json()).then(d=>{
-            if(d.success&&d.url){
-              songs[curIdx].url=d.url;
-              aud.src=d.url;
-              aud.play().catch(()=>{});
-            }
-          }).catch(()=>{});
-        } else {
-          aud.play().catch(()=>{});
-        }
+      // Agar audio paused/error hai ya URL nahi — fresh fetch karo
+      // playing condition hata di — chahe playing=false ho, foreground pe bhi resume karo
+      const needsRefresh = !s.url || aud.paused || !!aud.error || !aud.src;
+      if(videoId && needsRefresh){
+        fetch(`${API}/api/stream-url`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({videoId})
+        }).then(r=>r.json()).then(d=>{
+          if(d.success&&d.url){
+            songs[curIdx].url=d.url;
+            aud.src=d.url;
+            aud.load();
+            aud.play().catch(()=>{});
+          } else if(s.url){
+            aud.src=s.url;
+            aud.load();
+            aud.play().catch(()=>{});
+          }
+        }).catch(()=>{
+          if(s.url){ aud.src=s.url; aud.load(); aud.play().catch(()=>{}); }
+        });
+      } else if(aud.paused && s.url){
+        aud.play().catch(()=>{});
       }
     }
     setPlayUI(playing);
