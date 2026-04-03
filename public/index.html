@@ -2318,8 +2318,8 @@ window.onAndroidResume = function(){
         if(s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
         else if(s.youtube_id) videoId = s.youtube_id;
 
-        if(videoId && (!aud.src || aud.src.includes('123tokyo') || !s.url)){
-          // Fresh URL fetch karo
+        if(videoId && (!aud.src || !s.url || aud.paused || aud.error)){
+          // URL nahi hai ya audio error/stale — fresh URL fetch karo
           fetch(`${API}/api/stream-url`,{
             method:'POST',
             headers:{'Content-Type':'application/json'},
@@ -2433,6 +2433,49 @@ function _loadAndPlay(s){
       try{ AndroidBridge.updatePosition(0, Math.floor(aud.duration)); }catch(e){}
     }
     updateMediaPosition();
+  });
+
+  // ── STREAM URL EXPIRY FIX ──
+  // Agar URL expire ho ya load fail ho — fresh URL fetch karo automatically
+  aud.addEventListener('error', function onAudErr(){
+    aud.removeEventListener('error', onAudErr);
+    aud.removeEventListener('loadeddata', onLD);
+    aud.removeEventListener('canplay', onCP);
+
+    let videoId = null;
+    if(s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
+    else if(s.youtube_id) videoId = s.youtube_id;
+    else if(s.isUserSong) videoId = extractVideoId(s.youtubeUrl||'');
+    else videoId = extractVideoId(s.youtubeUrl||'');
+
+    if(videoId){
+      toast('URL expire — refresh ho rahi hai...','inf');
+      fetch(`${API}/api/stream-url`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({videoId})
+      }).then(r=>r.json()).then(d=>{
+        if(d.success && d.url){
+          const idx2 = songs.findIndex(x=>x.id===s.id);
+          if(idx2>=0) songs[idx2].url = d.url;
+          s.url = d.url;
+          aud.src = d.url;
+          aud.load();
+          aud.play().catch(()=>{});
+          toast(s.title+' play ho raha hai','ok');
+        } else {
+          toast('Stream refresh fail hua — dobara try karo','err');
+        }
+      }).catch(()=>{ toast('Network error — check karo','err'); });
+    } else {
+      // Non-YT song — normal error
+      if(s.url && aud.error && aud.error.code !== 4){
+        // MEDIA_ERR_SRC_NOT_SUPPORTED (4) ke alawa retry karo
+        setTimeout(()=>{ aud.src=s.url; aud.load(); aud.play().catch(()=>{}); }, 1500);
+      } else {
+        toast('Audio play nahi hua','err');
+      }
+    }
   });
 
   aud.src = s.url;
