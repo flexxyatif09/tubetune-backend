@@ -2116,6 +2116,7 @@ function loadYtSongsIntoArray(){
 }
 let curIdx=-1,playing=false,repeat=false,shuffle=false;
 let filterMode='all',searchVal='',miniUp=false,npOpen=false;
+let _currentPlayingId = null; // Playing song ID — refresh ke baad bhi sahi track kare
 let sleepOn=false,sleepTimer=null;
 const aud=document.getElementById('aud');
 
@@ -2168,14 +2169,15 @@ async function loadSongs(){
   }
   document.getElementById('loadBox').style.display='none';document.getElementById('chipRow').style.display='flex';
   document.getElementById('heroCount').textContent=`${songs.length} songs available`;
-  // Playing ID pehle save — loadMyLibrary songs[] reorganize karta hai
-  const _playingIdBefore = (curIdx >= 0 && songs[curIdx]) ? songs[curIdx].id : null;
   loadYtSongsIntoArray(); // YouTube searched songs restore karo
   await loadMyLibrary();  // Delete sync + naye songs + sort
-  // loadMyLibrary ke BAAD curIdx re-sync karo
-  if(_playingIdBefore) {
-    const _newIdx = songs.findIndex(s => s.id === _playingIdBefore);
-    if(_newIdx >= 0) curIdx = _newIdx;
+  // _currentPlayingId se curIdx sync karo — songs[] reset ke baad bhi sahi rahega
+  // My Songs ya Admin Songs dono ke liye kaam karta hai
+  if(_currentPlayingId) {
+    const _restoredIdx = songs.findIndex(s => s.id === _currentPlayingId);
+    if(_restoredIdx >= 0) curIdx = _restoredIdx;
+    // Nahi mila matlab song delete ho gaya — curIdx reset karo
+    else curIdx = -1;
   }
   renderSongs();renderRecent();renderFavBadge();
   document.getElementById('shufFab').classList.add('visible');
@@ -2305,6 +2307,7 @@ async function playById(id){
   const idx=songs.findIndex(s=>s.id===id);
   if(idx<0)return;
   curIdx=idx;
+  _currentPlayingId = id; // Hamesha latest playing ID track karo
   const s=songs[idx];
   if(!npOpen)showMini();
   aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
@@ -3172,16 +3175,15 @@ async function ytRefreshSongs(){
     const r=await fetch(`${API}/api/songs?limit=1000`);if(!r.ok)return;
     const json=await r.json();const newSongs=(json.data||json.songs||(Array.isArray(json)?json:[])).map(norm);
     if(newSongs.length>0){
-      // curIdx preserve karo — playing song ka id yaad rakho
-      const playingId = curIdx >= 0 ? songs[curIdx]?.id : null;
       songs=newSongs;
       localStorage.setItem('tt_cache',JSON.stringify(songs));
       loadYtSongsIntoArray(); // yt_ songs restore
       await loadMyLibrary();  // My Songs merge
-      // curIdx restore karo
-      if(playingId){
-        const newIdx=songs.findIndex(s=>s.id===playingId);
+      // _currentPlayingId se curIdx sync karo (My Songs + Admin Songs dono sahi)
+      if(_currentPlayingId){
+        const newIdx=songs.findIndex(s=>s.id===_currentPlayingId);
         if(newIdx>=0) curIdx=newIdx;
+        else curIdx=-1;
       }
       document.getElementById('heroCount').textContent=`${songs.length} songs available`;
       renderSongs();renderFavBadge();
