@@ -1684,7 +1684,8 @@ function enterApp(user){
   authEl.classList.add('hidden');
   document.getElementById('mainApp').classList.add('on');
   updateUserUI(user);
-  Promise.all([loadSongs(),checkPremium(),loadPlaylists(),loadFavsFromDB()])
+  checkPremium(); // cache-first: instant UI, background verify
+  Promise.all([loadSongs(),loadPlaylists(),loadFavsFromDB()])
     .then(()=>{handleDeeplink();});
 }
 
@@ -2128,15 +2129,14 @@ async function loadSongs(){
   }
   document.getElementById('loadBox').style.display='none';document.getElementById('chipRow').style.display='flex';
   document.getElementById('heroCount').textContent=`${songs.length} songs available`;
+  // Playing song ID pehle save karo — loadMyLibrary ke baad songs[] badal jaati hai
+  const _playingIdBefore = (curIdx >= 0 && songs[curIdx]) ? songs[curIdx].id : null;
   loadYtSongsIntoArray(); // YouTube searched songs restore karo
   await loadMyLibrary();  // User ki personal library load karo
-  // curIdx fix — loadSongs ke baad songs[] reset hota hai, curIdx stale ho sakta hai
-  if(curIdx >= 0) {
-    const playingId = songs[curIdx]?.id;
-    if(playingId) {
-      const newIdx = songs.findIndex(s => s.id === playingId);
-      if(newIdx >= 0) curIdx = newIdx;
-    }
+  // loadMyLibrary ke BAAD curIdx re-sync karo — tabhi highlight sahi rahega
+  if(_playingIdBefore) {
+    const _newIdx = songs.findIndex(s => s.id === _playingIdBefore);
+    if(_newIdx >= 0) curIdx = _newIdx;
   }
   renderSongs();renderRecent();renderFavBadge();
   document.getElementById('shufFab').classList.add('visible');
@@ -2236,11 +2236,9 @@ function getFiltered(){
     // My Songs — user added songs (yt_ ya isUserSong)
     list=list.filter(s=>s.isUserSong||s.id.startsWith('yt_'));
   } else if(filterMode==='all'){
-    // All Songs — admin library + user songs dono (sab dikhao)
-    // Sirf yt_ local cache wale hatao jo DB mein save nahi hue
-    // isUserSong wale DB mein save hain — All Songs mein bhi dikho
-    // Note: yeh playing highlight issue fix karta hai
-    list=list.filter(s=>!s.id.startsWith('yt_'));
+    // All Songs — sirf admin library (isUserSong aur yt_ dono hatao)
+    // My Songs wale "My Songs" chip pe dikhenge, All Songs mein nahi
+    list=list.filter(s=>!s.id.startsWith('yt_') && !s.isUserSong);
   } else {
     // Other filters (newest, oldest, az, artist) — sab songs pe apply
     list=list.filter(s=>!s.id.startsWith('yt_'));
@@ -3130,7 +3128,7 @@ async function ytRefreshSongs(){
       localStorage.setItem('tt_cache',JSON.stringify(songs));
       loadYtSongsIntoArray(); // yt_ songs restore
       await loadMyLibrary();  // My Songs merge
-      // curIdx restore karo
+      // loadMyLibrary ke BAAD curIdx sync karo
       if(playingId){
         const newIdx=songs.findIndex(s=>s.id===playingId);
         if(newIdx>=0) curIdx=newIdx;
