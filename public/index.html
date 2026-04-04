@@ -1684,7 +1684,7 @@ function enterApp(user){
   authEl.classList.add('hidden');
   document.getElementById('mainApp').classList.add('on');
   updateUserUI(user);
-  checkPremium(); // cache-first: instant UI, background verify
+  checkPremium(); // cache-first: instant UI
   Promise.all([loadSongs(),loadPlaylists(),loadFavsFromDB()])
     .then(()=>{handleDeeplink();});
 }
@@ -2021,11 +2021,39 @@ async function loadMyLibrary() {
     });
     const data = await r.json();
     if(!data.success) return;
-    // Songs mein merge karo
-    (data.songs || []).forEach(s => {
+
+    const serverSongs = data.songs || [];
+
+    // ── STEP 1: Deleted songs hatao ──
+    // Server pe jo nahi hain woh isUserSong wale songs array se remove karo
+    const serverIds = new Set();
+    serverSongs.forEach(s => {
+      serverIds.add(s.id);
+      if(s.youtube_id) serverIds.add('yt_' + s.youtube_id);
+    });
+    // isUserSong wale jo server list mein nahi hain — hatao
+    songs = songs.filter(s => {
+      if(!s.isUserSong) return true; // admin songs touch mat karo
+      // Server pe hai? — rakho
+      if(serverIds.has(s.id)) return true;
+      if(s.youtube_id && serverIds.has('yt_' + s.youtube_id)) return true;
+      // Nahi hai — admin ne delete kar diya, hatao
+      return false;
+    });
+
+    // ── STEP 2: ytSongsCache bhi sync karo — localStorage clean ──
+    if(ytSongsCache.length) {
+      ytSongsCache = ytSongsCache.filter(s => {
+        const vid = s.id.replace('yt_','');
+        return serverIds.has(s.id) || serverIds.has('yt_' + vid);
+      });
+      localStorage.setItem('tt_yt_songs', JSON.stringify(ytSongsCache));
+    }
+
+    // ── STEP 3: Naye songs add karo ──
+    serverSongs.forEach(s => {
       const ytId = s.youtube_id || '';
       const ytUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : '';
-      // Duplicate check — id ya youtube_id ya yt_ prefix se
       const exists = songs.find(x =>
         x.id === s.id ||
         (ytId && (x.youtube_id === ytId || x.id === 'yt_' + ytId))
@@ -2040,12 +2068,12 @@ async function loadMyLibrary() {
           youtubeUrl: ytUrl
         });
       } else {
-        // isUserSong flag ensure karo — purane entry mein missing ho sakta tha
+        // isUserSong flag ensure karo
         const idx = songs.findIndex(x =>
           x.id === s.id ||
           (ytId && (x.youtube_id === ytId || x.id === 'yt_' + ytId))
         );
-        if(idx >= 0 && !songs[idx].isUserSong) {
+        if(idx >= 0) {
           songs[idx].isUserSong = true;
           songs[idx].youtube_id = songs[idx].youtube_id || ytId;
           songs[idx].youtubeUrl = songs[idx].youtubeUrl || ytUrl;
@@ -2129,11 +2157,11 @@ async function loadSongs(){
   }
   document.getElementById('loadBox').style.display='none';document.getElementById('chipRow').style.display='flex';
   document.getElementById('heroCount').textContent=`${songs.length} songs available`;
-  // Playing song ID pehle save karo — loadMyLibrary ke baad songs[] badal jaati hai
+  // Playing song ID pehle save karo — loadMyLibrary songs[] badal deti hai
   const _playingIdBefore = (curIdx >= 0 && songs[curIdx]) ? songs[curIdx].id : null;
   loadYtSongsIntoArray(); // YouTube searched songs restore karo
-  await loadMyLibrary();  // User ki personal library load karo
-  // loadMyLibrary ke BAAD curIdx re-sync karo — tabhi highlight sahi rahega
+  await loadMyLibrary();  // User ki personal library load karo — deleted songs bhi hatao
+  // loadMyLibrary ke BAAD curIdx re-sync karo
   if(_playingIdBefore) {
     const _newIdx = songs.findIndex(s => s.id === _playingIdBefore);
     if(_newIdx >= 0) curIdx = _newIdx;
@@ -2237,7 +2265,6 @@ function getFiltered(){
     list=list.filter(s=>s.isUserSong||s.id.startsWith('yt_'));
   } else if(filterMode==='all'){
     // All Songs — sirf admin library (isUserSong aur yt_ dono hatao)
-    // My Songs wale "My Songs" chip pe dikhenge, All Songs mein nahi
     list=list.filter(s=>!s.id.startsWith('yt_') && !s.isUserSong);
   } else {
     // Other filters (newest, oldest, az, artist) — sab songs pe apply
@@ -3098,7 +3125,22 @@ async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedC
 
     // Auto save to My Library — button ki zaroorat nahi
     try{
-      await saveToMyLibrary(videoId, title, channel, thumb, streamData.duration||'0:00');
+      const savedData = await saveToMyLibrary(videoId, title, channel, thumb, streamData.duration||'0:00');
+      // saveToMyLibrary ne DB wali ID se entry add kar di hogi
+      // yt_videoId wali duplicate entry hatao — sirf agar DB ID alag hai
+      const dbId = savedData?.id;
+      if(dbId && dbId !== tempSong.id) {
+        const ytEntryIdx = songs.findIndex(s => s.id === tempSong.id);
+        if(ytEntryIdx >= 0) {
+          songs.splice(ytEntryIdx, 1); // yt_ wali duplicate hatao
+          // curIdx update karo — ab DB wali entry pe point karo
+          const dbIdx = songs.findIndex(s => s.id === dbId);
+          if(dbIdx >= 0) curIdx = dbIdx;
+        }
+        // ytSongsCache se bhi hatao — DB mein save ho gaya, local cache ki zaroorat nahi
+        ytSongsCache = ytSongsCache.filter(s => s.id !== tempSong.id);
+        localStorage.setItem('tt_yt_songs', JSON.stringify(ytSongsCache));
+      }
     }catch(e){
       console.warn('Auto-save failed:', e.message);
     }
@@ -3128,7 +3170,7 @@ async function ytRefreshSongs(){
       localStorage.setItem('tt_cache',JSON.stringify(songs));
       loadYtSongsIntoArray(); // yt_ songs restore
       await loadMyLibrary();  // My Songs merge
-      // loadMyLibrary ke BAAD curIdx sync karo
+      // curIdx restore karo
       if(playingId){
         const newIdx=songs.findIndex(s=>s.id===playingId);
         if(newIdx>=0) curIdx=newIdx;
