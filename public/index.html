@@ -1684,7 +1684,8 @@ function enterApp(user){
   authEl.classList.add('hidden');
   document.getElementById('mainApp').classList.add('on');
   updateUserUI(user);
-  Promise.all([loadSongs(),checkPremium(),loadPlaylists(),loadFavsFromDB()])
+  checkPremium(); // cache-first instant UI
+  Promise.all([loadSongs(),loadPlaylists(),loadFavsFromDB()])
     .then(()=>{handleDeeplink();});
 }
 
@@ -1729,14 +1730,16 @@ async function checkAppStatus(){
       return true;
     }
 
-    // Update — version comparison se decide karo
-    // APP_VERSION_CODE = hardcoded app ka current version
+    // Update screen logic:
+    // APP_VERSION_CODE = is app build ka version (DB se match karo)
     const APP_VERSION_CODE = 6;
     const serverVersion = parseInt(results['update_version'] || '0', 10);
-    // update_available flag explicitly 'false' ho toh skip karo
-    const updateEnabled = results['update_available'] !== 'false';
-    // Sirf tab dikhao: update_available=true AND serverVersion > appVersion AND url ho
-    if(updateEnabled && serverVersion > APP_VERSION_CODE && results['update_url']){
+    // update_available explicitly 'false' ho toh kabhi mat dikhao
+    const updateEnabled = results['update_available'] === 'true';
+    // Sirf tab dikhao: update_available=true AND versions MATCH NAHI karte AND url ho
+    // DB version == App version → same build → update screen nahi
+    // DB version != App version → koi bhi side → update force karo
+    if(updateEnabled && serverVersion !== 0 && serverVersion !== APP_VERSION_CODE && results['update_url']){
       document.getElementById('updScreenTitle').textContent=results['update_title']||'New Update Available!';
       document.getElementById('updScreenMsg').textContent=results['update_message']||'Nayi features ke liye update karo.';
       document.getElementById('updNowBtn').href=results['update_url'];
@@ -2023,37 +2026,71 @@ async function loadMyLibrary() {
     });
     const data = await r.json();
     if(!data.success) return;
-    // Songs mein merge karo
-    (data.songs || []).forEach(s => {
+
+    const serverSongs = data.songs || [];
+
+    // ── STEP 1: Server ka set banao for delete-sync ──
+    const serverIds = new Set();
+    serverSongs.forEach(s => {
+      serverIds.add(s.id);
+      if(s.youtube_id) {
+        serverIds.add('yt_' + s.youtube_id);
+        serverIds.add(s.youtube_id);
+      }
+    });
+
+    // ── STEP 2: Delete sync — admin se delete hue songs hatao ──
+    songs = songs.filter(s => {
+      if(!s.isUserSong && !s.id.startsWith('yt_')) return true; // admin songs touch mat karo
+      if(serverIds.has(s.id)) return true;
+      if(s.youtube_id && serverIds.has(s.youtube_id)) return true;
+      return false; // server pe nahi — hatao
+    });
+
+    // ── STEP 3: ytSongsCache bhi clean karo ──
+    ytSongsCache = ytSongsCache.filter(s => {
+      const vid = s.id.replace('yt_','');
+      return serverIds.has(s.id) || serverIds.has(vid);
+    });
+    localStorage.setItem('tt_yt_songs', JSON.stringify(ytSongsCache));
+
+    // ── STEP 4: Server songs ko songs[] mein merge karo (latest first) ──
+    // Server sorted by created_at desc aata hai — usi order mein push karo
+    serverSongs.forEach(s => {
       const ytId = s.youtube_id || '';
       const ytUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : '';
-      // Duplicate check — id ya youtube_id ya yt_ prefix se
-      const exists = songs.find(x =>
+      // Duplicate check — id, youtube_id, ya yt_ prefix se
+      const existIdx = songs.findIndex(x =>
         x.id === s.id ||
         (ytId && (x.youtube_id === ytId || x.id === 'yt_' + ytId))
       );
-      if(!exists) {
+      if(existIdx < 0) {
+        // Naya song — array mein add karo
         songs.push({
           id: s.id, title: s.title, artist: s.artist,
           thumb: s.thumbnail, url: '',
           dur: s.duration, quality: '128kbps',
           date: s.created_at, isUserSong: true,
-          youtube_id: ytId,
-          youtubeUrl: ytUrl
+          youtube_id: ytId, youtubeUrl: ytUrl
         });
       } else {
-        // isUserSong flag ensure karo — purane entry mein missing ho sakta tha
-        const idx = songs.findIndex(x =>
-          x.id === s.id ||
-          (ytId && (x.youtube_id === ytId || x.id === 'yt_' + ytId))
-        );
-        if(idx >= 0 && !songs[idx].isUserSong) {
-          songs[idx].isUserSong = true;
-          songs[idx].youtube_id = songs[idx].youtube_id || ytId;
-          songs[idx].youtubeUrl = songs[idx].youtubeUrl || ytUrl;
+        // Existing — flags update karo, duplicate mat banao
+        songs[existIdx].isUserSong = true;
+        songs[existIdx].youtube_id = songs[existIdx].youtube_id || ytId;
+        songs[existIdx].youtubeUrl = songs[existIdx].youtubeUrl || ytUrl;
+        // DB id se replace karo agar yt_ wali temporary id hai
+        if(songs[existIdx].id.startsWith('yt_') && !s.id.startsWith('yt_')) {
+          songs[existIdx].id = s.id;
         }
       }
     });
+
+    // ── STEP 5: isUserSong songs ko top pe sort karo (latest first by date) ──
+    const adminSongs = songs.filter(s => !s.isUserSong && !s.id.startsWith('yt_'));
+    const userSongs  = songs.filter(s => s.isUserSong || s.id.startsWith('yt_'));
+    userSongs.sort((a, b) => new Date(b.date) - new Date(a.date));
+    songs = [...userSongs, ...adminSongs];
+
   } catch(e) { console.warn('loadMyLibrary:', e.message); }
 }
 
@@ -2131,15 +2168,14 @@ async function loadSongs(){
   }
   document.getElementById('loadBox').style.display='none';document.getElementById('chipRow').style.display='flex';
   document.getElementById('heroCount').textContent=`${songs.length} songs available`;
+  // Playing ID pehle save — loadMyLibrary songs[] reorganize karta hai
+  const _playingIdBefore = (curIdx >= 0 && songs[curIdx]) ? songs[curIdx].id : null;
   loadYtSongsIntoArray(); // YouTube searched songs restore karo
-  await loadMyLibrary();  // User ki personal library load karo
-  // curIdx fix — loadSongs ke baad songs[] reset hota hai, curIdx stale ho sakta hai
-  if(curIdx >= 0) {
-    const playingId = songs[curIdx]?.id;
-    if(playingId) {
-      const newIdx = songs.findIndex(s => s.id === playingId);
-      if(newIdx >= 0) curIdx = newIdx;
-    }
+  await loadMyLibrary();  // Delete sync + naye songs + sort
+  // loadMyLibrary ke BAAD curIdx re-sync karo
+  if(_playingIdBefore) {
+    const _newIdx = songs.findIndex(s => s.id === _playingIdBefore);
+    if(_newIdx >= 0) curIdx = _newIdx;
   }
   renderSongs();renderRecent();renderFavBadge();
   document.getElementById('shufFab').classList.add('visible');
@@ -2239,14 +2275,11 @@ function getFiltered(){
     // My Songs — user added songs (yt_ ya isUserSong)
     list=list.filter(s=>s.isUserSong||s.id.startsWith('yt_'));
   } else if(filterMode==='all'){
-    // All Songs — admin library + user songs dono (sab dikhao)
-    // Sirf yt_ local cache wale hatao jo DB mein save nahi hue
-    // isUserSong wale DB mein save hain — All Songs mein bhi dikho
-    // Note: yeh playing highlight issue fix karta hai
-    list=list.filter(s=>!s.id.startsWith('yt_'));
+    // All Songs — sirf admin songs (yt_ aur isUserSong dono exclude)
+    list=list.filter(s=>!s.id.startsWith('yt_') && !s.isUserSong);
   } else {
-    // Other filters (newest, oldest, az, artist) — sab songs pe apply
-    list=list.filter(s=>!s.id.startsWith('yt_'));
+    // Other filters (newest, oldest, az, artist) — sirf admin songs
+    list=list.filter(s=>!s.id.startsWith('yt_') && !s.isUserSong);
   }
   if(searchVal){const q=searchVal.toLowerCase();list=list.filter(s=>s.title.toLowerCase().includes(q)||s.artist.toLowerCase().includes(q));}
   if(filterMode==='newest')list.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -3103,7 +3136,19 @@ async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedC
 
     // Auto save to My Library — button ki zaroorat nahi
     try{
-      await saveToMyLibrary(videoId, title, channel, thumb, streamData.duration||'0:00');
+      const savedData = await saveToMyLibrary(videoId, title, channel, thumb, streamData.duration||'0:00');
+      // saveToMyLibrary ne DB ID se entry add ki — yt_ wali temporary duplicate hatao
+      const dbId = savedData?.id;
+      if(dbId && dbId !== tempSong.id) {
+        const ytDupIdx = songs.findIndex(s => s.id === tempSong.id);
+        if(ytDupIdx >= 0) songs.splice(ytDupIdx, 1);
+        // curIdx update karo — DB wali entry pe point karo
+        const dbIdx = songs.findIndex(s => s.id === dbId);
+        if(dbIdx >= 0) curIdx = dbIdx;
+        // ytSongsCache se bhi hatao — DB mein save ho gaya
+        ytSongsCache = ytSongsCache.filter(s => s.id !== tempSong.id);
+        localStorage.setItem('tt_yt_songs', JSON.stringify(ytSongsCache));
+      }
     }catch(e){
       console.warn('Auto-save failed:', e.message);
     }
