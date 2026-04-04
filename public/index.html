@@ -1268,6 +1268,15 @@ async function checkPremium() {
   if (!SS.token()) { isPremium = false; premiumSub = null; updatePremiumUI(); return; }
   const userId = SS.user()?.id;
   if (!userId) { isPremium = false; premiumSub = null; updatePremiumUI(); return; }
+  // ── INSTANT: localStorage cache se turant dikhao (no delay) ──
+  try {
+    const cached = JSON.parse(localStorage.getItem('tt_premium_cache') || 'null');
+    if (cached && cached.userId === userId) {
+      isPremium = cached.isPremium;
+      premiumSub = cached.premiumSub;
+      updatePremiumUI(); // Turant UI update — phir background mein verify hoga
+    }
+  } catch(e) {}
 
   // Supabase direct check — sabse fast (direct DB)
   try {
@@ -1289,6 +1298,8 @@ async function checkPremium() {
           expires_at: expiresAt, ...sub
         } : null;
         updatePremiumUI();
+        // Cache save karo for next instant load
+        try { localStorage.setItem('tt_premium_cache', JSON.stringify({userId, isPremium, premiumSub, ts: Date.now()})); } catch(e) {}
         return; // Fast path — Supabase se mil gaya
       }
     }
@@ -1309,6 +1320,7 @@ async function checkPremium() {
     isPremium = false; premiumSub = null;
   }
   updatePremiumUI();
+  try { localStorage.setItem('tt_premium_cache', JSON.stringify({userId, isPremium, premiumSub, ts: Date.now()})); } catch(e) {}
 }
 
 function updatePremiumUI() {
@@ -1981,9 +1993,20 @@ async function saveToMyLibrary(videoId, title, artist, thumbnail, duration) {
     id: songId, title, artist,
     thumb: thumbnail, url: '',
     dur: duration, quality: '128kbps',
-    date: new Date().toISOString()
+    date: new Date().toISOString(),
+    // isUserSong flag ZAROORI hai — My Songs filter aur highlight ke liye
+    isUserSong: true,
+    youtube_id: videoId,
+    youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`
   };
-  if(!songs.find(s=>s.id===songId)) songs.unshift(newSong);
+  // Duplicate check — id ya youtube_id se
+  const exists = songs.find(s => s.id === songId || s.youtube_id === videoId);
+  if(!exists) songs.unshift(newSong);
+  else {
+    // Existing entry update karo — isUserSong missing ho sakta tha
+    const idx = songs.findIndex(s => s.id === songId || s.youtube_id === videoId);
+    if(idx >= 0) songs[idx] = {...songs[idx], ...newSong, id: songs[idx].id};
+  }
   renderSongs();
   return data;
 }
@@ -1999,15 +2022,33 @@ async function loadMyLibrary() {
     if(!data.success) return;
     // Songs mein merge karo
     (data.songs || []).forEach(s => {
-      if(!songs.find(x => x.id === s.id)) {
+      const ytId = s.youtube_id || '';
+      const ytUrl = ytId ? `https://www.youtube.com/watch?v=${ytId}` : '';
+      // Duplicate check — id ya youtube_id ya yt_ prefix se
+      const exists = songs.find(x =>
+        x.id === s.id ||
+        (ytId && (x.youtube_id === ytId || x.id === 'yt_' + ytId))
+      );
+      if(!exists) {
         songs.push({
           id: s.id, title: s.title, artist: s.artist,
           thumb: s.thumbnail, url: '',
           dur: s.duration, quality: '128kbps',
           date: s.created_at, isUserSong: true,
-          youtube_id: s.youtube_id || '',
-          youtubeUrl: s.youtube_id ? `https://www.youtube.com/watch?v=${s.youtube_id}` : ''
+          youtube_id: ytId,
+          youtubeUrl: ytUrl
         });
+      } else {
+        // isUserSong flag ensure karo — purane entry mein missing ho sakta tha
+        const idx = songs.findIndex(x =>
+          x.id === s.id ||
+          (ytId && (x.youtube_id === ytId || x.id === 'yt_' + ytId))
+        );
+        if(idx >= 0 && !songs[idx].isUserSong) {
+          songs[idx].isUserSong = true;
+          songs[idx].youtube_id = songs[idx].youtube_id || ytId;
+          songs[idx].youtubeUrl = songs[idx].youtubeUrl || ytUrl;
+        }
       }
     });
   } catch(e) { console.warn('loadMyLibrary:', e.message); }
@@ -2089,6 +2130,14 @@ async function loadSongs(){
   document.getElementById('heroCount').textContent=`${songs.length} songs available`;
   loadYtSongsIntoArray(); // YouTube searched songs restore karo
   await loadMyLibrary();  // User ki personal library load karo
+  // curIdx fix — loadSongs ke baad songs[] reset hota hai, curIdx stale ho sakta hai
+  if(curIdx >= 0) {
+    const playingId = songs[curIdx]?.id;
+    if(playingId) {
+      const newIdx = songs.findIndex(s => s.id === playingId);
+      if(newIdx >= 0) curIdx = newIdx;
+    }
+  }
   renderSongs();renderRecent();renderFavBadge();
   document.getElementById('shufFab').classList.add('visible');
   syncQueueToJava();
@@ -2186,9 +2235,15 @@ function getFiltered(){
   if(filterMode==='mine'){
     // My Songs — user added songs (yt_ ya isUserSong)
     list=list.filter(s=>s.isUserSong||s.id.startsWith('yt_'));
+  } else if(filterMode==='all'){
+    // All Songs — admin library + user songs dono (sab dikhao)
+    // Sirf yt_ local cache wale hatao jo DB mein save nahi hue
+    // isUserSong wale DB mein save hain — All Songs mein bhi dikho
+    // Note: yeh playing highlight issue fix karta hai
+    list=list.filter(s=>!s.id.startsWith('yt_'));
   } else {
-    // All Songs — sirf admin library songs
-    list=list.filter(s=>!s.isUserSong&&!s.id.startsWith('yt_'));
+    // Other filters (newest, oldest, az, artist) — sab songs pe apply
+    list=list.filter(s=>!s.id.startsWith('yt_'));
   }
   if(searchVal){const q=searchVal.toLowerCase();list=list.filter(s=>s.title.toLowerCase().includes(q)||s.artist.toLowerCase().includes(q));}
   if(filterMode==='newest')list.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -3068,7 +3123,21 @@ async function ytRefreshSongs(){
   try{
     const r=await fetch(`${API}/api/songs?limit=1000`);if(!r.ok)return;
     const json=await r.json();const newSongs=(json.data||json.songs||(Array.isArray(json)?json:[])).map(norm);
-    if(newSongs.length>0){songs=newSongs;localStorage.setItem('tt_cache',JSON.stringify(songs));document.getElementById('heroCount').textContent=`${songs.length} songs available`;renderSongs();renderFavBadge();}
+    if(newSongs.length>0){
+      // curIdx preserve karo — playing song ka id yaad rakho
+      const playingId = curIdx >= 0 ? songs[curIdx]?.id : null;
+      songs=newSongs;
+      localStorage.setItem('tt_cache',JSON.stringify(songs));
+      loadYtSongsIntoArray(); // yt_ songs restore
+      await loadMyLibrary();  // My Songs merge
+      // curIdx restore karo
+      if(playingId){
+        const newIdx=songs.findIndex(s=>s.id===playingId);
+        if(newIdx>=0) curIdx=newIdx;
+      }
+      document.getElementById('heroCount').textContent=`${songs.length} songs available`;
+      renderSongs();renderFavBadge();
+    }
   }catch(e){console.warn('ytRefreshSongs:',e);}
 }
 </script>
