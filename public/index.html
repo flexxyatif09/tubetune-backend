@@ -2103,15 +2103,21 @@ function syncQueueToJava(){
     if(needFullSync){
       _lastQueueSyncLen = songs.length;
       const queue = songs.map(s=>{
-        const url = (s.id.startsWith('yt_') || s.isUserSong) ? '' : (s.url||'');
-        const dur = parseDur(s.dur||'') || 240; // default 4 min agar nahi pata
+        // All Songs + My Songs + yt_ — url hamesha blank bhejo
+        // Java sirf notification/timer ke liye queue use karta hai
+        // Actual play JS karta hai fresh stream URL fetch karke
+        const url = '';
+        const dur = parseDur(s.dur||'') || 240;
+        // youtubeUrl All Songs mein bhi hota hai — Java ko bhejo taaki advanceQueue mein kaam aaye
+        const ytUrl = s.youtubeUrl || (s.youtube_id ? 'https://www.youtube.com/watch?v='+s.youtube_id : '');
         return [
           (s.title||'').replace(/"/g,"'"),
           (s.artist||'').replace(/"/g,"'"),
           s.thumb||'',
           url,
           s.id||'',
-          String(dur)
+          String(dur),
+          ytUrl
         ];
       });
       AndroidBridge.syncSongQueue(JSON.stringify(queue), curIdx, shuffle, repeat);
@@ -2338,12 +2344,11 @@ window.onAndroidResume = function(){
   } else if(curIdx>=0){
     const s = songs[curIdx];
     if(s){
-      // yt_, isUserSong, ya koi bhi YouTube song — videoId nikalo
+      // yt_, isUserSong, All Songs — sabhi ka videoId nikalo
       let videoId = null;
       if(s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
       else if(s.youtube_id) videoId = s.youtube_id;
-      else if(s.isUserSong && s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl);
-      else if(s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl);
+      else if(s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl||'');
 
       // Sirf refresh karo agar user background me actually play kar raha tha
       // wasPlayingBeforeHide = false means user ne pause kiya tha — auto-play mat karo
@@ -2385,11 +2390,11 @@ function _playNext(){
   const s = songs[curIdx];
   if(!s) return;
 
-  // videoId nikalo
+  // videoId nikalo — All Songs + My Songs + yt_ sabhi cover karo
   let videoId = null;
   if(s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
   else if(s.youtube_id) videoId = s.youtube_id;
-  else if(s.isUserSong) videoId = extractVideoId(s.youtubeUrl||'');
+  else if(s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl||'');
 
   if(videoId){
     // UI update karo — loading state
