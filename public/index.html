@@ -2190,7 +2190,8 @@ async function appConfigGet(key){
 async function checkAppStatus(){
   try{
     const H={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY};
-    const keys=['maintenance','maintenance_message','update_available','update_title','update_message','update_url','update_version'];
+    // 'app_version' key bhi fetch karo — yahi is HTML build ka version hai
+    const keys=['maintenance','maintenance_message','update_available','update_title','update_message','update_url','update_version','app_version'];
     const results={};
     await Promise.all(keys.map(async k=>{
       const r=await fetch(`${SB_URL}/rest/v1/app_config?key=eq.${encodeURIComponent(k)}&select=value`,{headers:H});
@@ -2205,16 +2206,34 @@ async function checkAppStatus(){
       return true;
     }
 
-    // Update screen logic:
-    // APP_VERSION_CODE = is app build ka version (DB se match karo)
-    const APP_VERSION_CODE = 6;
-    const serverVersion = parseInt(results['update_version'] || '0', 10);
-    // update_available explicitly 'false' ho toh kabhi mat dikhao
+    // ─────────────────────────────────────────────────
+    // UPDATE SCREEN LOGIC — DYNAMIC VERSION
+    //
+    // APP_VERSION_CODE ab hardcoded NAHI hai.
+    // Supabase app_config table mein do keys hain:
+    //   'app_version'    = is HTML file ka current version (tum set karo jab deploy karo)
+    //   'update_version' = latest available version (admin panel se update karo)
+    //
+    // Agar 'app_version' DB mein nahi hai to update screen KABHI nahi aayegi.
+    // Agar dono match karte hain to update screen nahi aayegi.
+    // Agar update_available=true AND update_version > app_version to screen aayegi.
+    // ─────────────────────────────────────────────────
+    const appVersion    = parseInt(results['app_version']    || '0', 10); // Is HTML ka version
+    const serverVersion = parseInt(results['update_version'] || '0', 10); // Latest available
     const updateEnabled = results['update_available'] === 'true';
-    // Sirf tab dikhao: update_available=true AND versions MATCH NAHI karte AND url ho
-    // DB version == App version → same build → update screen nahi
-    // DB version != App version → koi bhi side → update force karo
-    if(updateEnabled && serverVersion !== 0 && serverVersion !== APP_VERSION_CODE && results['update_url']){
+
+    // Guard: agar app_version DB mein set nahi hai to kabhi update screen mat dikhao
+    if(appVersion === 0){
+      console.log('app_version not set in DB — skipping update screen');
+      return false;
+    }
+
+    // Sirf tab dikhao jab sab conditions true hon:
+    // 1. update_available = true
+    // 2. update_version set hai (0 nahi)
+    // 3. update_version BADA hai app_version se (naya version available hai)
+    // 4. update_url set hai
+    if(updateEnabled && serverVersion > 0 && serverVersion > appVersion && results['update_url']){
       document.getElementById('updScreenTitle').textContent=results['update_title']||'New Update Available!';
       document.getElementById('updScreenMsg').textContent=results['update_message']||'Nayi features ke liye update karo.';
       document.getElementById('updNowBtn').href=results['update_url'];
