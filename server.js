@@ -927,6 +927,268 @@ app.put('/api/songs/:id', auth, async (req, res) => {
   }
 });
 
+
+// ══════════════════════════════════════════════════════════
+// UPI PAYMENT SYSTEM ROUTES
+// ══════════════════════════════════════════════════════════
+
+// ── 1. UPI Payment Pending register karo (user ne payment ki) ──
+app.post('/api/upi-payment-pending', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const user  = await getUserFromToken(token);
+    const { plan_id, plan_name, amount, upi_id, user_email, user_id } = req.body;
+
+    const { data, error } = await supabaseAdmin
+      .from('upi_payments')
+      .insert({
+        user_id:    user?.id || user_id || null,
+        user_email: user?.email || user_email || '',
+        plan_id:    plan_id || null,
+        plan_name:  plan_name || '',
+        amount:     amount || 0,
+        upi_id:     upi_id || '',
+        status:     'pending',
+        type:       'payment',
+        created_at: new Date().toISOString()
+      })
+      .select().single();
+
+    if (error) throw error;
+    res.json({ success: true, id: data.id });
+  } catch (err) {
+    // Gracefully fail — client side bhi save karta hai
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// ── 2. Contact Admin — Screenshot ke saath (user ne bheja) ──
+app.post('/api/upi-contact-admin', async (req, res) => {
+  try {
+    const { user_email, plan_name, amount, message, screenshot, user_id } = req.body;
+
+    const { data, error } = await supabaseAdmin
+      .from('upi_payments')
+      .insert({
+        user_id:       user_id || null,
+        user_email:    user_email || '',
+        plan_name:     plan_name || '',
+        amount:        amount || 0,
+        message:       message || '',
+        screenshot:    screenshot || null,
+        type:          'contact',
+        has_screenshot: !!screenshot,
+        status:        'pending',
+        created_at:    new Date().toISOString()
+      })
+      .select().single();
+
+    if (error) throw error;
+    res.json({ success: true, id: data.id });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// ── 3. UPI Verify Code — User code dalta hai, premium activate hota hai ──
+app.post('/api/upi-verify-code', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const user  = await getUserFromToken(token);
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+
+    const { code, plan_id, user_email, user_id } = req.body;
+    if (!code) return res.status(400).json({ success: false, error: 'Code required hai' });
+
+    const cleanCode = code.trim().toUpperCase();
+
+    // Step 1: upi_codes table mein code dhundho
+    const { data: codeRows, error: codeErr } = await supabaseAdmin
+      .from('upi_codes')
+      .select('*')
+      .eq('code', cleanCode)
+      .limit(1);
+
+    if (codeErr) throw codeErr;
+    if (!codeRows || codeRows.length === 0) {
+      return res.status(400).json({ success: false, error: 'Code galat hai — admin se sahi code lo' });
+    }
+
+    const codeRow = codeRows[0];
+    if (codeRow.used) {
+      return res.status(400).json({ success: false, error: 'Yeh code already use ho chuka hai' });
+    }
+
+    // Step 2: Code mark as used
+    await supabaseAdmin
+      .from('upi_codes')
+      .update({ used: true, used_at: new Date().toISOString(), user_id: user.id })
+      .eq('id', codeRow.id);
+
+    // Step 3: Plan details lo
+    const planId = codeRow.plan_id || plan_id;
+    const days   = codeRow.duration_days || 30;
+
+    let planName  = 'UPI Premium';
+    let planPrice = 0;
+
+    if (planId) {
+      const { data: plan } = await supabaseAdmin
+        .from('plans').select('*').eq('id', planId).single();
+      if (plan) { planName = plan.name; planPrice = plan.price; }
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + Number(days));
+
+    // Step 4: Purani active subscription expire karo
+    await supabaseAdmin
+      .from('subscriptions')
+      .update({ status: 'expired' })
+      .eq('user_id', user.id)
+      .eq('status', 'active');
+
+    // Step 5: Nayi subscription insert karo
+    const { data: sub, error: subErr } = await supabaseAdmin
+      .from('subscriptions')
+      .insert({
+        user_id:             user.id,
+        plan_id:             planId || null,
+        plan_name:           planName,
+        price:               planPrice,
+        status:              'active',
+        expires_at:          expiresAt.toISOString(),
+        razorpay_order_id:   'UPI_PAYMENT',
+        razorpay_payment_id: 'UPI_CODE_' + cleanCode
+      })
+      .select().single();
+
+    if (subErr) throw subErr;
+
+    // Step 6: upi_payments mein bhi update karo (agar payment record hai)
+    await supabaseAdmin
+      .from('upi_payments')
+      .update({ status: 'used', used_at: new Date().toISOString() })
+      .eq('verify_code', cleanCode);
+
+    res.json({ success: true, subscription: sub, message: 'Premium active ho gaya!' });
+  } catch (err) {
+    console.error('upi-verify-code error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── 4. Admin: UPI Payments list karo ──
+app.get('/api/upi-payments', async (req, res) => {
+  try {
+    // Admin key check (optional protection)
+    const adminKey = req.headers['authorization']?.replace('Bearer ', '') || req.headers['x-admin-key'];
+    // Sab payments return karo — admin panel ke liye
+    const { data, error } = await supabaseAdmin
+      .from('upi_payments')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+    res.json({ success: true, payments: data || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── 5. Admin: UPI Payment approve karo + code generate karo ──
+app.post('/api/upi-approve', async (req, res) => {
+  try {
+    const { payment_id, plan_id, duration_days, verify_code } = req.body;
+    if (!payment_id || !verify_code) {
+      return res.status(400).json({ success: false, error: 'payment_id aur verify_code required hain' });
+    }
+
+    const days = duration_days || 30;
+
+    // upi_payments mein status update karo
+    const { error: pmtErr } = await supabaseAdmin
+      .from('upi_payments')
+      .update({
+        status:      'approved',
+        verify_code: verify_code,
+        plan_id:     plan_id || null,
+        approved_at: new Date().toISOString()
+      })
+      .eq('id', payment_id);
+
+    if (pmtErr) throw pmtErr;
+
+    // upi_codes table mein save karo
+    const { error: codeErr } = await supabaseAdmin
+      .from('upi_codes')
+      .insert({
+        code:          verify_code,
+        plan_id:       plan_id || null,
+        duration_days: days,
+        payment_id:    payment_id,
+        used:          false,
+        created_at:    new Date().toISOString()
+      });
+
+    // Duplicate code error ignore karo (already exists)
+    if (codeErr && !codeErr.message.includes('duplicate')) throw codeErr;
+
+    res.json({ success: true, verify_code });
+  } catch (err) {
+    console.error('upi-approve error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── 6. Admin: UPI Payment reject karo ──
+app.post('/api/upi-reject', async (req, res) => {
+  try {
+    const { payment_id } = req.body;
+    if (!payment_id) return res.status(400).json({ success: false, error: 'payment_id required' });
+
+    const { error } = await supabaseAdmin
+      .from('upi_payments')
+      .update({ status: 'rejected', rejected_at: new Date().toISOString() })
+      .eq('id', payment_id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── 7. User: Apna approved code check karo (real-time polling) ──
+app.get('/api/upi-my-code', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const user  = await getUserFromToken(token);
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+
+    // User ki approved payment dhundho jisme verify_code ho
+    const { data, error } = await supabaseAdmin
+      .from('upi_payments')
+      .select('verify_code, approved_at, plan_name, amount, status')
+      .eq('user_id', user.id)
+      .eq('status', 'approved')
+      .not('verify_code', 'is', null)
+      .order('approved_at', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    if (data && data.length > 0 && data[0].verify_code) {
+      res.json({ success: true, hasCode: true, code: data[0].verify_code, payment: data[0] });
+    } else {
+      res.json({ success: true, hasCode: false });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── HEALTH ──
 app.get('/', (req, res) => {
   const htmlPath = path.join(__dirname, 'public', 'index.html');
