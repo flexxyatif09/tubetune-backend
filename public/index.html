@@ -1428,7 +1428,7 @@ audio{display:none}
 ══════════════════════════════════════════════════ */
 const SB_URL = 'https://vkzhqwsujnurcsyntnmr.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZremhxd3N1am51cmNzeW50bm1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NzE1ODcsImV4cCI6MjA4ODA0NzU4N30.j7-8qrdAXivjKatVjuK1aFfumfPPucs3NiDcYU4_Lfg';
-const API    = 'https://tubetune-backend-production.up.railway.app';
+const API    = 'https://tubetune-backend.onrender.com';
 // UPI Payment System — No Razorpay
 
 const sbDev = (SB_URL === 'YOUR_SUPABASE_URL');
@@ -3190,7 +3190,7 @@ function shareNP(){
   if(curIdx<0)return;
   const s=songs[curIdx];
   // Bridge page URL — app installed ho to app khulega, nahi to download page
-  const shareUrl='https://tubetune-backend-production.up.railway.app/open?song='+encodeURIComponent(s.id);
+  const shareUrl='https://tubetune-backend.onrender.com/open?song='+encodeURIComponent(s.id);
   const shareTitle='TubeTune — '+s.title;
   const shareText=`🎵 "${s.title}" by ${s.artist} — TubeTune par suno! Bilkul free, koi ads nahi.\n`;
   // Android WebView — native share sheet
