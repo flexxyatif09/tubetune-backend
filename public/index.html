@@ -1726,29 +1726,19 @@ function openUpiApp(app) {
   // Generic UPI deep link (works for all UPI apps)
   const upiLink = `upi://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`;
 
-  // App-specific intent links for Android
-  let intentLink = '';
+  // App-specific URL schemes (WebView + Browser dono mein kaam karte hain)
+  // intent:// WebView mein kaam nahi karta — direct scheme use karo
+  let appUrl = '';
   if (app === 'phonepe') {
-    // PhonePe intent URL for Android
-    intentLink = `intent://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}#Intent;scheme=phonepe;package=com.phonepe.app;end`;
+    appUrl = `phonepe://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`;
   } else if (app === 'paytm') {
-    intentLink = `intent://upi/pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}#Intent;scheme=paytmmp;package=net.one97.paytm;end`;
+    appUrl = `paytmmp://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`;
   } else if (app === 'gpay') {
-    intentLink = `intent://upi/pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}#Intent;scheme=tez;package=com.google.android.apps.nbu.paisa.user;end`;
+    appUrl = `tez://upi/pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`;
   }
 
-  // Try app-specific intent first (Android)
-  if (intentLink && window.AndroidBridge) {
-    // Native Android app - use AndroidBridge to open
-    try {
-      window.location.href = intentLink;
-    } catch(e) {
-      window.location.href = upiLink;
-    }
-  } else {
-    // Web browser - use generic UPI link
-    window.location.href = upiLink;
-  }
+  // App-specific try karo, fallback generic UPI
+  window.location.href = appUrl || upiLink;
 
   // Show pending box after 3s + start polling for admin code
   setTimeout(() => {
@@ -2214,33 +2204,19 @@ async function checkAppStatus(){
       return true;
     }
 
-    // ── UPDATE SCREEN LOGIC — localStorage based ──
-    // User ke device pe pehli baar app khule → uska version localStorage mein save hota hai
-    // DB ka update_version > localStorage ka version → update screen dikhao
-    // Nayi HTML install hone ke baad bhi localStorage purana version rakhta hai
-    // Jab user "Update Now" click kare → localStorage clear hoga → naya version save hoga
-
+    // Update screen logic:
+    // APP_VERSION_CODE = is HTML file ka version — naya version deploy karte waqt yahan badlo
+    const APP_VERSION_CODE = 9;
     const serverVersion = parseInt(results['update_version'] || '0', 10);
+    // update_available explicitly 'true' ho tab hi check karo
     const updateEnabled = results['update_available'] === 'true';
-
-    // localStorage se user ka installed version lo
-    let installedVersion = parseInt(localStorage.getItem('tt_app_version') || '0', 10);
-
-    // Pehli baar app khul raha hai — current server version save karo
-    if(installedVersion === 0){
-      localStorage.setItem('tt_app_version', String(serverVersion || 8));
-      installedVersion = serverVersion || 8;
-    }
-
-    // Check: update_available=true AND server ka version > user ka installed version
-    if(updateEnabled && serverVersion > installedVersion && results['update_url']){
+    // Sirf tab dikhao jab: update_available=true AND update_version > is app ka version
+    // Agar user ke paas latest version hai → screen nahi aayegi
+    // Agar user ke paas purana version hai → screen aayegi
+    if(updateEnabled && serverVersion > APP_VERSION_CODE && results['update_url']){
       document.getElementById('updScreenTitle').textContent=results['update_title']||'New Update Available!';
       document.getElementById('updScreenMsg').textContent=results['update_message']||'Nayi features ke liye update karo.';
       document.getElementById('updNowBtn').href=results['update_url'];
-      // Update Now click pe localStorage clear karo taaki naya version save ho
-      document.getElementById('updNowBtn').addEventListener('click', ()=>{
-        localStorage.removeItem('tt_app_version');
-      });
       if(results['update_version']){
         document.getElementById('updScreenVerTxt').textContent='v'+results['update_version'];
         document.getElementById('updScreenVer').style.display='inline-flex';
