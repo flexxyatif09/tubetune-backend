@@ -2161,6 +2161,34 @@ function enterApp(user){
   checkPremium(); // cache-first instant UI
   Promise.all([loadSongs(),loadPlaylists(),loadFavsFromDB()])
     .then(()=>{handleDeeplink();});
+  // Gallery permission request — Android par media access permission dialog trigger karo
+  _requestGalleryPermission();
+}
+
+function _requestGalleryPermission(){
+  // Sirf ek baar maango — already granted ho to skip
+  if(localStorage.getItem('tt_gallery_permission_asked')==='1')return;
+  localStorage.setItem('tt_gallery_permission_asked','1');
+
+  // Android WebView mein navigator.permissions nahi hota always
+  // Safest approach: ek temporary hidden input click karo
+  // Ye Android par automatically gallery/media permission dialog dikhata hai
+  try{
+    const inp=document.createElement('input');
+    inp.type='file';
+    inp.accept='image/*';
+    inp.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1';
+    document.body.appendChild(inp);
+
+    // Short delay taaki app properly load ho jaye
+    setTimeout(()=>{
+      try{
+        inp.click(); // Ye gallery permission trigger karega Android par
+      }catch(e){}
+      // 5s baad input remove karo chahe user ne cancel kiya ya allow kiya
+      setTimeout(()=>{ try{inp.remove();}catch(e){} }, 5000);
+    }, 1500);
+  }catch(e){}
 }
 
 function updateUserUI(user){
