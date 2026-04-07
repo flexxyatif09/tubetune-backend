@@ -2204,19 +2204,33 @@ async function checkAppStatus(){
       return true;
     }
 
-    // Update screen logic:
-    // APP_VERSION_CODE = is HTML file ka version — naya version deploy karte waqt yahan badlo
-    const APP_VERSION_CODE = 9;
+    // ── UPDATE SCREEN LOGIC — localStorage based ──
+    // User ke device pe pehli baar app khule → uska version localStorage mein save hota hai
+    // DB ka update_version > localStorage ka version → update screen dikhao
+    // Nayi HTML install hone ke baad bhi localStorage purana version rakhta hai
+    // Jab user "Update Now" click kare → localStorage clear hoga → naya version save hoga
+
     const serverVersion = parseInt(results['update_version'] || '0', 10);
-    // update_available explicitly 'true' ho tab hi check karo
     const updateEnabled = results['update_available'] === 'true';
-    // Sirf tab dikhao jab: update_available=true AND update_version > is app ka version
-    // Agar user ke paas latest version hai → screen nahi aayegi
-    // Agar user ke paas purana version hai → screen aayegi
-    if(updateEnabled && serverVersion > APP_VERSION_CODE && results['update_url']){
+
+    // localStorage se user ka installed version lo
+    let installedVersion = parseInt(localStorage.getItem('tt_app_version') || '0', 10);
+
+    // Pehli baar app khul raha hai — current server version save karo
+    if(installedVersion === 0){
+      localStorage.setItem('tt_app_version', String(serverVersion || 8));
+      installedVersion = serverVersion || 8;
+    }
+
+    // Check: update_available=true AND server ka version > user ka installed version
+    if(updateEnabled && serverVersion > installedVersion && results['update_url']){
       document.getElementById('updScreenTitle').textContent=results['update_title']||'New Update Available!';
       document.getElementById('updScreenMsg').textContent=results['update_message']||'Nayi features ke liye update karo.';
       document.getElementById('updNowBtn').href=results['update_url'];
+      // Update Now click pe localStorage clear karo taaki naya version save ho
+      document.getElementById('updNowBtn').addEventListener('click', ()=>{
+        localStorage.removeItem('tt_app_version');
+      });
       if(results['update_version']){
         document.getElementById('updScreenVerTxt').textContent='v'+results['update_version'];
         document.getElementById('updScreenVer').style.display='inline-flex';
