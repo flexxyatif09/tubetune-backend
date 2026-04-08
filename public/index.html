@@ -1284,7 +1284,7 @@ audio{display:none}
     <div class="cs-step on" id="csStep1">
       <div class="cs-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Screenshot Bhejo</div>
       <div class="cs-sub">Payment ka screenshot upload karo + apna email daalo. Admin manually verify karke plan activate kar dega.</div>
-      <div class="cs-upload" onclick="requestGalleryAndUpload()">
+      <div class="cs-upload" onclick="document.getElementById('ssInp').click()">
         <input type="file" id="ssInp" accept="image/*" onchange="handleSsFile(event)" style="position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1.5" style="margin-bottom:8px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         <div style="font-size:13px;font-weight:700;color:var(--tx2);margin-bottom:3px">Screenshot tap karke upload karo</div>
@@ -1695,7 +1695,6 @@ function buyPlan(planId, planName, planPrice) {
   _upiPlanId   = planId;
   _upiPlanName = planName;
   _upiPlanPrice= planPrice;
-  _pendingPaymentRegistered = false; // Naya plan = fresh registration allow karo
 
   // Update modal UI
   document.getElementById('upiPlanLabel').textContent = '"' + planName + '" — ₹' + planPrice;
@@ -1751,25 +1750,39 @@ function openUpiApp(app) {
   _registerPendingPayment();
 }
 
-let _pendingPaymentRegistered = false; // Duplicate register hone se rokne ke liye
-
 async function _registerPendingPayment() {
-  // Agar already register ho chuka hai to dobara mat karo
-  if (_pendingPaymentRegistered) {
-    console.log('Payment already registered, skipping duplicate');
-    return;
-  }
-  _pendingPaymentRegistered = true;
-
   try {
     const token = SS.token();
-    if (!token || !_upiPlanId) { _pendingPaymentRegistered = false; return; }
+    if (!token || !_upiPlanId) return;
     const user = SS.user();
 
-    // Sirf ek jagah save karo — pehle backend try karo
-    let saved = false;
+    // Direct Supabase mein save karo (backend se independent)
     try {
-      const bRes = await fetch(`${API}/api/upi-payment-pending`, {
+      await fetch(SB_URL + '/rest/v1/upi_payments', {
+        method: 'POST',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          user_id: user?.id || null,
+          user_email: user?.email || '',
+          plan_id: _upiPlanId,
+          plan_name: _upiPlanName,
+          amount: _upiPlanPrice,
+          upi_id: UPI_ID,
+          status: 'pending',
+          type: 'payment',
+          created_at: new Date().toISOString()
+        })
+      });
+    } catch(e) { console.warn('Supabase save:', e); }
+
+    // Also try backend API
+    try {
+      await fetch(`${API}/api/upi-payment-pending`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify({
@@ -1778,35 +1791,8 @@ async function _registerPendingPayment() {
           user_email: user?.email || '', user_id: user?.id || ''
         })
       });
-      if (bRes.ok) saved = true;
     } catch(e) {}
-
-    // Agar backend fail ho to Supabase direct use karo (fallback)
-    if (!saved) {
-      try {
-        await fetch(SB_URL + '/rest/v1/upi_payments', {
-          method: 'POST',
-          headers: {
-            apikey: SB_KEY,
-            Authorization: 'Bearer ' + token,
-            'Content-Type': 'application/json',
-            Prefer: 'return=minimal'
-          },
-          body: JSON.stringify({
-            user_id: user?.id || null,
-            user_email: user?.email || '',
-            plan_id: _upiPlanId,
-            plan_name: _upiPlanName,
-            amount: _upiPlanPrice,
-            upi_id: UPI_ID,
-            status: 'pending',
-            type: 'payment',
-            created_at: new Date().toISOString()
-          })
-        });
-      } catch(e) { console.warn('Supabase save:', e); _pendingPaymentRegistered = false; }
-    }
-  } catch(e) { console.warn('Pending reg:', e); _pendingPaymentRegistered = false; }
+  } catch(e) { console.warn('Pending reg:', e); }
 }
 
 async function submitUpiVerification() {
@@ -1868,29 +1854,6 @@ function closeContactAdmin() {
   document.getElementById('upiOverlay').classList.add('open');
 }
 
-// Android gallery permission request + file picker open karo
-async function requestGalleryAndUpload() {
-  try {
-    // Android 13+ ke liye READ_MEDIA_IMAGES permission
-    if (navigator.permissions && navigator.permissions.query) {
-      try {
-        const result = await navigator.permissions.query({ name: 'camera' });
-        // Camera permission check — Android WebView mein gallery ke liye kaam karta hai
-      } catch(e) {}
-    }
-
-    // MediaDevices se gallery access (agar browser support kare)
-    // Yahan file input click karo — browser khud permission dialog dikhayega
-    const inp = document.getElementById('ssInp');
-    // PWA/WebView mein extra attributes set karo for Android gallery
-    inp.removeAttribute('capture'); // Ensure gallery opens, not camera
-    inp.click();
-  } catch(e) {
-    // Fallback: direct click
-    document.getElementById('ssInp').click();
-  }
-}
-
 function handleSsFile(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -1909,61 +1872,38 @@ async function sendToAdmin() {
   const ssFile = document.getElementById('ssInp').files[0];
   if (!email) { toast('Email daalo', 'err'); return; }
   if (!ssFile) { toast('Screenshot zaroor lagao', 'err'); return; }
-  if (ssFile.size > 10 * 1024 * 1024) { toast('Screenshot 10MB se chota hona chahiye', 'err'); return; }
+  if (ssFile.size > 4 * 1024 * 1024) { toast('Screenshot 4MB se chota hona chahiye', 'err'); return; }
 
   const btn = document.querySelector('#csStep1 .cs-btn');
   btn.disabled = true;
   btn.innerHTML = '<svg width="15" height="15" style="animation:spinning .7s linear infinite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg> Bhej raha hai...';
 
   try {
-    // Step 1: Supabase Storage mein upload karo
-    let screenshotUrl = '';
-    try {
-      const ext = (ssFile.name || 'img').split('.').pop() || 'jpg';
-      const fileName = 'payment_' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.' + ext;
-      const uploadRes = await fetch(SB_URL + '/storage/v1/object/upi-screenshots/' + fileName, {
-        method: 'POST',
-        headers: {
-          'apikey': SB_KEY,
-          'Authorization': 'Bearer ' + (SS.token() || SB_KEY),
-          'Content-Type': ssFile.type || 'image/jpeg',
-          'x-upsert': 'true'
-        },
-        body: ssFile
-      });
-      if (uploadRes.ok) {
-        screenshotUrl = SB_URL + '/storage/v1/object/public/upi-screenshots/' + fileName;
-      }
-    } catch(e) { console.warn('Storage upload failed:', e); }
-
-    // Step 2: Agar storage fail — compressed base64 fallback
-    let ssB64 = '';
-    if (!screenshotUrl) {
-      ssB64 = await new Promise((res) => {
-        const reader = new FileReader();
-        reader.onload = ev => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const maxW = 600, maxH = 600;
-            let w = img.width, h = img.height;
-            if (w > maxW) { h = h * maxW / w; w = maxW; }
-            if (h > maxH) { w = w * maxH / h; h = maxH; }
-            canvas.width = w; canvas.height = h;
-            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            res(canvas.toDataURL('image/jpeg', 0.5));
-          };
-          img.onerror = () => res('');
-          img.src = ev.target.result;
+    // Compress image before sending
+    const ssB64 = await new Promise((res,rej) => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxW = 800, maxH = 800;
+          let w = img.width, h = img.height;
+          if (w > maxW) { h = h * maxW / w; w = maxW; }
+          if (h > maxH) { w = w * maxH / h; h = maxH; }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          res(canvas.toDataURL('image/jpeg', 0.7));
         };
-        reader.onerror = () => res('');
-        reader.readAsDataURL(ssFile);
-      });
-    }
+        img.onerror = rej;
+        img.src = ev.target.result;
+      };
+      reader.onerror = rej;
+      reader.readAsDataURL(ssFile);
+    });
 
     let saved = false;
 
-    // Step 3: Primary — Backend API
+    // Primary: Backend API se save karo
     try {
       const bRes = await fetch(`${API}/api/upi-contact-admin`, {
         method: 'POST',
@@ -1971,58 +1911,41 @@ async function sendToAdmin() {
         body: JSON.stringify({
           user_email: email, plan_name: _upiPlanName||'',
           amount: _upiPlanPrice||0, message: msg,
-          screenshot_url: screenshotUrl,
-          screenshot: screenshotUrl ? '' : ssB64,
-          user_id: SS.user()?.id||''
+          screenshot: ssB64, user_id: SS.user()?.id||''
         })
       });
       if (bRes.ok) { const bd = await bRes.json(); if (bd.success) saved = true; }
-    } catch(e) { console.warn('Backend API failed:', e); }
+    } catch(e) {}
 
-    // Step 4: Fallback — Direct Supabase
+    // Fallback: Direct Supabase
     if (!saved) {
-      const token = SS.token();
-      const hdr = {
-        'Content-Type': 'application/json', 'Prefer': 'return=minimal',
-        'apikey': SB_KEY, 'Authorization': 'Bearer ' + (token || SB_KEY)
-      };
-      const payload = {
-        user_id: SS.user()?.id || null, user_email: email,
-        plan_name: _upiPlanName || '', amount: _upiPlanPrice || 0,
-        message: msg, has_screenshot: !!(screenshotUrl || ssB64),
-        status: 'pending', created_at: new Date().toISOString()
-      };
-      if (screenshotUrl) payload.screenshot_url = screenshotUrl;
-      else if (ssB64) payload.screenshot = ssB64;
-
       try {
+        const token = SS.token();
+        const hdr = { 'Content-Type': 'application/json', Prefer: 'return=minimal' };
+        hdr['apikey'] = SB_KEY;
+        hdr['Authorization'] = 'Bearer ' + (token || SB_KEY);
         const sbRes = await fetch(`${SB_URL}/rest/v1/upi_payments`, {
-          method: 'POST', headers: hdr, body: JSON.stringify(payload)
+          method: 'POST', headers: hdr,
+          body: JSON.stringify({
+            user_id: SS.user()?.id || null, user_email: email,
+            plan_name: _upiPlanName || '', amount: _upiPlanPrice || 0,
+            message: msg, screenshot: ssB64,
+            type: 'contact', has_screenshot: true,
+            status: 'pending', created_at: new Date().toISOString()
+          })
         });
-        if (sbRes.ok || sbRes.status === 201) {
-          saved = true;
-        } else {
-          // screenshot column se error aa rahi ho toh bina screenshot ke try karo
-          const errTxt = await sbRes.text();
-          console.warn('Supabase err:', errTxt);
-          delete payload.screenshot; delete payload.screenshot_url;
-          const sbRes2 = await fetch(`${SB_URL}/rest/v1/upi_payments`, {
-            method: 'POST', headers: hdr, body: JSON.stringify(payload)
-          });
-          if (sbRes2.ok || sbRes2.status === 201) saved = true;
-        }
-      } catch(e) { console.warn('Supabase failed:', e); }
+        if (sbRes.ok || sbRes.status === 201) saved = true;
+      } catch(e) {}
     }
 
-    if (!saved) throw new Error('Network problem — dobara try karo');
+    if (!saved) throw new Error('Save nahi hua — internet check karo aur dobara try karo');
 
     document.getElementById('csStep1').classList.remove('on');
     document.getElementById('csStep2').classList.add('on');
-    toast('Admin ko bhej diya!', 'ok');
-  } catch(e) { toast(' ' + (e.message || 'Error aaya'), 'err'); }
+    toast('✅ Admin ko bhej diya!', 'ok');
+  } catch(e) { toast('❌ ' + (e.message || 'Error aaya'), 'err'); }
   btn.disabled = false;
   btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Admin ko Bhejo';
-}
 }
 
 // Check if admin has approved and generated a code for this user
@@ -2268,18 +2191,10 @@ async function checkAppStatus(){
     const H={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY};
     const keys=['maintenance','maintenance_message','update_available','update_title','update_message','update_url','update_version'];
     const results={};
-    // 5 second timeout — agar Supabase slow ho toh splash nahi atke
-    const fetchWithTimeout=(url,opts,ms=5000)=>{
-      const ctrl=new AbortController();
-      const tid=setTimeout(()=>ctrl.abort(),ms);
-      return fetch(url,{...opts,signal:ctrl.signal}).finally(()=>clearTimeout(tid));
-    };
     await Promise.all(keys.map(async k=>{
-      try{
-        const r=await fetchWithTimeout(`${SB_URL}/rest/v1/app_config?key=eq.${encodeURIComponent(k)}&select=value`,{headers:H});
-        if(r.ok){const d=await r.json();results[k]=d[0]?.value??null;}
-        else results[k]=null;
-      }catch(e){results[k]=null;}
+      const r=await fetch(`${SB_URL}/rest/v1/app_config?key=eq.${encodeURIComponent(k)}&select=value`,{headers:H});
+      if(r.ok){const d=await r.json();results[k]=d[0]?.value??null;}
+      else results[k]=null;
     }));
 
     // Maintenance — highest priority
@@ -2335,20 +2250,9 @@ function hideSplash(){
   setTimeout(()=>{ if(sp.parentNode)sp.remove(); },380);
   // Android native splash bhi hatao
   if(window.AndroidBridge){ try{AndroidBridge.splashDone();}catch(e){} }
-  // Boot safety timer cancel karo
-  if(window._bootDone) window._bootDone();
 }
 
 async function boot(){
-  // Safety net — 8 seconds mein kuch bhi na chale toh splash hatao
-  const splashSafetyTimer = setTimeout(()=>{
-    hideSplash();
-    console.warn('Boot timeout — splash force removed');
-  }, 8000);
-  // Boot complete hone pe timer cancel karo
-  const origHideSplash = hideSplash;
-  window._bootDone = ()=>{ clearTimeout(splashSafetyTimer); };
-
   // ── Audio listeners PEHLE ──
   aud.addEventListener('timeupdate',onTU);
   aud.addEventListener('ended',onEnded);
