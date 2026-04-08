@@ -649,7 +649,6 @@ audio{display:none}
 .cs-sub{font-size:13px;color:var(--tx2);margin-bottom:18px;line-height:1.5}
 .cs-upload{border:2px dashed rgba(255,255,255,.14);border-radius:16px;padding:28px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px;position:relative}
 .cs-upload:hover{border-color:rgba(108,92,231,.4);background:rgba(108,92,231,.04)}
-.cs-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .cs-preview{max-width:100%;border-radius:10px;margin-top:10px;display:none;max-height:200px;object-fit:contain}
 .cs-inp{width:100%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.09);border-radius:13px;padding:13px 15px;color:var(--tx);font-family:'Outfit',sans-serif;font-size:14px;outline:none;margin-bottom:10px;transition:border-color .2s}
 .cs-inp:focus{border-color:var(--p)}
@@ -1284,8 +1283,8 @@ audio{display:none}
     <div class="cs-step on" id="csStep1">
       <div class="cs-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Screenshot Bhejo</div>
       <div class="cs-sub">Payment ka screenshot upload karo + apna email daalo. Admin manually verify karke plan activate kar dega.</div>
-      <div class="cs-upload" onclick="requestGalleryAndUpload()">
-        <input type="file" id="ssInp" accept="image/*" onchange="handleSsFile(event)" style="position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer">
+      <input type="file" id="ssInp" accept="image/*" style="display:none" onchange="handleSsFile(event)">
+      <div class="cs-upload" onclick="document.getElementById('ssInp').click()">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1.5" style="margin-bottom:8px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         <div style="font-size:13px;font-weight:700;color:var(--tx2);margin-bottom:3px">Screenshot tap karke upload karo</div>
         <div style="font-size:11px;color:var(--tx3)">JPG, PNG — payment proof</div>
@@ -1897,8 +1896,16 @@ function handleSsFile(e) {
   const reader = new FileReader();
   reader.onload = ev => {
     const p = document.getElementById('ssPreview');
+    p.onload = () => { p.style.display = 'block'; };
     p.src = ev.target.result;
-    p.style.display = 'block';
+    // Upload area ke placeholder text hide karo
+    const uploadDiv = document.querySelector('.cs-upload');
+    if (uploadDiv) {
+      const svgEl = uploadDiv.querySelector('svg');
+      const texts = uploadDiv.querySelectorAll('div');
+      if (svgEl) svgEl.style.display = 'none';
+      texts.forEach(t => t.style.display = 'none');
+    }
   };
   reader.readAsDataURL(file);
 }
