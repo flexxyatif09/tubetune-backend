@@ -2268,10 +2268,18 @@ async function checkAppStatus(){
     const H={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY};
     const keys=['maintenance','maintenance_message','update_available','update_title','update_message','update_url','update_version'];
     const results={};
+    // 5 second timeout — agar Supabase slow ho toh splash nahi atke
+    const fetchWithTimeout=(url,opts,ms=5000)=>{
+      const ctrl=new AbortController();
+      const tid=setTimeout(()=>ctrl.abort(),ms);
+      return fetch(url,{...opts,signal:ctrl.signal}).finally(()=>clearTimeout(tid));
+    };
     await Promise.all(keys.map(async k=>{
-      const r=await fetch(`${SB_URL}/rest/v1/app_config?key=eq.${encodeURIComponent(k)}&select=value`,{headers:H});
-      if(r.ok){const d=await r.json();results[k]=d[0]?.value??null;}
-      else results[k]=null;
+      try{
+        const r=await fetchWithTimeout(`${SB_URL}/rest/v1/app_config?key=eq.${encodeURIComponent(k)}&select=value`,{headers:H});
+        if(r.ok){const d=await r.json();results[k]=d[0]?.value??null;}
+        else results[k]=null;
+      }catch(e){results[k]=null;}
     }));
 
     // Maintenance — highest priority
@@ -2327,9 +2335,20 @@ function hideSplash(){
   setTimeout(()=>{ if(sp.parentNode)sp.remove(); },380);
   // Android native splash bhi hatao
   if(window.AndroidBridge){ try{AndroidBridge.splashDone();}catch(e){} }
+  // Boot safety timer cancel karo
+  if(window._bootDone) window._bootDone();
 }
 
 async function boot(){
+  // Safety net — 8 seconds mein kuch bhi na chale toh splash hatao
+  const splashSafetyTimer = setTimeout(()=>{
+    hideSplash();
+    console.warn('Boot timeout — splash force removed');
+  }, 8000);
+  // Boot complete hone pe timer cancel karo
+  const origHideSplash = hideSplash;
+  window._bootDone = ()=>{ clearTimeout(splashSafetyTimer); };
+
   // ── Audio listeners PEHLE ──
   aud.addEventListener('timeupdate',onTU);
   aud.addEventListener('ended',onEnded);
