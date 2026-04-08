@@ -650,7 +650,7 @@ audio{display:none}
 .cs-upload{border:2px dashed rgba(255,255,255,.14);border-radius:16px;padding:28px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px;position:relative}
 .cs-upload:hover{border-color:rgba(108,92,231,.4);background:rgba(108,92,231,.04)}
 .cs-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.cs-preview{max-width:100%;border-radius:10px;margin-top:10px;display:none;max-height:200px;object-fit:contain}
+.cs-preview{max-width:100%;border-radius:10px;margin-top:8px;display:none;max-height:220px;object-fit:contain;width:100%}
 .cs-inp{width:100%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.09);border-radius:13px;padding:13px 15px;color:var(--tx);font-family:'Outfit',sans-serif;font-size:14px;outline:none;margin-bottom:10px;transition:border-color .2s}
 .cs-inp:focus{border-color:var(--p)}
 .cs-inp::placeholder{color:var(--tx3)}
@@ -1284,11 +1284,13 @@ audio{display:none}
     <div class="cs-step on" id="csStep1">
       <div class="cs-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Screenshot Bhejo</div>
       <div class="cs-sub">Payment ka screenshot upload karo + apna email daalo. Admin manually verify karke plan activate kar dega.</div>
-      <div class="cs-upload" onclick="document.getElementById('ssInp').click()">
-        <input type="file" id="ssInp" accept="image/*" onchange="handleSsFile(event)" style="position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer">
+      <div class="cs-upload" id="csUploadDiv" onclick="document.getElementById('ssInp').click()">
+        <input type="file" id="ssInp" accept="image/*" onchange="handleSsFile(event)" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none">
+        <div id="csUploadPlaceholder">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1.5" style="margin-bottom:8px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         <div style="font-size:13px;font-weight:700;color:var(--tx2);margin-bottom:3px">Screenshot tap karke upload karo</div>
         <div style="font-size:11px;color:var(--tx3)">JPG, PNG — payment proof</div>
+        </div>
         <img id="ssPreview" class="cs-preview" alt="">
       </div>
       <input class="cs-inp" id="contactEmail" type="email" placeholder="Apna email daalo...">
@@ -1756,33 +1758,10 @@ async function _registerPendingPayment() {
     if (!token || !_upiPlanId) return;
     const user = SS.user();
 
-    // Direct Supabase mein save karo (backend se independent)
+    // Pehle Backend API try karo — yeh DB mein save karega
+    let saved = false;
     try {
-      await fetch(SB_URL + '/rest/v1/upi_payments', {
-        method: 'POST',
-        headers: {
-          apikey: SB_KEY,
-          Authorization: 'Bearer ' + token,
-          'Content-Type': 'application/json',
-          Prefer: 'return=minimal'
-        },
-        body: JSON.stringify({
-          user_id: user?.id || null,
-          user_email: user?.email || '',
-          plan_id: _upiPlanId,
-          plan_name: _upiPlanName,
-          amount: _upiPlanPrice,
-          upi_id: UPI_ID,
-          status: 'pending',
-          type: 'payment',
-          created_at: new Date().toISOString()
-        })
-      });
-    } catch(e) { console.warn('Supabase save:', e); }
-
-    // Also try backend API
-    try {
-      await fetch(`${API}/api/upi-payment-pending`, {
+      const bRes = await fetch(`${API}/api/upi-payment-pending`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify({
@@ -1791,7 +1770,34 @@ async function _registerPendingPayment() {
           user_email: user?.email || '', user_id: user?.id || ''
         })
       });
-    } catch(e) {}
+      if (bRes.ok) saved = true;
+    } catch(e) { console.warn('Backend API fail:', e); }
+
+    // Sirf tab Supabase direct use karo jab backend fail ho
+    if (!saved) {
+      try {
+        await fetch(SB_URL + '/rest/v1/upi_payments', {
+          method: 'POST',
+          headers: {
+            apikey: SB_KEY,
+            Authorization: 'Bearer ' + token,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal'
+          },
+          body: JSON.stringify({
+            user_id: user?.id || null,
+            user_email: user?.email || '',
+            plan_id: _upiPlanId,
+            plan_name: _upiPlanName,
+            amount: _upiPlanPrice,
+            upi_id: UPI_ID,
+            status: 'pending',
+            type: 'payment',
+            created_at: new Date().toISOString()
+          })
+        });
+      } catch(e) { console.warn('Supabase save:', e); }
+    }
   } catch(e) { console.warn('Pending reg:', e); }
 }
 
@@ -1860,8 +1866,13 @@ function handleSsFile(e) {
   const reader = new FileReader();
   reader.onload = ev => {
     const p = document.getElementById('ssPreview');
+    const placeholder = document.getElementById('csUploadPlaceholder');
     p.src = ev.target.result;
     p.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+    // Change border color to indicate selected
+    const uploadDiv = document.getElementById('csUploadDiv');
+    if (uploadDiv) uploadDiv.style.borderColor = 'rgba(0,206,201,.5)';
   };
   reader.readAsDataURL(file);
 }
@@ -1872,34 +1883,66 @@ async function sendToAdmin() {
   const ssFile = document.getElementById('ssInp').files[0];
   if (!email) { toast('Email daalo', 'err'); return; }
   if (!ssFile) { toast('Screenshot zaroor lagao', 'err'); return; }
-  if (ssFile.size > 4 * 1024 * 1024) { toast('Screenshot 4MB se chota hona chahiye', 'err'); return; }
+  if (ssFile.size > 15 * 1024 * 1024) { toast('Screenshot 15MB se chota hona chahiye', 'err'); return; }
 
   const btn = document.querySelector('#csStep1 .cs-btn');
   btn.disabled = true;
   btn.innerHTML = '<svg width="15" height="15" style="animation:spinning .7s linear infinite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg> Bhej raha hai...';
 
   try {
-    // Compress image before sending
-    const ssB64 = await new Promise((res,rej) => {
+    // Step 1: Compress image to Blob
+    const compressedBlob = await new Promise((res, rej) => {
       const reader = new FileReader();
       reader.onload = ev => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const maxW = 800, maxH = 800;
+          const maxW = 1200, maxH = 1200;
           let w = img.width, h = img.height;
-          if (w > maxW) { h = h * maxW / w; w = maxW; }
-          if (h > maxH) { w = w * maxH / h; h = maxH; }
+          if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+          if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
           canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          res(canvas.toDataURL('image/jpeg', 0.7));
+          canvas.toBlob(blob => blob ? res(blob) : rej(new Error('Compress fail')), 'image/jpeg', 0.8);
         };
-        img.onerror = rej;
+        img.onerror = () => rej(new Error('Image load fail'));
         img.src = ev.target.result;
       };
-      reader.onerror = rej;
+      reader.onerror = () => rej(new Error('File read fail'));
       reader.readAsDataURL(ssFile);
     });
+
+    // Step 2: Supabase Storage mein upload karo
+    let screenshotUrl = null;
+    try {
+      const token = SS.token();
+      const fileName = 'ss_' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.jpg';
+      const uploadRes = await fetch(
+        SB_URL + '/storage/v1/object/payment-screenshots/' + fileName,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'image/jpeg',
+            'Authorization': 'Bearer ' + (token || SB_KEY),
+            'apikey': SB_KEY,
+            'x-upsert': 'true'
+          },
+          body: compressedBlob
+        }
+      );
+      const uploadData = await uploadRes.json().catch(() => ({}));
+      console.log('Storage upload response:', uploadRes.status, uploadData);
+      if (uploadRes.status === 200 || uploadRes.status === 201 || uploadData.Key || uploadData.path) {
+        screenshotUrl = SB_URL + '/storage/v1/object/public/payment-screenshots/' + fileName;
+      } else {
+        console.warn('Storage fail, status:', uploadRes.status, 'body:', uploadData);
+      }
+    } catch(storageErr) {
+      console.warn('Storage exception:', storageErr.message);
+    }
+
+    // Storage fail toh null rakhna — screenshot ke bina bhi save karega
+    // (base64 DB mein nahi jayega — column size limit se fail hoga)
 
     let saved = false;
 
@@ -1911,7 +1954,7 @@ async function sendToAdmin() {
         body: JSON.stringify({
           user_email: email, plan_name: _upiPlanName||'',
           amount: _upiPlanPrice||0, message: msg,
-          screenshot: ssB64, user_id: SS.user()?.id||''
+          screenshot: screenshotUrl, user_id: SS.user()?.id||''
         })
       });
       if (bRes.ok) { const bd = await bRes.json(); if (bd.success) saved = true; }
@@ -1924,21 +1967,31 @@ async function sendToAdmin() {
         const hdr = { 'Content-Type': 'application/json', Prefer: 'return=minimal' };
         hdr['apikey'] = SB_KEY;
         hdr['Authorization'] = 'Bearer ' + (token || SB_KEY);
-        const sbRes = await fetch(`${SB_URL}/rest/v1/upi_payments`, {
+        const payload = {
+          user_id: SS.user()?.id || null, user_email: email,
+          plan_name: _upiPlanName || '', amount: _upiPlanPrice || 0,
+          message: msg, screenshot: screenshotUrl,
+          type: 'contact',
+          status: 'pending', created_at: new Date().toISOString()
+        };
+        console.log('Saving to DB, screenshot field length:', screenshotUrl ? screenshotUrl.length : 0);
+        const sbRes = await fetch(SB_URL + '/rest/v1/upi_payments', {
           method: 'POST', headers: hdr,
-          body: JSON.stringify({
-            user_id: SS.user()?.id || null, user_email: email,
-            plan_name: _upiPlanName || '', amount: _upiPlanPrice || 0,
-            message: msg, screenshot: ssB64,
-            type: 'contact', has_screenshot: true,
-            status: 'pending', created_at: new Date().toISOString()
-          })
+          body: JSON.stringify(payload)
         });
-        if (sbRes.ok || sbRes.status === 201) saved = true;
-      } catch(e) {}
+        const sbBody = await sbRes.text().catch(() => '');
+        console.log('DB save response:', sbRes.status, sbBody.slice(0, 200));
+        if (sbRes.ok || sbRes.status === 201) {
+          saved = true;
+        } else {
+          throw new Error('DB error ' + sbRes.status + ': ' + sbBody.slice(0, 100));
+        }
+      } catch(e) {
+        throw new Error(e.message || 'DB save fail');
+      }
     }
 
-    if (!saved) throw new Error('Save nahi hua — internet check karo aur dobara try karo');
+    if (!saved) throw new Error('Save nahi hua — dobara try karo');
 
     document.getElementById('csStep1').classList.remove('on');
     document.getElementById('csStep2').classList.add('on');
