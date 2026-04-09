@@ -71,21 +71,89 @@ async function getMp3AndUpload(videoId, title, artist) {
 
 
 
-// ── STREAM URL — Direct play ke liye fresh link ──
+// ── STREAM URL — Direct play ke liye fresh link (Multi-API Fallback) ──
+
+// Helper: API 1 — youtube-mp36 (original)
+async function tryApi1(videoId) {
+  const r = await fetch(
+    `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
+    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com' } }
+  );
+  const d = await r.json();
+  console.log('[API1] youtube-mp36 status:', d.status, d.msg || '');
+  if (d.status === 'ok' && d.link) {
+    const duration = d.duration
+      ? `${Math.floor(d.duration/60)}:${String(Math.round(d.duration%60)).padStart(2,'0')}`
+      : '0:00';
+    return { url: d.link, duration };
+  }
+  throw new Error('API1 fail: ' + (d.msg || d.status || 'unknown'));
+}
+
+// Helper: API 2 — youtube-mp3-downloader2
+async function tryApi2(videoId) {
+  const r = await fetch(
+    `https://youtube-mp3-downloader2.p.rapidapi.com/ytmp3/ytmp3/?url=https://www.youtube.com/watch?v=${videoId}`,
+    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp3-downloader2.p.rapidapi.com' } }
+  );
+  const d = await r.json();
+  console.log('[API2] ytmp3-downloader2 status:', d.status, d.msg || '');
+  if ((d.status === 'ok' || d.status === 'processing') && d.dlink) {
+    return { url: d.dlink, duration: d.duration || '0:00' };
+  }
+  throw new Error('API2 fail: ' + (d.msg || d.status || 'unknown'));
+}
+
+// Helper: API 3 — all-in-one-downloader
+async function tryApi3(videoId) {
+  const r = await fetch(
+    `https://all-in-one-downloader.p.rapidapi.com/api/youtube/mp3?url=https://www.youtube.com/watch?v=${videoId}`,
+    {
+      method: 'GET',
+      headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'all-in-one-downloader.p.rapidapi.com' }
+    }
+  );
+  const d = await r.json();
+  console.log('[API3] all-in-one-downloader:', d.status || 'no status');
+  const url = d.url || d.link || d.download_url || d.audio;
+  if (url) {
+    return { url, duration: d.duration || '0:00' };
+  }
+  throw new Error('API3 fail: ' + JSON.stringify(d).slice(0, 80));
+}
+
 app.post('/api/stream-url', async (req, res) => {
   try {
     const { videoId } = req.body;
     if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
-    const r = await fetch(
-      `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
-      { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com' } }
-    );
-    const d = await r.json();
-    if (d.status !== 'ok' || !d.link) throw new Error('Link nahi mila: ' + (d.msg || ''));
-    const duration = d.duration
-      ? `${Math.floor(d.duration/60)}:${String(Math.round(d.duration%60)).padStart(2,'0')}`
-      : '0:00';
-    res.json({ success: true, url: d.link, duration });
+
+    const errors = [];
+
+    // API 1 try karo
+    try {
+      const result = await tryApi1(videoId);
+      console.log('[stream-url] API1 success ✅');
+      return res.json({ success: true, ...result });
+    } catch (e) { errors.push('API1: ' + e.message); }
+
+    // API 2 try karo
+    try {
+      const result = await tryApi2(videoId);
+      console.log('[stream-url] API2 success ✅');
+      return res.json({ success: true, ...result });
+    } catch (e) { errors.push('API2: ' + e.message); }
+
+    // API 3 try karo
+    try {
+      const result = await tryApi3(videoId);
+      console.log('[stream-url] API3 success ✅');
+      return res.json({ success: true, ...result });
+    } catch (e) { errors.push('API3: ' + e.message); }
+
+    // Sab fail
+    console.error('[stream-url] Sab APIs fail ho gayi:', errors);
+    res.status(500).json({ success: false, error: 'Abhi stream unavailable hai. Thodi der baad try karo.' });
+
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
