@@ -150,16 +150,6 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .auth-switch{text-align:center;margin-top:18px;font-size:13px;color:var(--tx2)}
 .auth-switch b{color:var(--p2);font-weight:600;cursor:pointer}
 .auth-switch b:hover{text-decoration:underline}
-.auth-divider{display:flex;align-items:center;gap:10px;margin:14px 0}
-.auth-divider span{font-size:12px;color:var(--tx3);white-space:nowrap;font-weight:500}
-.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--bd2)}
-.google-btn{width:100%;padding:14px;background:var(--s2);border:1.5px solid var(--bd2);border-radius:18px;color:var(--tx);font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;position:relative;overflow:hidden;-webkit-tap-highlight-color:rgba(0,0,0,0)}
-.google-btn:hover{background:var(--s3);border-color:var(--bd3);transform:translateY(-1px)}
-.google-btn:active{transform:scale(.98)}
-.google-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.google-btn .spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spinning .7s linear infinite;display:none}
-.google-btn.ld .spin{display:block}
-.google-btn.ld .btn-txt{display:none}
 @keyframes ringPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.25;transform:scale(1.06)}}
 
 /* ── APP ── */
@@ -808,11 +798,6 @@ audio{display:none}
           <div class="field-err-txt" id="lPassErr">Password zaroori hai</div>
         </div>
         <button class="auth-btn" id="loginBtn" onclick="doLogin()"><div class="spin"></div><span class="btn-txt">Sign In</span></button>
-        <div class="auth-divider"><span>ya</span></div>
-        <button class="google-btn" id="googleLoginBtn" onclick="doGoogleAuth()">
-          <div class="spin"></div>
-          <span class="btn-txt" style="display:flex;align-items:center;gap:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> Google se Login Karo</span>
-        </button>
       </div>
       <div class="auth-switch">Account nahi hai? <b onclick="goSignup()">Sign up karo</b></div>
     </div>
@@ -848,11 +833,6 @@ audio{display:none}
           <div class="field-err-txt" id="sPassErr">Min 8 characters chahiye</div>
         </div>
         <button class="auth-btn" id="signupBtn" onclick="doSignup()"><div class="spin"></div><span class="btn-txt">Create Account</span></button>
-        <div class="auth-divider"><span>ya</span></div>
-        <button class="google-btn" id="googleSignupBtn" onclick="doGoogleAuth()">
-          <div class="spin"></div>
-          <span class="btn-txt" style="display:flex;align-items:center;gap:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> Google se Sign Up Karo</span>
-        </button>
       </div>
       <div class="auth-switch">Pehle se account hai? <b onclick="goLogin()">Sign in karo</b></div>
     </div>
@@ -2325,85 +2305,7 @@ function hideSplash(){
   if(window.AndroidBridge){ try{AndroidBridge.splashDone();}catch(e){} }
 }
 
-
-/* ══════════════════════════════════════════════════
-   GOOGLE OAUTH — Supabase
-══════════════════════════════════════════════════ */
-async function doGoogleAuth() {
-  const btns = [document.getElementById('googleLoginBtn'), document.getElementById('googleSignupBtn')];
-  btns.forEach(b => { if(b){ b.classList.add('ld'); b.disabled = true; } });
-  try {
-    const redirectTo = window.location.origin + window.location.pathname;
-    const authUrl = SB_URL + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(redirectTo);
-    window.location.href = authUrl;
-  } catch(e) {
-    toast('Google login mein dikkat aayi', 'err');
-    btns.forEach(b => { if(b){ b.classList.remove('ld'); b.disabled = false; } });
-  }
-}
-
-async function handleOAuthCallback() {
-  // ── Hash fragment check (#access_token) — Supabase implicit flow ──
-  const hash = window.location.hash;
-  if (hash && hash.includes('access_token')) {
-    const params = new URLSearchParams(hash.slice(1));
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-    const expiresIn = params.get('expires_in');
-    if (accessToken) {
-      try {
-        const r = await fetch(SB_URL + '/auth/v1/user', {
-          headers: { apikey: SB_KEY, Authorization: 'Bearer ' + accessToken }
-        });
-        const userData = await r.json();
-        if (userData && userData.id) {
-          const sessObj = {
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
-            expires_in: expiresIn || '3600',
-            token_type: 'bearer',
-            user: userData
-          };
-          SS.save(sessObj);
-          history.replaceState(null, '', window.location.pathname);
-          const name = userData.user_metadata?.full_name || userData.user_metadata?.name || userData.email?.split('@')[0] || 'User';
-          await insertUserRow(userData.id, name, userData.email || '', accessToken);
-          toast('Google se login ho gaya! ✅', 'ok');
-          return true;
-        }
-      } catch(e) { console.warn('OAuth user fetch:', e); }
-    }
-  }
-
-  // ── Query param check (?code=) — PKCE flow ──
-  const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get('code');
-  if (code) {
-    try {
-      const verifier = sessionStorage.getItem('sb_pkce_verifier') || '';
-      const r = await fetch(SB_URL + '/auth/v1/token?grant_type=pkce', {
-        method: 'POST',
-        headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ auth_code: code, code_verifier: verifier })
-      });
-      const d = await r.json();
-      if (r.ok && d.access_token) {
-        SS.save(d);
-        history.replaceState(null, '', window.location.pathname);
-        const name = d.user?.user_metadata?.full_name || d.user?.user_metadata?.name || d.user?.email?.split('@')[0] || 'User';
-        await insertUserRow(d.user?.id, name, d.user?.email || '', d.access_token);
-        toast('Google se login ho gaya! ✅', 'ok');
-        return true;
-      }
-    } catch(e) { console.warn('PKCE exchange:', e); }
-  }
-  return false;
-}
-
 async function boot(){
-  // ── Google OAuth callback check ──
-  const oauthHandled = await handleOAuthCallback();
-
   // ── Audio listeners PEHLE ──
   aud.addEventListener('timeupdate',onTU);
   aud.addEventListener('ended',onEnded);
@@ -2461,10 +2363,6 @@ async function boot(){
   });
 
   // ── INSTANT SESSION CHECK — login flash rokne ke liye ──
-  if (oauthHandled) {
-    const oauthSess = SS.get();
-    if (oauthSess && oauthSess.access_token) { enterApp(oauthSess.user); return; }
-  }
   const quickSess=SS.get();
   const nowTs=Math.floor(Date.now()/1000);
   if(quickSess&&quickSess.expires_at&&quickSess.expires_at>nowTs+60){
@@ -3719,4 +3617,120 @@ async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedC
         else{throw new Error('Backend premium verify nahi kar pa raha.');}
         return;
       }
-      throw new Error('Search f
+      throw new Error('Search failed: '+searchRes.status);
+    }
+
+    const searchData=await searchRes.json();
+    const results=searchData.results||[];
+
+    // VideoId decide karo
+    let videoId=fixedVideoId;
+    let title=fixedTitle||query;
+    let channel=fixedChannel||'Unknown';
+    let thumb=fixedThumb||'';
+
+    if(!videoId){
+      if(!results.length) throw new Error('Koi result nahi mila');
+      videoId=results[0].videoId;
+      title=results[0].title||query;
+      channel=results[0].channel||'Unknown';
+      thumb=results[0].thumbnail||'';
+    }
+
+    // Step 3: Fresh stream URL lo
+    ytSetStep(3,'active');
+    const streamRes=await fetch(`${API}/api/stream-url`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({videoId})
+    });
+    const streamData=await streamRes.json();
+    if(!streamData.success||!streamData.url) throw new Error(streamData.error||'Stream URL nahi mila');
+
+    // Step 4: Seedha play karo — koi upload nahi!
+    ytSetStep(4,'active');
+    const tempSong={
+      id:'yt_'+videoId,
+      title, artist:channel,
+      thumb, url:streamData.url,
+      dur:streamData.duration||'—',
+      quality:'128kbps',
+      date:new Date().toISOString()
+    };
+
+    const existIdx=songs.findIndex(s=>s.id===tempSong.id);
+    if(existIdx>=0){songs[existIdx]=tempSong;curIdx=existIdx;}
+    else{songs.unshift(tempSong);curIdx=0;}
+
+    // localStorage mein save karo — app wapas aane pe bhi milega
+    saveYtSong(tempSong);
+    await new Promise(r=>setTimeout(r,200));
+
+    ytFetchedSongId=tempSong.id;
+    document.getElementById('ytResultTitle').textContent=title;
+    document.getElementById('ytResultSub').textContent=`by ${channel} • Play karo!`;
+    if(thumb){document.getElementById('ytResultThumb').innerHTML=`<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;border-radius:8px" onerror="this.style.display='none'">`;}
+    
+    // Play button
+    document.getElementById('ytPlayNowBtn').onclick=()=>{
+      if(!npOpen)showMini();
+      _loadAndPlay(tempSong);
+      ytHideAll();clearSearch();
+    };
+
+    // Auto save to My Library — button ki zaroorat nahi
+    try{
+      const savedData = await saveToMyLibrary(videoId, title, channel, thumb, streamData.duration||'0:00');
+      // saveToMyLibrary ne DB ID se entry add ki — yt_ wali temporary duplicate hatao
+      const dbId = savedData?.id;
+      if(dbId && dbId !== tempSong.id) {
+        const ytDupIdx = songs.findIndex(s => s.id === tempSong.id);
+        if(ytDupIdx >= 0) songs.splice(ytDupIdx, 1);
+        // curIdx update karo — DB wali entry pe point karo
+        const dbIdx = songs.findIndex(s => s.id === dbId);
+        if(dbIdx >= 0) curIdx = dbIdx;
+        // ytSongsCache se bhi hatao — DB mein save ho gaya
+        ytSongsCache = ytSongsCache.filter(s => s.id !== tempSong.id);
+        localStorage.setItem('tt_yt_songs', JSON.stringify(ytSongsCache));
+      }
+    }catch(e){
+      console.warn('Auto-save failed:', e.message);
+    }
+
+    document.getElementById('ytResultCard').classList.add('show');
+    document.getElementById('ytBoxSub').textContent='Ready hai — Play karo!';
+    toast(`"${title}" My Library mein add ho gaya!`,'ok');
+
+  }catch(err){
+    console.error('YT Fetch Error:',err);
+    const activeStep=document.querySelector('#ytSteps .yt-step.active');if(activeStep)activeStep.className='yt-step err';
+    document.getElementById('ytNoMatchTxt').textContent=err.message||'Song nahi mila';
+    document.getElementById('ytNoMatch').classList.add('show');
+    document.getElementById('ytBoxSub').textContent='Kuch problem hui';
+    toast(err.message||'YouTube fetch fail hua','err');
+  }
+}
+
+async function ytRefreshSongs(){
+  try{
+    const r=await fetch(`${API}/api/songs?limit=1000`);if(!r.ok)return;
+    const json=await r.json();const newSongs=(json.data||json.songs||(Array.isArray(json)?json:[])).map(norm);
+    if(newSongs.length>0){
+      songs=newSongs;
+      localStorage.setItem('tt_cache',JSON.stringify(songs));
+      loadYtSongsIntoArray(); // yt_ songs restore
+      await loadMyLibrary();  // My Songs merge
+      // _currentPlayingId se curIdx sync karo (My Songs + Admin Songs dono sahi)
+      if(_currentPlayingId){
+        const newIdx=songs.findIndex(s=>s.id===_currentPlayingId);
+        if(newIdx>=0) curIdx=newIdx;
+        else curIdx=-1;
+      }
+      document.getElementById('heroCount').textContent=`${songs.length} songs available`;
+      renderSongs();renderFavBadge();
+    }
+  }catch(e){console.warn('ytRefreshSongs:',e);}
+}
+</script>
+</body>
+</html>
