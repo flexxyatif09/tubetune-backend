@@ -3,11 +3,27 @@ const cors = require('cors');
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const { createClient } = require('@supabase/supabase-js');
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
 
 const path = require('path');
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '60mb' }));
+app.use(express.urlencoded({ extended: true, limit: '60mb' }));
+
+// ── Cloudinary Config ──
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// ── Multer — memory storage (Render pe disk nahi chalega) ──
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB max
+});
 
 // ── Serve static files (HTML app) ──
 app.use(express.static(path.join(__dirname, 'public')));
@@ -71,55 +87,85 @@ async function getMp3AndUpload(videoId, title, artist) {
 
 
 
-// ── STREAM URL — Direct play ke liye fresh link (Multi-API Fallback) ──
+// ── STREAM URL — Multi-API Fallback System ──
 
-// Helper: API 1 — youtube-mp36 (original)
+// Full response log karo taaki debugging easy ho
 async function tryApi1(videoId) {
   const r = await fetch(
     `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
     { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com' } }
   );
   const d = await r.json();
-  console.log('[API1] youtube-mp36 status:', d.status, d.msg || '');
+  console.log('[API1] Full response:', JSON.stringify(d).slice(0, 200));
   if (d.status === 'ok' && d.link) {
     const duration = d.duration
       ? `${Math.floor(d.duration/60)}:${String(Math.round(d.duration%60)).padStart(2,'0')}`
       : '0:00';
     return { url: d.link, duration };
   }
-  throw new Error('API1 fail: ' + (d.msg || d.status || 'unknown'));
+  // Processing state — thodi der baad retry karo
+  if (d.status === 'processing' || d.status === 'prep') {
+    await new Promise(r => setTimeout(r, 4000));
+    const r2 = await fetch(
+      `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
+      { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com' } }
+    );
+    const d2 = await r2.json();
+    console.log('[API1] Retry response:', JSON.stringify(d2).slice(0, 200));
+    if (d2.status === 'ok' && d2.link) {
+      const duration = d2.duration
+        ? `${Math.floor(d2.duration/60)}:${String(Math.round(d2.duration%60)).padStart(2,'0')}`
+        : '0:00';
+      return { url: d2.link, duration };
+    }
+  }
+  throw new Error('API1 fail: ' + (d.msg || d.status || JSON.stringify(d).slice(0,100)));
 }
 
-// Helper: API 2 — youtube-mp3-downloader2
 async function tryApi2(videoId) {
   const r = await fetch(
     `https://youtube-mp3-downloader2.p.rapidapi.com/ytmp3/ytmp3/?url=https://www.youtube.com/watch?v=${videoId}`,
     { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp3-downloader2.p.rapidapi.com' } }
   );
   const d = await r.json();
-  console.log('[API2] ytmp3-downloader2 status:', d.status, d.msg || '');
-  if ((d.status === 'ok' || d.status === 'processing') && d.dlink) {
-    return { url: d.dlink, duration: d.duration || '0:00' };
+  console.log('[API2] Full response:', JSON.stringify(d).slice(0, 200));
+  // Different response formats handle karo
+  const url = d.dlink || d.link || d.url || d.downloadUrl || d.download_url;
+  if (url) {
+    const duration = d.duration
+      ? (typeof d.duration === 'string' && d.duration.includes(':')
+          ? d.duration
+          : `${Math.floor(Number(d.duration)/60)}:${String(Math.round(Number(d.duration)%60)).padStart(2,'0')}`)
+      : '0:00';
+    return { url, duration };
   }
-  throw new Error('API2 fail: ' + (d.msg || d.status || 'unknown'));
+  throw new Error('API2 fail: ' + (d.msg || d.error || JSON.stringify(d).slice(0,100)));
 }
 
-// Helper: API 3 — all-in-one-downloader
 async function tryApi3(videoId) {
+  // y2mate API — widely available
   const r = await fetch(
-    `https://all-in-one-downloader.p.rapidapi.com/api/youtube/mp3?url=https://www.youtube.com/watch?v=${videoId}`,
-    {
-      method: 'GET',
-      headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'all-in-one-downloader.p.rapidapi.com' }
-    }
+    `https://y2mate-api2.p.rapidapi.com/api/mp3?url=https://www.youtube.com/watch?v=${videoId}&quality=128`,
+    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'y2mate-api2.p.rapidapi.com' } }
   );
   const d = await r.json();
-  console.log('[API3] all-in-one-downloader:', d.status || 'no status');
-  const url = d.url || d.link || d.download_url || d.audio;
-  if (url) {
-    return { url, duration: d.duration || '0:00' };
-  }
-  throw new Error('API3 fail: ' + JSON.stringify(d).slice(0, 80));
+  console.log('[API3] Full response:', JSON.stringify(d).slice(0, 200));
+  const url = d.url || d.link || d.dlink || d.download || d.mp3;
+  if (url) return { url, duration: d.duration || '0:00' };
+  throw new Error('API3 fail: ' + JSON.stringify(d).slice(0,100));
+}
+
+async function tryApi4(videoId) {
+  // Fallback: ytdl3 API
+  const r = await fetch(
+    `https://ytdl3.p.rapidapi.com/api/ytdl?url=https://www.youtube.com/watch?v=${videoId}&format=mp3`,
+    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'ytdl3.p.rapidapi.com' } }
+  );
+  const d = await r.json();
+  console.log('[API4] Full response:', JSON.stringify(d).slice(0, 200));
+  const url = d.url || d.link || d.downloadUrl || d.audio;
+  if (url) return { url, duration: d.duration || '0:00' };
+  throw new Error('API4 fail: ' + JSON.stringify(d).slice(0,100));
 }
 
 app.post('/api/stream-url', async (req, res) => {
@@ -127,33 +173,27 @@ app.post('/api/stream-url', async (req, res) => {
     const { videoId } = req.body;
     if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
 
+    const apis = [
+      { name: 'API1 (youtube-mp36)', fn: () => tryApi1(videoId) },
+      { name: 'API2 (ytmp3-downloader2)', fn: () => tryApi2(videoId) },
+      { name: 'API3 (y2mate-api2)', fn: () => tryApi3(videoId) },
+      { name: 'API4 (ytdl3)', fn: () => tryApi4(videoId) },
+    ];
+
     const errors = [];
+    for (const api of apis) {
+      try {
+        const result = await api.fn();
+        console.log(`[stream-url] ${api.name} SUCCESS ✅`);
+        return res.json({ success: true, ...result });
+      } catch (e) {
+        console.warn(`[stream-url] ${api.name} FAILED:`, e.message);
+        errors.push(`${api.name}: ${e.message}`);
+      }
+    }
 
-    // API 1 try karo
-    try {
-      const result = await tryApi1(videoId);
-      console.log('[stream-url] API1 success ✅');
-      return res.json({ success: true, ...result });
-    } catch (e) { errors.push('API1: ' + e.message); }
-
-    // API 2 try karo
-    try {
-      const result = await tryApi2(videoId);
-      console.log('[stream-url] API2 success ✅');
-      return res.json({ success: true, ...result });
-    } catch (e) { errors.push('API2: ' + e.message); }
-
-    // API 3 try karo
-    try {
-      const result = await tryApi3(videoId);
-      console.log('[stream-url] API3 success ✅');
-      return res.json({ success: true, ...result });
-    } catch (e) { errors.push('API3: ' + e.message); }
-
-    // Sab fail
-    console.error('[stream-url] Sab APIs fail ho gayi:', errors);
+    console.error('[stream-url] Sab APIs fail:', errors);
     res.status(500).json({ success: false, error: 'Abhi stream unavailable hai. Thodi der baad try karo.' });
-
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -433,6 +473,66 @@ app.post('/api/upload', auth, async (req, res) => {
 // ── CONFIG (Razorpay key frontend ko dena) ──
 app.get('/api/config', (req, res) => {
   res.json({ razorpay_key_id: process.env.RAZORPAY_KEY_ID || '' });
+});
+
+// ── CLOUDINARY MP3 UPLOAD — Admin direct MP3 file upload ──
+app.post('/api/upload-mp3', auth, upload.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: 'MP3 file nahi mili' });
+
+    const { title, artist, duration } = req.body;
+    if (!title) return res.status(400).json({ success: false, error: 'Title zaroori hai' });
+
+    console.log(`[upload-mp3] Uploading: ${title} (${req.file.size} bytes)`);
+
+    // File ko base64 banao
+    const b64 = req.file.buffer.toString('base64');
+    const dataUri = `data:${req.file.mimetype};base64,${b64}`;
+
+    // Cloudinary pe upload karo
+    const uploadResult = await cloudinary.uploader.upload(dataUri, {
+      resource_type: 'video', // audio ke liye "video" use hota hai Cloudinary mein
+      folder:        'tubetune-songs',
+      public_id:     `song_${Date.now()}`,
+      overwrite:     false
+    });
+
+    console.log(`[upload-mp3] Cloudinary URL: ${uploadResult.secure_url}`);
+
+    // Supabase mein save karo
+    const { data: song, error: dbError } = await supabaseAdmin
+      .from('songs')
+      .insert({
+        title:     title,
+        artist:    artist || 'Unknown',
+        thumbnail: '',
+        audio_url: uploadResult.secure_url,
+        duration:  duration || '0:00',
+        quality:   '128kbps',
+        youtube_url: null
+      })
+      .select()
+      .single();
+
+    if (dbError) throw dbError;
+
+    res.json({
+      success: true,
+      song: {
+        id:        song.id,
+        title:     song.title,
+        artist:    song.artist,
+        audioUrl:  song.audio_url,
+        duration:  song.duration,
+        quality:   song.quality
+      },
+      cloudinaryUrl: uploadResult.secure_url
+    });
+
+  } catch (err) {
+    console.error('[upload-mp3] Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ── GET PLANS (public — only active) ──
