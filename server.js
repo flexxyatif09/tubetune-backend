@@ -76,80 +76,102 @@ const fs = require('fs');
 async function getAudioFromYouTube(videoId) {
   console.log(`[innertube] Fetching: ${videoId}`);
 
-  // Try multiple client types for best compatibility
   const clients = [
+    // WEB_EMBEDDED_PLAYER — age restriction bypass
     {
-      name: 'ANDROID_MUSIC',
-      clientName: 'ANDROID_MUSIC',
-      clientVersion: '7.27.52',
-      androidSdkVersion: 30,
-      apiKey: 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
-      userAgent: 'com.google.android.apps.youtube.music/7.27.52 (Linux; U; Android 11) gzip',
-      clientNameId: '21',
+      name: 'WEB_EMBEDDED',
+      body: {
+        videoId,
+        context: {
+          client: {
+            clientName: 'WEB_EMBEDDED_PLAYER',
+            clientVersion: '2.20231219.01.00',
+            clientScreen: 'EMBED',
+            hl: 'en', gl: 'US',
+          },
+          thirdParty: { embedUrl: 'https://www.youtube.com/' }
+        }
+      },
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'X-YouTube-Client-Name': '56',
+        'X-YouTube-Client-Version': '2.20231219.01.00',
+        'Origin': 'https://www.youtube.com',
+        'Referer': 'https://www.youtube.com/',
+      },
+      url: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false'
     },
+    // ANDROID_EMBEDDED_PLAYER
     {
-      name: 'TVHTML5',
-      clientName: 'TVHTML5',
-      clientVersion: '7.20230405.08.00',
-      apiKey: 'AIzaSyDCU8hByM-4DrUqRUYnGn-3llEO78bcxq8',
-      userAgent: 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/538.1 (KHTML, like Gecko) Version/6.0 TV Safari/538.1',
-      clientNameId: '7',
+      name: 'ANDROID_EMBEDDED',
+      body: {
+        videoId,
+        context: {
+          client: {
+            clientName: 'ANDROID_EMBEDDED_PLAYER',
+            clientVersion: '19.09.37',
+            androidSdkVersion: 30,
+            hl: 'en', gl: 'US',
+          },
+          thirdParty: { embedUrl: 'https://www.youtube.com/' }
+        }
+      },
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+        'X-YouTube-Client-Name': '55',
+        'X-YouTube-Client-Version': '19.09.37',
+      },
+      url: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false'
     },
+    // MWEB
     {
-      name: 'IOS',
-      clientName: 'IOS',
-      clientVersion: '19.09.3',
-      deviceModel: 'iPhone14,3',
-      apiKey: 'AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc',
-      userAgent: 'com.google.ios.youtube/19.09.3 (iPhone14,3; U; CPU iOS 16_6 like Mac OS X)',
-      clientNameId: '5',
+      name: 'MWEB',
+      body: {
+        videoId,
+        context: {
+          client: {
+            clientName: 'MWEB',
+            clientVersion: '2.20230727.01.00',
+            hl: 'en', gl: 'US',
+          }
+        }
+      },
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+        'X-YouTube-Client-Name': '2',
+        'X-YouTube-Client-Version': '2.20230727.01.00',
+        'Origin': 'https://m.youtube.com',
+      },
+      url: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false'
     }
   ];
 
   for (const client of clients) {
     try {
-      console.log(`[innertube] Trying client: ${client.name}`);
-      const body = {
-        videoId,
-        context: {
-          client: {
-            clientName: client.clientName,
-            clientVersion: client.clientVersion,
-            ...(client.androidSdkVersion && { androidSdkVersion: client.androidSdkVersion }),
-            ...(client.deviceModel && { deviceModel: client.deviceModel }),
-            hl: 'en',
-            gl: 'US',
-          }
-        }
-      };
-
-      const r = await fetch(
-        `https://www.youtube.com/youtubei/v1/player?key=${client.apiKey}&prettyPrint=false`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': client.userAgent,
-            'X-YouTube-Client-Name': client.clientNameId,
-            'X-YouTube-Client-Version': client.clientVersion,
-          },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(15000)
-        }
-      );
+      console.log(`[innertube] Trying: ${client.name}`);
+      const r = await fetch(client.url, {
+        method: 'POST',
+        headers: client.headers,
+        body: JSON.stringify(client.body),
+        signal: AbortSignal.timeout(15000)
+      });
 
       if (!r.ok) { console.warn(`[innertube] ${client.name} → HTTP ${r.status}`); continue; }
       const data = await r.json();
 
       const status = data.playabilityStatus?.status;
       if (status === 'LOGIN_REQUIRED' || status === 'UNPLAYABLE') {
-        console.warn(`[innertube] ${client.name} → ${status}`); continue;
+        console.warn(`[innertube] ${client.name} → ${status}: ${data.playabilityStatus?.reason}`);
+        continue;
       }
 
       const formats = [
         ...(data.streamingData?.adaptiveFormats || []),
         ...(data.streamingData?.formats || [])
-      ].filter(f => f.mimeType && f.mimeType.includes('audio') && f.url);
+      ].filter(f => f.mimeType?.includes('audio') && f.url);
 
       if (!formats.length) { console.warn(`[innertube] ${client.name} → no audio formats`); continue; }
 
