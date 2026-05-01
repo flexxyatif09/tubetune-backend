@@ -72,42 +72,50 @@ const execFileAsync = promisify(execFile);
 const os = require('os');
 const fs = require('fs');
 
-// ── play-dl — pure Node.js YouTube audio extractor ──
-let playdl = null;
-async function getPlaydl() {
-  if (!playdl) playdl = await import('play-dl');
-  return playdl;
-}
+// ── Invidious public instances — YouTube proxy ──
+const INVIDIOUS_INSTANCES = [
+  'https://iv.datura.network',
+  'https://invidious.privacyredirect.com',
+  'https://invidious.nerdvpn.de',
+  'https://yt.cdaut.de',
+  'https://invidious.io.lol',
+  'https://inv.nadeko.net',
+];
 
-// ── Audio URL nikalo via play-dl ──
-async function getYtdlpUrl(videoId) {
-  const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
-  console.log(`[play-dl] Fetching: ${videoId}`);
-  const pd = await getPlaydl();
-  const info = await pd.video_info(ytUrl);
-  // Best audio format lo
-  const formats = info.format.filter(f => f.mimeType && f.mimeType.includes('audio'));
-  formats.sort((a, b) => (parseInt(b.bitrate)||0) - (parseInt(a.bitrate)||0));
-  const best = formats[0];
-  if (!best?.url) throw new Error('play-dl: audio URL nahi mila');
-  console.log(`[play-dl] URL milgaya ✅ (${best.mimeType})`);
-  return best.url;
-}
+async function getAudioFromInvidious(videoId) {
+  for (const base of INVIDIOUS_INSTANCES) {
+    try {
+      console.log(`[invidious] Trying: ${base}`);
+      const r = await fetch(`${base}/api/v1/videos/${videoId}`, {
+        headers: { 'User-Agent': 'TubeTune/1.0' },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!r.ok) { console.warn(`[invidious] ${base} → ${r.status}`); continue; }
+      const data = await r.json();
 
-// ── Duration nikalo via play-dl ──
-async function getYtdlpInfo(videoId) {
-  try {
-    const pd = await getPlaydl();
-    const info = await pd.video_basic_info(`https://www.youtube.com/watch?v=${videoId}`);
-    const secs = info.video_details.durationInSec || 0;
-    return secs ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : '0:00';
-  } catch(e) { return '0:00'; }
+      // adaptiveFormats mein best audio lo
+      const audioFormats = (data.adaptiveFormats || [])
+        .filter(f => f.type && f.type.includes('audio'))
+        .sort((a, b) => (parseInt(b.bitrate)||0) - (parseInt(a.bitrate)||0));
+
+      if (!audioFormats.length) { console.warn(`[invidious] ${base} → no audio formats`); continue; }
+
+      const best = audioFormats[0];
+      const secs = parseInt(data.lengthSeconds) || 0;
+      const duration = secs ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : '0:00';
+
+      console.log(`[invidious] SUCCESS ✅ via ${base}`);
+      return { url: best.url, duration };
+    } catch(e) {
+      console.warn(`[invidious] ${base} failed:`, e.message);
+    }
+  }
+  throw new Error('Sab Invidious instances fail ho gaye');
 }
 
 // ── MP3 URL HELPER (admin upload ke liye) ──
 async function getMp3AndUpload(videoId, title, artist) {
-  const audioUrl = await getYtdlpUrl(videoId);
-  const duration = await getYtdlpInfo(videoId);
+  const { url: audioUrl, duration } = await getAudioFromInvidious(videoId);
   return { audioUrl, duration };
 }
 
@@ -117,14 +125,10 @@ app.post('/api/stream-url', async (req, res) => {
     const { videoId } = req.body;
     if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
 
-    const [url, duration] = await Promise.all([
-      getYtdlpUrl(videoId),
-      getYtdlpInfo(videoId)
-    ]);
-
+    const { url, duration } = await getAudioFromInvidious(videoId);
     return res.json({ success: true, url, duration });
   } catch (err) {
-    console.error('[stream-url] play-dl FAILED:', err.message);
+    console.error('[stream-url] FAILED:', err.message);
     res.status(500).json({ success: false, error: 'Stream unavailable hai. Thodi der baad try karo.' });
   }
 });
