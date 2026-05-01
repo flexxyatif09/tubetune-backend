@@ -75,22 +75,28 @@ const fs = require('fs');
 // ── yt-dlp binary path — project folder mein hai ──
 const YTDLP_PATH = process.env.YTDLP_PATH || require('path').join(__dirname, 'yt-dlp');
 
+// ── Bot bypass ke liye common flags ──
+const YTDLP_BASE_FLAGS = [
+  '--no-playlist',
+  '--no-warnings',
+  '--socket-timeout', '20',
+  // Bot detection bypass
+  '--extractor-args', 'youtube:player_client=web,mweb',
+  '--add-header', 'User-Agent:Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+  '--add-header', 'Accept-Language:en-US,en;q=0.9',
+];
+
 // ── yt-dlp se audio URL nikalo ──
 async function getYtdlpUrl(videoId) {
   const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
   console.log(`[yt-dlp] Fetching: ${videoId}`);
 
-  // -f bestaudio: best audio format
-  // -g: print URL only, no download
-  // --no-playlist: sirf ek video
   const { stdout } = await execFileAsync(YTDLP_PATH, [
     '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
     '--get-url',
-    '--no-playlist',
-    '--no-warnings',
-    '--socket-timeout', '15',
+    ...YTDLP_BASE_FLAGS,
     ytUrl
-  ], { timeout: 30000 });
+  ], { timeout: 40000 });
 
   const url = stdout.trim().split('\n')[0];
   if (!url || !url.startsWith('http')) throw new Error('yt-dlp ne URL nahi diya');
@@ -104,11 +110,9 @@ async function getYtdlpInfo(videoId) {
   try {
     const { stdout } = await execFileAsync(YTDLP_PATH, [
       '--print', '%(duration)s',
-      '--no-playlist',
-      '--no-warnings',
-      '--socket-timeout', '15',
+      ...YTDLP_BASE_FLAGS,
       ytUrl
-    ], { timeout: 20000 });
+    ], { timeout: 30000 });
     const secs = parseInt(stdout.trim());
     const duration = isNaN(secs) ? '0:00' : `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
     return duration;
