@@ -66,106 +66,99 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// ── MP3 URL HELPER — Multiple APIs try karo ──
-async function getMp3AndUpload(videoId, title, artist) {
-  // RapidAPI se link lo
-  const r = await fetch(
-    "https://youtube-mp36.p.rapidapi.com/dl?id=" + videoId,
-    { headers: { "X-RapidAPI-Key": process.env.RAPIDAPI_KEY, "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com" } }
-  );
-  const d = await r.json();
-  console.log("RapidAPI:", d.status, d.link ? d.link.slice(0,60) : "no link");
-  if (d.status !== "ok" || !d.link) throw new Error("MP3 link nahi mila: " + (d.msg || JSON.stringify(d)));
-
-  const duration = d.duration
-    ? Math.floor(d.duration/60) + ":" + String(d.duration%60).padStart(2,"0")
-    : "0:00";
-
-  // Link directly return karo — frontend stream karega
-  return { audioUrl: d.link, duration };
+// ── HELPER: Duration seconds to MM:SS ──
+function secsToDur(s) {
+  if (!s) return '0:00';
+  const n = parseInt(s);
+  return `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`;
 }
-
-
 
 // ── STREAM URL — Multi-API Fallback System ──
 
-// Full response log karo taaki debugging easy ho
+// API1: cobalt.tools — free, no key needed
 async function tryApi1(videoId) {
-  const r = await fetch(
-    `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
-    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com' } }
-  );
+  const r = await fetch('https://api.cobalt.tools/api/json', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      isAudioOnly: true,
+      aFormat: 'mp3',
+      audioQuality: '128'
+    })
+  });
   const d = await r.json();
-  console.log('[API1] Full response:', JSON.stringify(d).slice(0, 200));
-  if (d.status === 'ok' && d.link) {
-    const duration = d.duration
-      ? `${Math.floor(d.duration/60)}:${String(Math.round(d.duration%60)).padStart(2,'0')}`
-      : '0:00';
-    return { url: d.link, duration };
+  console.log('[API1] cobalt:', JSON.stringify(d).slice(0, 200));
+  // status: "stream" or "redirect" means success
+  if ((d.status === 'stream' || d.status === 'redirect' || d.status === 'tunnel') && d.url) {
+    return { url: d.url, duration: '0:00' };
   }
-  // Processing state — thodi der baad retry karo
-  if (d.status === 'processing' || d.status === 'prep') {
-    await new Promise(r => setTimeout(r, 4000));
-    const r2 = await fetch(
-      `https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`,
-      { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com' } }
-    );
-    const d2 = await r2.json();
-    console.log('[API1] Retry response:', JSON.stringify(d2).slice(0, 200));
-    if (d2.status === 'ok' && d2.link) {
-      const duration = d2.duration
-        ? `${Math.floor(d2.duration/60)}:${String(Math.round(d2.duration%60)).padStart(2,'0')}`
-        : '0:00';
-      return { url: d2.link, duration };
-    }
-  }
-  throw new Error('API1 fail: ' + (d.msg || d.status || JSON.stringify(d).slice(0,100)));
+  throw new Error('API1 fail: ' + JSON.stringify(d).slice(0, 100));
 }
 
+// API2: yt-api.p.rapidapi.com (active on RapidAPI)
 async function tryApi2(videoId) {
   const r = await fetch(
-    `https://youtube-mp3-downloader2.p.rapidapi.com/ytmp3/ytmp3/?url=https://www.youtube.com/watch?v=${videoId}`,
-    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp3-downloader2.p.rapidapi.com' } }
+    `https://yt-api.p.rapidapi.com/dl?id=${videoId}&cgeo=US`,
+    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'yt-api.p.rapidapi.com' } }
   );
   const d = await r.json();
-  console.log('[API2] Full response:', JSON.stringify(d).slice(0, 200));
-  // Different response formats handle karo
-  const url = d.dlink || d.link || d.url || d.downloadUrl || d.download_url;
-  if (url) {
-    const duration = d.duration
-      ? (typeof d.duration === 'string' && d.duration.includes(':')
-          ? d.duration
-          : `${Math.floor(Number(d.duration)/60)}:${String(Math.round(Number(d.duration)%60)).padStart(2,'0')}`)
-      : '0:00';
-    return { url, duration };
+  console.log('[API2] yt-api:', JSON.stringify(d).slice(0, 200));
+  // adaptiveFormats mein audio dhundho
+  if (d.adaptiveFormats && Array.isArray(d.adaptiveFormats)) {
+    const audio = d.adaptiveFormats
+      .filter(f => f.mimeType && f.mimeType.includes('audio'))
+      .sort((a, b) => (parseInt(b.bitrate)||0) - (parseInt(a.bitrate)||0))[0];
+    if (audio?.url) return { url: audio.url, duration: secsToDur(d.lengthSeconds) };
   }
-  throw new Error('API2 fail: ' + (d.msg || d.error || JSON.stringify(d).slice(0,100)));
+  throw new Error('API2 fail: ' + JSON.stringify(d).slice(0, 100));
 }
 
+// API3: youtube-mp3-downloader-2 (new endpoint)
 async function tryApi3(videoId) {
-  // y2mate API — widely available
   const r = await fetch(
-    `https://y2mate-api2.p.rapidapi.com/api/mp3?url=https://www.youtube.com/watch?v=${videoId}&quality=128`,
-    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'y2mate-api2.p.rapidapi.com' } }
+    `https://youtube-mp3-downloader-2.p.rapidapi.com/ytmp3/ytmp3/custom/?url=https://www.youtube.com/watch?v=${videoId}&quality=128`,
+    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp3-downloader-2.p.rapidapi.com' } }
   );
   const d = await r.json();
-  console.log('[API3] Full response:', JSON.stringify(d).slice(0, 200));
-  const url = d.url || d.link || d.dlink || d.download || d.mp3;
-  if (url) return { url, duration: d.duration || '0:00' };
-  throw new Error('API3 fail: ' + JSON.stringify(d).slice(0,100));
+  console.log('[API3] ytmp3-dl-2:', JSON.stringify(d).slice(0, 200));
+  const url = d.dlink || d.link || d.url || d.downloadUrl;
+  if (url) return { url, duration: d.duration ? secsToDur(d.duration) : '0:00' };
+  throw new Error('API3 fail: ' + JSON.stringify(d).slice(0, 100));
 }
 
+// API4: YouTube Data v3 — itag 140 (m4a audio, always available)
 async function tryApi4(videoId) {
-  // Fallback: ytdl3 API
-  const r = await fetch(
-    `https://ytdl3.p.rapidapi.com/api/ytdl?url=https://www.youtube.com/watch?v=${videoId}&format=mp3`,
-    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'ytdl3.p.rapidapi.com' } }
+  if (!process.env.YOUTUBE_API_KEY) throw new Error('API4 skip: no YOUTUBE_API_KEY');
+  // YouTube v3 se video details lo
+  const infoR = await fetch(
+    `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=contentDetails&key=${process.env.YOUTUBE_API_KEY}`
   );
-  const d = await r.json();
-  console.log('[API4] Full response:', JSON.stringify(d).slice(0, 200));
-  const url = d.url || d.link || d.downloadUrl || d.audio;
-  if (url) return { url, duration: d.duration || '0:00' };
-  throw new Error('API4 fail: ' + JSON.stringify(d).slice(0,100));
+  const info = await infoR.json();
+  const dur = info?.items?.[0]?.contentDetails?.duration || '';
+  // duration parse: PT3M45S → 3:45
+  const m = dur.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  const totalSec = m ? (parseInt(m[1]||0)*3600 + parseInt(m[2]||0)*60 + parseInt(m[3]||0)) : 0;
+  throw new Error('API4: YouTube v3 only gives metadata, no audio URL');
+}
+
+// MP3 URL HELPER for admin upload (uses same API chain)
+async function getMp3AndUpload(videoId, title, artist) {
+  const apis = [
+    { name: 'cobalt', fn: () => tryApi1(videoId) },
+    { name: 'yt-api', fn: () => tryApi2(videoId) },
+    { name: 'ytmp3-dl-2', fn: () => tryApi3(videoId) },
+  ];
+  for (const api of apis) {
+    try {
+      const result = await api.fn();
+      return { audioUrl: result.url, duration: result.duration };
+    } catch(e) { console.warn(`[getMp3] ${api.name} fail:`, e.message); }
+  }
+  throw new Error('Koi bhi API se MP3 nahi mila');
 }
 
 app.post('/api/stream-url', async (req, res) => {
@@ -174,10 +167,9 @@ app.post('/api/stream-url', async (req, res) => {
     if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
 
     const apis = [
-      { name: 'API1 (youtube-mp36)', fn: () => tryApi1(videoId) },
-      { name: 'API2 (ytmp3-downloader2)', fn: () => tryApi2(videoId) },
-      { name: 'API3 (y2mate-api2)', fn: () => tryApi3(videoId) },
-      { name: 'API4 (ytdl3)', fn: () => tryApi4(videoId) },
+      { name: 'API1 (cobalt.tools)', fn: () => tryApi1(videoId) },
+      { name: 'API2 (yt-api RapidAPI)', fn: () => tryApi2(videoId) },
+      { name: 'API3 (ytmp3-downloader-2)', fn: () => tryApi3(videoId) },
     ];
 
     const errors = [];
