@@ -76,55 +76,95 @@ const fs = require('fs');
 async function getAudioFromYouTube(videoId) {
   console.log(`[innertube] Fetching: ${videoId}`);
 
-  // YouTube's internal API — same jo browser use karta hai
-  const body = {
-    videoId,
-    context: {
-      client: {
-        clientName: 'ANDROID',
-        clientVersion: '19.09.37',
-        androidSdkVersion: 30,
-        userAgent: 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
-        hl: 'en',
-        gl: 'US',
-      }
-    }
-  };
-
-  const r = await fetch('https://www.youtube.com/youtubei/v1/player?key=AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
-      'X-YouTube-Client-Name': '3',
-      'X-YouTube-Client-Version': '19.09.37',
-      'Origin': 'https://www.youtube.com',
+  // Try multiple client types for best compatibility
+  const clients = [
+    {
+      name: 'ANDROID_MUSIC',
+      clientName: 'ANDROID_MUSIC',
+      clientVersion: '7.27.52',
+      androidSdkVersion: 30,
+      apiKey: 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      userAgent: 'com.google.android.apps.youtube.music/7.27.52 (Linux; U; Android 11) gzip',
+      clientNameId: '21',
     },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(15000)
-  });
+    {
+      name: 'TVHTML5',
+      clientName: 'TVHTML5',
+      clientVersion: '7.20230405.08.00',
+      apiKey: 'AIzaSyDCU8hByM-4DrUqRUYnGn-3llEO78bcxq8',
+      userAgent: 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/538.1 (KHTML, like Gecko) Version/6.0 TV Safari/538.1',
+      clientNameId: '7',
+    },
+    {
+      name: 'IOS',
+      clientName: 'IOS',
+      clientVersion: '19.09.3',
+      deviceModel: 'iPhone14,3',
+      apiKey: 'AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc',
+      userAgent: 'com.google.ios.youtube/19.09.3 (iPhone14,3; U; CPU iOS 16_6 like Mac OS X)',
+      clientNameId: '5',
+    }
+  ];
 
-  if (!r.ok) throw new Error(`YouTube API: ${r.status}`);
-  const data = await r.json();
+  for (const client of clients) {
+    try {
+      console.log(`[innertube] Trying client: ${client.name}`);
+      const body = {
+        videoId,
+        context: {
+          client: {
+            clientName: client.clientName,
+            clientVersion: client.clientVersion,
+            ...(client.androidSdkVersion && { androidSdkVersion: client.androidSdkVersion }),
+            ...(client.deviceModel && { deviceModel: client.deviceModel }),
+            hl: 'en',
+            gl: 'US',
+          }
+        }
+      };
 
-  const formats = [
-    ...(data.streamingData?.adaptiveFormats || []),
-    ...(data.streamingData?.formats || [])
-  ].filter(f => f.mimeType && f.mimeType.includes('audio'));
+      const r = await fetch(
+        `https://www.youtube.com/youtubei/v1/player?key=${client.apiKey}&prettyPrint=false`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': client.userAgent,
+            'X-YouTube-Client-Name': client.clientNameId,
+            'X-YouTube-Client-Version': client.clientVersion,
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(15000)
+        }
+      );
 
-  if (!formats.length) {
-    const reason = data.playabilityStatus?.reason || 'Unknown';
-    throw new Error(`No audio formats: ${reason}`);
+      if (!r.ok) { console.warn(`[innertube] ${client.name} → HTTP ${r.status}`); continue; }
+      const data = await r.json();
+
+      const status = data.playabilityStatus?.status;
+      if (status === 'LOGIN_REQUIRED' || status === 'UNPLAYABLE') {
+        console.warn(`[innertube] ${client.name} → ${status}`); continue;
+      }
+
+      const formats = [
+        ...(data.streamingData?.adaptiveFormats || []),
+        ...(data.streamingData?.formats || [])
+      ].filter(f => f.mimeType && f.mimeType.includes('audio') && f.url);
+
+      if (!formats.length) { console.warn(`[innertube] ${client.name} → no audio formats`); continue; }
+
+      formats.sort((a, b) => (b.bitrate||0) - (a.bitrate||0));
+      const best = formats[0];
+      const secs = parseInt(data.videoDetails?.lengthSeconds) || 0;
+      const duration = secs ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : '0:00';
+
+      console.log(`[innertube] SUCCESS ✅ via ${client.name}`);
+      return { url: best.url, duration };
+    } catch(e) {
+      console.warn(`[innertube] ${client.name} failed:`, e.message);
+    }
   }
-
-  formats.sort((a, b) => (b.bitrate||0) - (a.bitrate||0));
-  const best = formats[0];
-
-  const secs = parseInt(data.videoDetails?.lengthSeconds) || 0;
-  const duration = secs ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : '0:00';
-
-  console.log(`[innertube] SUCCESS ✅ (${best.mimeType?.split(';')[0]})`);
-  return { url: best.url, duration };
+  throw new Error('Sab YouTube clients fail ho gaye');
 }
 
 // ── MP3 URL HELPER (admin upload ke liye) ──
