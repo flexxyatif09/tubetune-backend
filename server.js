@@ -66,128 +66,80 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// ── HELPER: Duration seconds to MM:SS ──
-function secsToDur(s) {
-  if (!s) return '0:00';
-  const n = parseInt(s);
-  return `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`;
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
+const os = require('os');
+const fs = require('fs');
+
+// ── yt-dlp binary path (Render pe auto-install hoga build.sh se) ──
+const YTDLP_PATH = process.env.YTDLP_PATH || '/usr/local/bin/yt-dlp';
+
+// ── yt-dlp se audio URL nikalo ──
+async function getYtdlpUrl(videoId) {
+  const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  console.log(`[yt-dlp] Fetching: ${videoId}`);
+
+  // -f bestaudio: best audio format
+  // -g: print URL only, no download
+  // --no-playlist: sirf ek video
+  const { stdout } = await execFileAsync(YTDLP_PATH, [
+    '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
+    '--get-url',
+    '--no-playlist',
+    '--no-warnings',
+    '--socket-timeout', '15',
+    ytUrl
+  ], { timeout: 30000 });
+
+  const url = stdout.trim().split('\n')[0];
+  if (!url || !url.startsWith('http')) throw new Error('yt-dlp ne URL nahi diya');
+  console.log(`[yt-dlp] URL milgaya ✅`);
+  return url;
 }
 
-// ── STREAM URL — Multi-API Fallback System ──
-
-// API1: cobalt.tools — free, no key needed
-async function tryApi1(videoId) {
-  const r = await fetch('https://api.cobalt.tools/api/json', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify({
-      url: `https://www.youtube.com/watch?v=${videoId}`,
-      isAudioOnly: true,
-      aFormat: 'mp3',
-      audioQuality: '128'
-    })
-  });
-  const d = await r.json();
-  console.log('[API1] cobalt:', JSON.stringify(d).slice(0, 200));
-  // status: "stream" or "redirect" means success
-  if ((d.status === 'stream' || d.status === 'redirect' || d.status === 'tunnel') && d.url) {
-    return { url: d.url, duration: '0:00' };
+// ── yt-dlp se duration bhi nikalo ──
+async function getYtdlpInfo(videoId) {
+  const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  try {
+    const { stdout } = await execFileAsync(YTDLP_PATH, [
+      '--print', '%(duration)s',
+      '--no-playlist',
+      '--no-warnings',
+      '--socket-timeout', '15',
+      ytUrl
+    ], { timeout: 20000 });
+    const secs = parseInt(stdout.trim());
+    const duration = isNaN(secs) ? '0:00' : `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+    return duration;
+  } catch(e) {
+    return '0:00';
   }
-  throw new Error('API1 fail: ' + JSON.stringify(d).slice(0, 100));
 }
 
-// API2: yt-api.p.rapidapi.com (active on RapidAPI)
-async function tryApi2(videoId) {
-  const r = await fetch(
-    `https://yt-api.p.rapidapi.com/dl?id=${videoId}&cgeo=US`,
-    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'yt-api.p.rapidapi.com' } }
-  );
-  const d = await r.json();
-  console.log('[API2] yt-api:', JSON.stringify(d).slice(0, 200));
-  // adaptiveFormats mein audio dhundho
-  if (d.adaptiveFormats && Array.isArray(d.adaptiveFormats)) {
-    const audio = d.adaptiveFormats
-      .filter(f => f.mimeType && f.mimeType.includes('audio'))
-      .sort((a, b) => (parseInt(b.bitrate)||0) - (parseInt(a.bitrate)||0))[0];
-    if (audio?.url) return { url: audio.url, duration: secsToDur(d.lengthSeconds) };
-  }
-  throw new Error('API2 fail: ' + JSON.stringify(d).slice(0, 100));
-}
-
-// API3: youtube-mp3-downloader-2 (new endpoint)
-async function tryApi3(videoId) {
-  const r = await fetch(
-    `https://youtube-mp3-downloader-2.p.rapidapi.com/ytmp3/ytmp3/custom/?url=https://www.youtube.com/watch?v=${videoId}&quality=128`,
-    { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp3-downloader-2.p.rapidapi.com' } }
-  );
-  const d = await r.json();
-  console.log('[API3] ytmp3-dl-2:', JSON.stringify(d).slice(0, 200));
-  const url = d.dlink || d.link || d.url || d.downloadUrl;
-  if (url) return { url, duration: d.duration ? secsToDur(d.duration) : '0:00' };
-  throw new Error('API3 fail: ' + JSON.stringify(d).slice(0, 100));
-}
-
-// API4: YouTube Data v3 — itag 140 (m4a audio, always available)
-async function tryApi4(videoId) {
-  if (!process.env.YOUTUBE_API_KEY) throw new Error('API4 skip: no YOUTUBE_API_KEY');
-  // YouTube v3 se video details lo
-  const infoR = await fetch(
-    `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=contentDetails&key=${process.env.YOUTUBE_API_KEY}`
-  );
-  const info = await infoR.json();
-  const dur = info?.items?.[0]?.contentDetails?.duration || '';
-  // duration parse: PT3M45S → 3:45
-  const m = dur.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  const totalSec = m ? (parseInt(m[1]||0)*3600 + parseInt(m[2]||0)*60 + parseInt(m[3]||0)) : 0;
-  throw new Error('API4: YouTube v3 only gives metadata, no audio URL');
-}
-
-// MP3 URL HELPER for admin upload (uses same API chain)
+// ── MP3 URL HELPER (admin upload ke liye) ──
 async function getMp3AndUpload(videoId, title, artist) {
-  const apis = [
-    { name: 'cobalt', fn: () => tryApi1(videoId) },
-    { name: 'yt-api', fn: () => tryApi2(videoId) },
-    { name: 'ytmp3-dl-2', fn: () => tryApi3(videoId) },
-  ];
-  for (const api of apis) {
-    try {
-      const result = await api.fn();
-      return { audioUrl: result.url, duration: result.duration };
-    } catch(e) { console.warn(`[getMp3] ${api.name} fail:`, e.message); }
-  }
-  throw new Error('Koi bhi API se MP3 nahi mila');
+  const audioUrl = await getYtdlpUrl(videoId);
+  const duration = await getYtdlpInfo(videoId);
+  return { audioUrl, duration };
 }
 
+// ── STREAM URL ──
 app.post('/api/stream-url', async (req, res) => {
   try {
     const { videoId } = req.body;
     if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
 
-    const apis = [
-      { name: 'API1 (cobalt.tools)', fn: () => tryApi1(videoId) },
-      { name: 'API2 (yt-api RapidAPI)', fn: () => tryApi2(videoId) },
-      { name: 'API3 (ytmp3-downloader-2)', fn: () => tryApi3(videoId) },
-    ];
+    // Parallel mein URL aur duration dono lo
+    const [url, duration] = await Promise.all([
+      getYtdlpUrl(videoId),
+      getYtdlpInfo(videoId)
+    ]);
 
-    const errors = [];
-    for (const api of apis) {
-      try {
-        const result = await api.fn();
-        console.log(`[stream-url] ${api.name} SUCCESS ✅`);
-        return res.json({ success: true, ...result });
-      } catch (e) {
-        console.warn(`[stream-url] ${api.name} FAILED:`, e.message);
-        errors.push(`${api.name}: ${e.message}`);
-      }
-    }
-
-    console.error('[stream-url] Sab APIs fail:', errors);
-    res.status(500).json({ success: false, error: 'Abhi stream unavailable hai. Thodi der baad try karo.' });
+    return res.json({ success: true, url, duration });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error('[stream-url] yt-dlp FAILED:', err.message);
+    res.status(500).json({ success: false, error: 'Stream unavailable hai. Thodi der baad try karo.' });
   }
 });
 
