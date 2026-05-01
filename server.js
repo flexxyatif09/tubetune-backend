@@ -72,49 +72,64 @@ const execFileAsync = promisify(execFile);
 const os = require('os');
 const fs = require('fs');
 
-// ── Piped API instances — stable YouTube proxy ──
-const PIPED_INSTANCES = [
-  'https://pipedapi.kavin.rocks',
-  'https://pipedapi.tokhmi.xyz',
-  'https://pipedapi.moomoo.me',
-  'https://piped-api.garudalinux.org',
-  'https://api.piped.projectsegfau.lt',
-  'https://pipedapi.in.projectsegfau.lt',
-  'https://pipedapi.drgns.space',
-  'https://piped.syncpundit.io/api',
-];
+// ── YouTube Innertube API — direct, no third party ──
+async function getAudioFromYouTube(videoId) {
+  console.log(`[innertube] Fetching: ${videoId}`);
 
-async function getAudioFromPiped(videoId) {
-  for (const base of PIPED_INSTANCES) {
-    try {
-      console.log(`[piped] Trying: ${base}`);
-      const r = await fetch(`${base}/streams/${videoId}`, {
-        headers: { 'User-Agent': 'TubeTune/1.0' },
-        signal: AbortSignal.timeout(8000)
-      });
-      if (!r.ok) { console.warn(`[piped] ${base} → ${r.status}`); continue; }
-      const data = await r.json();
-      if (!data.audioStreams || !data.audioStreams.length) {
-        console.warn(`[piped] ${base} → no audio streams`); continue;
+  // YouTube's internal API — same jo browser use karta hai
+  const body = {
+    videoId,
+    context: {
+      client: {
+        clientName: 'ANDROID',
+        clientVersion: '19.09.37',
+        androidSdkVersion: 30,
+        userAgent: 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+        hl: 'en',
+        gl: 'US',
       }
-      // Best quality audio lo
-      const audio = data.audioStreams.sort((a, b) => (b.bitrate||0) - (a.bitrate||0))[0];
-      if (!audio?.url) continue;
-
-      const secs = parseInt(data.duration) || 0;
-      const duration = secs ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : '0:00';
-      console.log(`[piped] SUCCESS ✅ via ${base}`);
-      return { url: audio.url, duration };
-    } catch(e) {
-      console.warn(`[piped] ${base} failed:`, e.message);
     }
+  };
+
+  const r = await fetch('https://www.youtube.com/youtubei/v1/player?key=AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+      'X-YouTube-Client-Name': '3',
+      'X-YouTube-Client-Version': '19.09.37',
+      'Origin': 'https://www.youtube.com',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15000)
+  });
+
+  if (!r.ok) throw new Error(`YouTube API: ${r.status}`);
+  const data = await r.json();
+
+  const formats = [
+    ...(data.streamingData?.adaptiveFormats || []),
+    ...(data.streamingData?.formats || [])
+  ].filter(f => f.mimeType && f.mimeType.includes('audio'));
+
+  if (!formats.length) {
+    const reason = data.playabilityStatus?.reason || 'Unknown';
+    throw new Error(`No audio formats: ${reason}`);
   }
-  throw new Error('Sab Piped instances fail ho gaye');
+
+  formats.sort((a, b) => (b.bitrate||0) - (a.bitrate||0));
+  const best = formats[0];
+
+  const secs = parseInt(data.videoDetails?.lengthSeconds) || 0;
+  const duration = secs ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : '0:00';
+
+  console.log(`[innertube] SUCCESS ✅ (${best.mimeType?.split(';')[0]})`);
+  return { url: best.url, duration };
 }
 
 // ── MP3 URL HELPER (admin upload ke liye) ──
 async function getMp3AndUpload(videoId, title, artist) {
-  const { url: audioUrl, duration } = await getAudioFromPiped(videoId);
+  const { url: audioUrl, duration } = await getAudioFromYouTube(videoId);
   return { audioUrl, duration };
 }
 
@@ -123,7 +138,7 @@ app.post('/api/stream-url', async (req, res) => {
   try {
     const { videoId } = req.body;
     if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
-    const { url, duration } = await getAudioFromPiped(videoId);
+    const { url, duration } = await getAudioFromYouTube(videoId);
     return res.json({ success: true, url, duration });
   } catch (err) {
     console.error('[stream-url] FAILED:', err.message);
