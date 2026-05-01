@@ -72,54 +72,62 @@ const execFileAsync = promisify(execFile);
 const os = require('os');
 const fs = require('fs');
 
-// ── yt-dlp binary path — project folder mein hai ──
-const YTDLP_PATH = process.env.YTDLP_PATH || require('path').join(__dirname, 'yt-dlp');
+// ── play-dl — pure Node.js YouTube audio extractor ──
+let playdl = null;
+async function getPlaydl() {
+  if (!playdl) playdl = await import('play-dl');
+  return playdl;
+}
 
-// ── Bot bypass ke liye common flags ──
-const YTDLP_BASE_FLAGS = [
-  '--no-playlist',
-  '--no-warnings',
-  '--socket-timeout', '20',
-  // Bot detection bypass
-  '--extractor-args', 'youtube:player_client=web,mweb',
-  '--add-header', 'User-Agent:Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-  '--add-header', 'Accept-Language:en-US,en;q=0.9',
-];
-
-// ── yt-dlp se audio URL nikalo ──
+// ── Audio URL nikalo via play-dl ──
 async function getYtdlpUrl(videoId) {
   const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
-  console.log(`[yt-dlp] Fetching: ${videoId}`);
-
-  const { stdout } = await execFileAsync(YTDLP_PATH, [
-    '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
-    '--get-url',
-    ...YTDLP_BASE_FLAGS,
-    ytUrl
-  ], { timeout: 40000 });
-
-  const url = stdout.trim().split('\n')[0];
-  if (!url || !url.startsWith('http')) throw new Error('yt-dlp ne URL nahi diya');
-  console.log(`[yt-dlp] URL milgaya ✅`);
-  return url;
+  console.log(`[play-dl] Fetching: ${videoId}`);
+  const pd = await getPlaydl();
+  const info = await pd.video_info(ytUrl);
+  // Best audio format lo
+  const formats = info.format.filter(f => f.mimeType && f.mimeType.includes('audio'));
+  formats.sort((a, b) => (parseInt(b.bitrate)||0) - (parseInt(a.bitrate)||0));
+  const best = formats[0];
+  if (!best?.url) throw new Error('play-dl: audio URL nahi mila');
+  console.log(`[play-dl] URL milgaya ✅ (${best.mimeType})`);
+  return best.url;
 }
 
-// ── yt-dlp se duration bhi nikalo ──
+// ── Duration nikalo via play-dl ──
 async function getYtdlpInfo(videoId) {
-  const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
   try {
-    const { stdout } = await execFileAsync(YTDLP_PATH, [
-      '--print', '%(duration)s',
-      ...YTDLP_BASE_FLAGS,
-      ytUrl
-    ], { timeout: 30000 });
-    const secs = parseInt(stdout.trim());
-    const duration = isNaN(secs) ? '0:00' : `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
-    return duration;
-  } catch(e) {
-    return '0:00';
-  }
+    const pd = await getPlaydl();
+    const info = await pd.video_basic_info(`https://www.youtube.com/watch?v=${videoId}`);
+    const secs = info.video_details.durationInSec || 0;
+    return secs ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : '0:00';
+  } catch(e) { return '0:00'; }
 }
+
+// ── MP3 URL HELPER (admin upload ke liye) ──
+async function getMp3AndUpload(videoId, title, artist) {
+  const audioUrl = await getYtdlpUrl(videoId);
+  const duration = await getYtdlpInfo(videoId);
+  return { audioUrl, duration };
+}
+
+// ── STREAM URL ──
+app.post('/api/stream-url', async (req, res) => {
+  try {
+    const { videoId } = req.body;
+    if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
+
+    const [url, duration] = await Promise.all([
+      getYtdlpUrl(videoId),
+      getYtdlpInfo(videoId)
+    ]);
+
+    return res.json({ success: true, url, duration });
+  } catch (err) {
+    console.error('[stream-url] play-dl FAILED:', err.message);
+    res.status(500).json({ success: false, error: 'Stream unavailable hai. Thodi der baad try karo.' });
+  }
+});
 
 // ── MP3 URL HELPER (admin upload ke liye) ──
 async function getMp3AndUpload(videoId, title, artist) {
