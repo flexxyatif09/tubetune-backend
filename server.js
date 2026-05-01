@@ -72,8 +72,8 @@ const execFileAsync = promisify(execFile);
 const os = require('os');
 const fs = require('fs');
 
-// ── yt-dlp binary path — Render pe $HOME/yt-dlp mein install hoga ──
-const YTDLP_PATH = process.env.YTDLP_PATH || require('path').join(require('os').homedir(), 'yt-dlp');
+// ── yt-dlp binary path — project folder mein hai ──
+const YTDLP_PATH = process.env.YTDLP_PATH || require('path').join(__dirname, 'yt-dlp');
 
 // ── yt-dlp se audio URL nikalo ──
 async function getYtdlpUrl(videoId) {
