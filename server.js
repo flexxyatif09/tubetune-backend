@@ -72,50 +72,49 @@ const execFileAsync = promisify(execFile);
 const os = require('os');
 const fs = require('fs');
 
-// ── Invidious public instances — YouTube proxy ──
-const INVIDIOUS_INSTANCES = [
-  'https://iv.datura.network',
-  'https://invidious.privacyredirect.com',
-  'https://invidious.nerdvpn.de',
-  'https://yt.cdaut.de',
-  'https://invidious.io.lol',
-  'https://inv.nadeko.net',
+// ── Piped API instances — stable YouTube proxy ──
+const PIPED_INSTANCES = [
+  'https://pipedapi.kavin.rocks',
+  'https://pipedapi.tokhmi.xyz',
+  'https://pipedapi.moomoo.me',
+  'https://piped-api.garudalinux.org',
+  'https://api.piped.projectsegfau.lt',
+  'https://pipedapi.in.projectsegfau.lt',
+  'https://pipedapi.drgns.space',
+  'https://piped.syncpundit.io/api',
 ];
 
-async function getAudioFromInvidious(videoId) {
-  for (const base of INVIDIOUS_INSTANCES) {
+async function getAudioFromPiped(videoId) {
+  for (const base of PIPED_INSTANCES) {
     try {
-      console.log(`[invidious] Trying: ${base}`);
-      const r = await fetch(`${base}/api/v1/videos/${videoId}`, {
+      console.log(`[piped] Trying: ${base}`);
+      const r = await fetch(`${base}/streams/${videoId}`, {
         headers: { 'User-Agent': 'TubeTune/1.0' },
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(8000)
       });
-      if (!r.ok) { console.warn(`[invidious] ${base} → ${r.status}`); continue; }
+      if (!r.ok) { console.warn(`[piped] ${base} → ${r.status}`); continue; }
       const data = await r.json();
+      if (!data.audioStreams || !data.audioStreams.length) {
+        console.warn(`[piped] ${base} → no audio streams`); continue;
+      }
+      // Best quality audio lo
+      const audio = data.audioStreams.sort((a, b) => (b.bitrate||0) - (a.bitrate||0))[0];
+      if (!audio?.url) continue;
 
-      // adaptiveFormats mein best audio lo
-      const audioFormats = (data.adaptiveFormats || [])
-        .filter(f => f.type && f.type.includes('audio'))
-        .sort((a, b) => (parseInt(b.bitrate)||0) - (parseInt(a.bitrate)||0));
-
-      if (!audioFormats.length) { console.warn(`[invidious] ${base} → no audio formats`); continue; }
-
-      const best = audioFormats[0];
-      const secs = parseInt(data.lengthSeconds) || 0;
+      const secs = parseInt(data.duration) || 0;
       const duration = secs ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : '0:00';
-
-      console.log(`[invidious] SUCCESS ✅ via ${base}`);
-      return { url: best.url, duration };
+      console.log(`[piped] SUCCESS ✅ via ${base}`);
+      return { url: audio.url, duration };
     } catch(e) {
-      console.warn(`[invidious] ${base} failed:`, e.message);
+      console.warn(`[piped] ${base} failed:`, e.message);
     }
   }
-  throw new Error('Sab Invidious instances fail ho gaye');
+  throw new Error('Sab Piped instances fail ho gaye');
 }
 
 // ── MP3 URL HELPER (admin upload ke liye) ──
 async function getMp3AndUpload(videoId, title, artist) {
-  const { url: audioUrl, duration } = await getAudioFromInvidious(videoId);
+  const { url: audioUrl, duration } = await getAudioFromPiped(videoId);
   return { audioUrl, duration };
 }
 
@@ -124,8 +123,7 @@ app.post('/api/stream-url', async (req, res) => {
   try {
     const { videoId } = req.body;
     if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
-
-    const { url, duration } = await getAudioFromInvidious(videoId);
+    const { url, duration } = await getAudioFromPiped(videoId);
     return res.json({ success: true, url, duration });
   } catch (err) {
     console.error('[stream-url] FAILED:', err.message);
