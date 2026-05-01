@@ -12,7 +12,6 @@
     "@supabase/supabase-js": "^2.38.0",
     "razorpay": "^2.9.2",
     "cloudinary": "^1.41.3",
-    "multer": "^1.4.5-lts.1",
-    "play-dl": "^1.9.7"
+    "multer": "^1.4.5-lts.1"
   }
 }
