@@ -72,8 +72,8 @@ const execFileAsync = promisify(execFile);
 const os = require('os');
 const fs = require('fs');
 
-// ── yt-dlp binary path (Render pe auto-install hoga build.sh se) ──
-const YTDLP_PATH = process.env.YTDLP_PATH || '/usr/local/bin/yt-dlp';
+// ── yt-dlp binary path — Render pe $HOME/yt-dlp mein install hoga ──
+const YTDLP_PATH = process.env.YTDLP_PATH || require('path').join(require('os').homedir(), 'yt-dlp');
 
 // ── yt-dlp se audio URL nikalo ──
 async function getYtdlpUrl(videoId) {
