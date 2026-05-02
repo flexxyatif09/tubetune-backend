@@ -72,127 +72,93 @@ const execFileAsync = promisify(execFile);
 const os = require('os');
 const fs = require('fs');
 
-// ── YouTube Innertube API — direct, no third party ──
-async function getAudioFromYouTube(videoId) {
-  console.log(`[innertube] Fetching: ${videoId}`);
+// ── RapidAPI Multi-Fallback Stream System ──
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 
-  const clients = [
-    // WEB_EMBEDDED_PLAYER — age restriction bypass
-    {
-      name: 'WEB_EMBEDDED',
-      body: {
-        videoId,
-        context: {
-          client: {
-            clientName: 'WEB_EMBEDDED_PLAYER',
-            clientVersion: '2.20231219.01.00',
-            clientScreen: 'EMBED',
-            hl: 'en', gl: 'US',
-          },
-          thirdParty: { embedUrl: 'https://www.youtube.com/' }
-        }
-      },
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'X-YouTube-Client-Name': '56',
-        'X-YouTube-Client-Version': '2.20231219.01.00',
-        'Origin': 'https://www.youtube.com',
-        'Referer': 'https://www.youtube.com/',
-      },
-      url: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false'
+// API1: youtube-mp36 (MP3 link deta hai)
+async function tryApi1(videoId) {
+  const r = await fetch(`https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`, {
+    headers: {
+      'X-RapidAPI-Key': RAPIDAPI_KEY,
+      'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com'
     },
-    // ANDROID_EMBEDDED_PLAYER
-    {
-      name: 'ANDROID_EMBEDDED',
-      body: {
-        videoId,
-        context: {
-          client: {
-            clientName: 'ANDROID_EMBEDDED_PLAYER',
-            clientVersion: '19.09.37',
-            androidSdkVersion: 30,
-            hl: 'en', gl: 'US',
-          },
-          thirdParty: { embedUrl: 'https://www.youtube.com/' }
-        }
-      },
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
-        'X-YouTube-Client-Name': '55',
-        'X-YouTube-Client-Version': '19.09.37',
-      },
-      url: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false'
-    },
-    // MWEB
-    {
-      name: 'MWEB',
-      body: {
-        videoId,
-        context: {
-          client: {
-            clientName: 'MWEB',
-            clientVersion: '2.20230727.01.00',
-            hl: 'en', gl: 'US',
-          }
-        }
-      },
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-        'X-YouTube-Client-Name': '2',
-        'X-YouTube-Client-Version': '2.20230727.01.00',
-        'Origin': 'https://m.youtube.com',
-      },
-      url: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false'
-    }
-  ];
-
-  for (const client of clients) {
-    try {
-      console.log(`[innertube] Trying: ${client.name}`);
-      const r = await fetch(client.url, {
-        method: 'POST',
-        headers: client.headers,
-        body: JSON.stringify(client.body),
-        signal: AbortSignal.timeout(15000)
-      });
-
-      if (!r.ok) { console.warn(`[innertube] ${client.name} → HTTP ${r.status}`); continue; }
-      const data = await r.json();
-
-      const status = data.playabilityStatus?.status;
-      if (status === 'LOGIN_REQUIRED' || status === 'UNPLAYABLE') {
-        console.warn(`[innertube] ${client.name} → ${status}: ${data.playabilityStatus?.reason}`);
-        continue;
-      }
-
-      const formats = [
-        ...(data.streamingData?.adaptiveFormats || []),
-        ...(data.streamingData?.formats || [])
-      ].filter(f => f.mimeType?.includes('audio') && f.url);
-
-      if (!formats.length) { console.warn(`[innertube] ${client.name} → no audio formats`); continue; }
-
-      formats.sort((a, b) => (b.bitrate||0) - (a.bitrate||0));
-      const best = formats[0];
-      const secs = parseInt(data.videoDetails?.lengthSeconds) || 0;
-      const duration = secs ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : '0:00';
-
-      console.log(`[innertube] SUCCESS ✅ via ${client.name}`);
-      return { url: best.url, duration };
-    } catch(e) {
-      console.warn(`[innertube] ${client.name} failed:`, e.message);
+    signal: AbortSignal.timeout(15000)
+  });
+  const d = await r.json();
+  console.log('[API1] youtube-mp36:', d.status, d.link ? 'link ok' : 'no link');
+  if (d.status === 'processing' || d.status === 'prep') {
+    await new Promise(r => setTimeout(r, 5000));
+    const r2 = await fetch(`https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`, {
+      headers: { 'X-RapidAPI-Key': RAPIDAPI_KEY, 'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com' }
+    });
+    const d2 = await r2.json();
+    if (d2.status === 'ok' && d2.link) {
+      const dur = d2.duration ? `${Math.floor(d2.duration/60)}:${String(d2.duration%60).padStart(2,'0')}` : '0:00';
+      return { url: d2.link, duration: dur };
     }
   }
-  throw new Error('Sab YouTube clients fail ho gaye');
+  if (d.status === 'ok' && d.link) {
+    const dur = d.duration ? `${Math.floor(d.duration/60)}:${String(d.duration%60).padStart(2,'0')}` : '0:00';
+    return { url: d.link, duration: dur };
+  }
+  throw new Error('API1 fail: ' + (d.msg || d.status || 'unknown'));
+}
+
+// API2: yt-api (audio stream URL deta hai — best quality)
+async function tryApi2(videoId) {
+  const r = await fetch(`https://yt-api.p.rapidapi.com/dl?id=${videoId}&cgeo=US`, {
+    headers: {
+      'X-RapidAPI-Key': RAPIDAPI_KEY,
+      'X-RapidAPI-Host': 'yt-api.p.rapidapi.com'
+    },
+    signal: AbortSignal.timeout(15000)
+  });
+  const d = await r.json();
+  console.log('[API2] yt-api status:', d.status);
+  if (d.status !== 'OK') throw new Error('API2 fail: ' + d.status);
+  // adaptiveFormats mein best audio lo
+  const formats = (d.adaptiveFormats || [])
+    .filter(f => f.mimeType && f.mimeType.includes('audio'))
+    .sort((a, b) => (parseInt(b.bitrate)||0) - (parseInt(a.bitrate)||0));
+  if (!formats.length) throw new Error('API2: no audio formats');
+  const dur = d.lengthSeconds
+    ? `${Math.floor(d.lengthSeconds/60)}:${String(d.lengthSeconds%60).padStart(2,'0')}`
+    : '0:00';
+  return { url: formats[0].url, duration: dur };
+}
+
+// API3: youtube-mp3-2025
+async function tryApi3(videoId) {
+  // Try dono possible hosts
+  const hosts = [
+    'youtube-mp3-2025.p.rapidapi.com',
+    'youtube-mp32025.p.rapidapi.com',
+  ];
+  for (const host of hosts) {
+    try {
+      const r = await fetch(`https://${host}/dl?id=${videoId}`, {
+        headers: { 'X-RapidAPI-Key': RAPIDAPI_KEY, 'X-RapidAPI-Host': host },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!r.ok) continue;
+      const d = await r.json();
+      console.log('[API3] youtube-mp3-2025:', JSON.stringify(d).slice(0, 150));
+      const url = d.link || d.url || d.dlink || d.downloadUrl;
+      if (!url) continue;
+      const dur = d.duration ? `${Math.floor(d.duration/60)}:${String(d.duration%60).padStart(2,'0')}` : '0:00';
+      return { url, duration: dur };
+    } catch(e) { continue; }
+  }
+  throw new Error('API3 fail: no working host');
 }
 
 // ── MP3 URL HELPER (admin upload ke liye) ──
 async function getMp3AndUpload(videoId, title, artist) {
-  const { url: audioUrl, duration } = await getAudioFromYouTube(videoId);
-  return { audioUrl, duration };
+  for (const [name, fn] of [['API1', tryApi1], ['API2', tryApi2], ['API3', tryApi3]]) {
+    try { return await fn(videoId).then(r => ({ audioUrl: r.url, duration: r.duration })); }
+    catch(e) { console.warn(`[getMp3] ${name} fail:`, e.message); }
+  }
+  throw new Error('Koi API kaam nahi aayi');
 }
 
 // ── STREAM URL ──
@@ -200,11 +166,28 @@ app.post('/api/stream-url', async (req, res) => {
   try {
     const { videoId } = req.body;
     if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
-    const { url, duration } = await getAudioFromYouTube(videoId);
-    return res.json({ success: true, url, duration });
-  } catch (err) {
-    console.error('[stream-url] FAILED:', err.message);
+
+    const apis = [
+      { name: 'yt-api', fn: () => tryApi2(videoId) },
+      { name: 'youtube-mp36', fn: () => tryApi1(videoId) },
+      { name: 'youtube-mp3-2025', fn: () => tryApi3(videoId) },
+    ];
+
+    const errors = [];
+    for (const api of apis) {
+      try {
+        const result = await api.fn();
+        console.log(`[stream-url] ${api.name} SUCCESS ✅`);
+        return res.json({ success: true, ...result });
+      } catch(e) {
+        console.warn(`[stream-url] ${api.name} FAILED:`, e.message);
+        errors.push(`${api.name}: ${e.message}`);
+      }
+    }
+    console.error('[stream-url] Sab fail:', errors);
     res.status(500).json({ success: false, error: 'Stream unavailable hai. Thodi der baad try karo.' });
+  } catch(err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
