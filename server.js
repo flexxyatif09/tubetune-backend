@@ -191,32 +191,6 @@ app.post('/api/stream-url', async (req, res) => {
   }
 });
 
-// ── MP3 URL HELPER (admin upload ke liye) ──
-async function getMp3AndUpload(videoId, title, artist) {
-  const audioUrl = await getYtdlpUrl(videoId);
-  const duration = await getYtdlpInfo(videoId);
-  return { audioUrl, duration };
-}
-
-// ── STREAM URL ──
-app.post('/api/stream-url', async (req, res) => {
-  try {
-    const { videoId } = req.body;
-    if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
-
-    // Parallel mein URL aur duration dono lo
-    const [url, duration] = await Promise.all([
-      getYtdlpUrl(videoId),
-      getYtdlpInfo(videoId)
-    ]);
-
-    return res.json({ success: true, url, duration });
-  } catch (err) {
-    console.error('[stream-url] yt-dlp FAILED:', err.message);
-    res.status(500).json({ success: false, error: 'Stream unavailable hai. Thodi der baad try karo.' });
-  }
-});
-
 // ── MY SONGS — User ki personal library ──
 app.post('/api/my-songs', async (req, res) => {
   try {
