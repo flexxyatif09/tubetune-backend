@@ -3078,7 +3078,6 @@ function _loadAndPlay(s){
   }
 
   // ── STALE LISTENERS FIX: audio element replace karo ──
-  // cloneNode(false) se bilkul fresh element milta hai — zero listeners
   const oldAud = aud;
   const newAud = oldAud.cloneNode(false);
   oldAud.pause();
@@ -3108,39 +3107,47 @@ function _loadAndPlay(s){
     updateMediaPosition();
   }, { once: true });
 
-  // Error — fresh URL fetch karo
-  aud.addEventListener('error', function(){
-    let videoId = null;
-    if(s.id && s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
-    else if(s.youtube_id) videoId = s.youtube_id;
-    else if(s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl||'');
-    else if(s.youtube_url) videoId = extractVideoId(s.youtube_url||'');
-
-    if(videoId){
-      toast('URL expire — refresh ho rahi hai...','inf');
-      fetch(`${API}/api/stream-url`,{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({videoId})
-      }).then(r=>r.json()).then(d=>{
-        if(d.success && d.url){
-          const idx2 = songs.findIndex(x=>x.id===s.id);
-          if(idx2>=0) songs[idx2].url = d.url;
-          s.url = d.url;
-          _loadAndPlay(s);
-        } else {
-          toast('Stream fail — next song...','err');
-          setTimeout(()=>_playNext(), 1500);
-        }
-      }).catch(()=>{ toast('Network error — next song...','err'); setTimeout(()=>_playNext(),2000); });
-    } else {
-      if(s.url && aud.error && aud.error.code !== 4){
-        setTimeout(()=>{ aud.src=s.url; aud.load(); aud.play().catch(()=>{}); }, 1500);
-      } else { toast('Audio play nahi hua','err'); }
-    }
-  }, { once: true });
-
+  // PEHLE src set karo, PHIR error listener lagao
+  // Warna empty src ya cloneNode state se false error fire hota hai
   aud.src = s.url;
   aud.load();
+
+  // Error listener — src set hone ke baad lagao
+  setTimeout(()=>{
+    aud.addEventListener('error', function(){
+      // Agar src change ho chuka hai toh ignore karo (naya song load ho raha hai)
+      if(aud.src !== s.url && aud.src !== window.location.href) return;
+      if(!aud.error) return; // false fire
+
+      let videoId = null;
+      if(s.id && s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
+      else if(s.youtube_id) videoId = s.youtube_id;
+      else if(s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl||'');
+      else if(s.youtube_url) videoId = extractVideoId(s.youtube_url||'');
+
+      if(videoId){
+        toast('URL expire — refresh ho rahi hai...','inf');
+        fetch(`${API}/api/stream-url`,{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({videoId})
+        }).then(r=>r.json()).then(d=>{
+          if(d.success && d.url){
+            const idx2 = songs.findIndex(x=>x.id===s.id);
+            if(idx2>=0) songs[idx2].url = d.url;
+            s.url = d.url;
+            _loadAndPlay(s);
+          } else {
+            toast('Stream fail — next song...','err');
+            setTimeout(()=>_playNext(), 1500);
+          }
+        }).catch(()=>{ toast('Network error — next song...','err'); setTimeout(()=>_playNext(),2000); });
+      } else {
+        if(s.url && aud.error.code !== 4){
+          setTimeout(()=>{ aud.src=s.url; aud.load(); aud.play().catch(()=>{}); }, 1500);
+        } else { toast('Audio play nahi hua','err'); }
+      }
+    }, { once: true });
+  }, 100);
 
   // Deferred renders
   requestAnimationFrame(()=>{
