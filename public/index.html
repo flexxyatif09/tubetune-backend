@@ -2869,13 +2869,9 @@ async function playById(id){
 
   if(videoId){
     updateNPUI(s);
-    // Agar cached URL already hai — seedha play karo, server cache hit karega
-    if(s.url){
-      _loadAndPlay(s);
-      return;
-    }
-    // URL nahi hai — fetch karo
     toast('Loading...','inf');
+    // Hamesha server se fresh URL lo — server cache handle karega (55 min TTL)
+    // s.url pe depend mat karo — YouTube URLs expire hoti hain
     try{
       const r=await fetch(`${API}/api/stream-url`,{
         method:'POST',
@@ -2888,7 +2884,7 @@ async function playById(id){
         if(d.duration) songs[idx].dur=d.duration;
         _loadAndPlay(songs[idx]);
       } else {
-        toast('Stream URL nahi mila: '+(d.error||'Unknown error'),'err');
+        toast('Stream URL nahi mila','err');
       }
     }catch(e){
       toast('Play error: '+e.message,'err');
@@ -3143,32 +3139,28 @@ function _loadAndPlay(s){
       else if(s.youtube_url) videoId = extractVideoId(s.youtube_url||'');
 
       if(videoId){
-        if(_urlRefreshing[videoId]) return; // global guard — duplicate calls rok
+        if(_urlRefreshing[videoId]) return;
         _urlRefreshing[videoId] = true;
-        // URL clear karo taaki agla click fresh fetch kare
+        // Song cache clear karo
         const sidx = songs.findIndex(x=>x.id===s.id);
         if(sidx>=0) songs[sidx].url = '';
-        toast('URL expire — refresh ho rahi hai...','inf');
+        // Force=true se server cache bypass karke fresh URL lo
         fetch(`${API}/api/stream-url`,{
           method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({videoId})
+          body:JSON.stringify({videoId, force:true})
         }).then(r=>r.json()).then(d=>{
           _urlRefreshing[videoId] = false;
           if(d.success && d.url){
             const sidx2 = songs.findIndex(x=>x.id===s.id);
             if(sidx2>=0) songs[sidx2].url = d.url;
-            if(aud.src === s.url || !aud.src){ // sirf agar yahi song abhi current hai
-              aud.src = d.url;
-              aud.load();
-              aud.play().catch(()=>{});
-            }
+            aud.src = d.url;
+            aud.load();
+            aud.play().catch(()=>{});
           } else {
-            toast('Stream fail — next song...','err');
             setTimeout(()=>_playNext(), 1500);
           }
         }).catch(()=>{ _urlRefreshing[videoId]=false; setTimeout(()=>_playNext(),2000); });
       } else if(errCode !== 4) {
-        // Non-YouTube song, non-fatal error — retry once
         setTimeout(()=>{ aud.src=s.url; aud.load(); aud.play().catch(()=>{}); }, 1500);
       }
     }, { once: true });
