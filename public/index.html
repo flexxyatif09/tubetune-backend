@@ -2660,6 +2660,7 @@ function loadYtSongsIntoArray(){
 }
 let curIdx=-1,playing=false,repeat=false,shuffle=false;
 let filterMode='all',searchVal='',miniUp=false,npOpen=false,userClosedMini=false;
+const _urlRefreshing = {}; // videoId → true/false — global URL refresh guard
 let _currentPlayingId = null; // Playing song ID — refresh ke baad bhi sahi track kare
 let sleepOn=false,sleepTimer=null;
 let aud=document.getElementById('aud');
@@ -3121,17 +3122,19 @@ function _loadAndPlay(s){
     updateMediaPosition();
   }, { once: true });
 
-  // PEHLE src set karo, PHIR error listener lagao
-  // Warna empty src ya cloneNode state se false error fire hota hai
+  // src set karo aur load karo
   aud.src = s.url;
   aud.load();
 
-  // Error listener — src set hone ke baad lagao
-  setTimeout(()=>{
-    aud.addEventListener('error', function(){
-      // Agar src change ho chuka hai toh ignore karo (naya song load ho raha hai)
+  // Error listener — loadstart ke baad lagao taaki false fires na ho
+  aud.addEventListener('loadstart', function(){
+    aud.addEventListener('error', function onAudioError(){
+      // Agar src change ho chuka hai toh ignore karo
       if(aud.src !== s.url && aud.src !== window.location.href) return;
-      if(!aud.error) return; // false fire
+      if(!aud.error) return;
+      // MEDIA_ERR_ABORTED (1) = browser ne khud cancel kiya (song change) — ignore
+      const errCode = aud.error.code;
+      if(errCode === 1) return;
 
       let videoId = null;
       if(s.id && s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
@@ -3140,40 +3143,36 @@ function _loadAndPlay(s){
       else if(s.youtube_url) videoId = extractVideoId(s.youtube_url||'');
 
       if(videoId){
-        if(s._refreshing) return; // duplicate error event guard
-        // Sirf MEDIA_ERR_SRC_NOT_SUPPORTED (4) ya MEDIA_ERR_NETWORK (2) pe refresh karo
-        const errCode = aud.error && aud.error.code;
-        if(!errCode || errCode === 1) return; // MEDIA_ERR_ABORTED — false fire, ignore
-        s._refreshing = true;
-        // URL delete karo taaki dobara play pe fresh fetch ho
-        const idx2b = songs.findIndex(x=>x.id===s.id);
-        if(idx2b>=0) delete songs[idx2b].url;
-        delete s.url;
+        if(_urlRefreshing[videoId]) return; // global guard — duplicate calls rok
+        _urlRefreshing[videoId] = true;
+        // URL clear karo taaki agla click fresh fetch kare
+        const sidx = songs.findIndex(x=>x.id===s.id);
+        if(sidx>=0) songs[sidx].url = '';
         toast('URL expire — refresh ho rahi hai...','inf');
         fetch(`${API}/api/stream-url`,{
           method:'POST', headers:{'Content-Type':'application/json'},
           body:JSON.stringify({videoId})
         }).then(r=>r.json()).then(d=>{
-          s._refreshing = false;
+          _urlRefreshing[videoId] = false;
           if(d.success && d.url){
-            const idx2 = songs.findIndex(x=>x.id===s.id);
-            if(idx2>=0) songs[idx2].url = d.url;
-            s.url = d.url;
-            aud.src = d.url;
-            aud.load();
-            aud.play().catch(()=>{});
+            const sidx2 = songs.findIndex(x=>x.id===s.id);
+            if(sidx2>=0) songs[sidx2].url = d.url;
+            if(aud.src === s.url || !aud.src){ // sirf agar yahi song abhi current hai
+              aud.src = d.url;
+              aud.load();
+              aud.play().catch(()=>{});
+            }
           } else {
             toast('Stream fail — next song...','err');
             setTimeout(()=>_playNext(), 1500);
           }
-        }).catch(()=>{ s._refreshing=false; toast('Network error — next song...','err'); setTimeout(()=>_playNext(),2000); });
-      } else {
-        if(s.url && aud.error.code !== 4){
-          setTimeout(()=>{ aud.src=s.url; aud.load(); aud.play().catch(()=>{}); }, 1500);
-        } else { toast('Audio play nahi hua','err'); }
+        }).catch(()=>{ _urlRefreshing[videoId]=false; setTimeout(()=>_playNext(),2000); });
+      } else if(errCode !== 4) {
+        // Non-YouTube song, non-fatal error — retry once
+        setTimeout(()=>{ aud.src=s.url; aud.load(); aud.play().catch(()=>{}); }, 1500);
       }
     }, { once: true });
-  }, 100);
+  }, { once: true });
 
   // Deferred renders
   requestAnimationFrame(()=>{
