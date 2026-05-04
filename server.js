@@ -161,31 +161,85 @@ async function getMp3AndUpload(videoId, title, artist) {
   throw new Error('Koi API kaam nahi aayi');
 }
 
+// ── IN-MEMORY URL CACHE (RapidAPI calls bachao) ──
+// videoId → { url, duration, fetchedAt }
+const urlCache = new Map();
+const URL_CACHE_TTL = 55 * 60 * 1000; // 55 min
+
+// Same videoId ke duplicate simultaneous requests deduplicate karo
+const pendingRequests = new Map();
+
+function getCached(videoId) {
+  const entry = urlCache.get(videoId);
+  if (!entry) return null;
+  if (Date.now() - entry.fetchedAt > URL_CACHE_TTL) {
+    urlCache.delete(videoId);
+    return null;
+  }
+  return entry;
+}
+
+// Har ghante purani cache entries hatao
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, entry] of urlCache.entries()) {
+    if (now - entry.fetchedAt > URL_CACHE_TTL) urlCache.delete(id);
+  }
+}, 60 * 60 * 1000);
+
 // ── STREAM URL ──
 app.post('/api/stream-url', async (req, res) => {
   try {
     const { videoId } = req.body;
     if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
 
-    const apis = [
-      { name: 'yt-api', fn: () => tryApi2(videoId) },
-      { name: 'youtube-mp36', fn: () => tryApi1(videoId) },
-      { name: 'youtube-mp3-2025', fn: () => tryApi3(videoId) },
-    ];
+    // 1. Cache check — fresh URL hai toh API call mat karo
+    const cached = getCached(videoId);
+    if (cached) {
+      console.log(`[stream-url] Cache HIT ✅ ${videoId}`);
+      return res.json({ success: true, url: cached.url, duration: cached.duration, cached: true });
+    }
 
-    const errors = [];
-    for (const api of apis) {
+    // 2. Duplicate request deduplication — same videoId ke liye ek hi API call
+    if (pendingRequests.has(videoId)) {
+      console.log(`[stream-url] Duplicate pending request — waiting: ${videoId}`);
       try {
-        const result = await api.fn();
-        console.log(`[stream-url] ${api.name} SUCCESS ✅`);
+        const result = await pendingRequests.get(videoId);
         return res.json({ success: true, ...result });
       } catch(e) {
-        console.warn(`[stream-url] ${api.name} FAILED:`, e.message);
-        errors.push(`${api.name}: ${e.message}`);
+        return res.status(500).json({ success: false, error: e.message });
       }
     }
-    console.error('[stream-url] Sab fail:', errors);
-    res.status(500).json({ success: false, error: 'Stream unavailable hai. Thodi der baad try karo.' });
+
+    // 3. Fresh fetch — promise save karo taaki parallel requests wait kar sakein
+    const fetchPromise = (async () => {
+      const apis = [
+        { name: 'yt-api', fn: () => tryApi2(videoId) },
+        { name: 'youtube-mp36', fn: () => tryApi1(videoId) },
+        { name: 'youtube-mp3-2025', fn: () => tryApi3(videoId) },
+      ];
+      const errors = [];
+      for (const api of apis) {
+        try {
+          const result = await api.fn();
+          console.log(`[stream-url] ${api.name} SUCCESS ✅ — caching ${videoId}`);
+          urlCache.set(videoId, { url: result.url, duration: result.duration, fetchedAt: Date.now() });
+          return result;
+        } catch(e) {
+          console.warn(`[stream-url] ${api.name} FAILED:`, e.message);
+          errors.push(`${api.name}: ${e.message}`);
+        }
+      }
+      throw new Error('Stream unavailable. Thodi der baad try karo.');
+    })();
+
+    pendingRequests.set(videoId, fetchPromise);
+    try {
+      const result = await fetchPromise;
+      return res.json({ success: true, ...result });
+    } finally {
+      pendingRequests.delete(videoId);
+    }
   } catch(err) {
     res.status(500).json({ success: false, error: err.message });
   }
