@@ -323,29 +323,29 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .nav-badge{position:absolute;top:3px;right:calc(50% - 17px);background:var(--acc);color:#fff;font-size:8px;font-weight:800;padding:1px 5px;border-radius:10px;line-height:1.6;display:none}
 
 /* ── MINI PLAYER ── */
-.mini-player{position:fixed;bottom:68px;left:0;right:0;z-index:98;background:rgba(10,11,22,.97);backdrop-filter:blur(32px) saturate(1.5);border-top:1px solid rgba(108,92,231,.2);display:flex;align-items:center;gap:12px;padding:10px 12px 10px 14px;transform:translateY(200%);transition:transform .38s cubic-bezier(.4,0,.2,1)}
-.mini-player.up{transform:translateY(0)}
-.mini-player.hidden-np{transform:translateY(200%)!important}
-.mini-prog-bar{position:absolute;top:0;left:0;right:0;height:2px;background:var(--s4)}
-.mini-fill{height:100%;background:var(--grad);width:0%;transition:width .35s linear}
-.mini-thumb{width:44px;height:44px;border-radius:var(--r3);background:var(--s3);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.mini-player{position:fixed;bottom:92px;left:12px;right:12px;z-index:98;background:rgba(18,18,28,.92);backdrop-filter:blur(32px) saturate(1.8);border:1px solid rgba(255,255,255,.08);border-radius:28px;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 10px;transform:translateY(calc(100% + 200px));transition:transform .38s cubic-bezier(.4,0,.2,1);box-shadow:0 8px 32px rgba(0,0,0,.45);overflow:hidden;visibility:hidden}
+.mini-player.up{transform:translateY(0);visibility:visible}
+.mini-player.hidden-np{transform:translateY(calc(100% + 200px))!important;visibility:hidden}
+.mini-prog-bar{position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,.06);border-radius:0 0 28px 28px}
+.mini-fill{height:100%;background:var(--grad);width:0%;transition:width .35s linear;border-radius:0 0 28px 28px}
+.mini-thumb{width:42px;height:42px;border-radius:16px;background:var(--s3);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.4)}
 .mini-thumb img{width:100%;height:100%;object-fit:cover}
 .mini-text{flex:1;min-width:0;cursor:pointer}
-.mini-title{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx)}
-.mini-art{font-size:11px;color:var(--tx3);margin-top:1px}
+.mini-title{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+.mini-art{font-size:11px;color:rgba(255,255,255,.45);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini-btns{display:flex;align-items:center;gap:2px}
-.mini-btn{width:36px;height:36px;background:none;border:none;color:var(--tx2);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.mini-btn:hover{color:var(--tx)}
-.mini-btn.play-btn{width:42px;height:42px;background:var(--grad);color:#fff;box-shadow:0 2px 12px rgba(108,92,231,.4);border-radius:50%}
-.mini-btn.play-btn:hover{transform:scale(1.06)}
-.mini-close-btn{width:28px;height:28px;border-radius:50%;background:var(--s3);border:none;color:var(--tx3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:2px;transition:all .15s}
-.mini-close-btn:hover{background:rgba(255,118,117,.15);color:var(--red)}
+.mini-btn{width:34px;height:34px;background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.mini-btn:active{color:#fff;transform:scale(.92)}
+.mini-btn.play-btn{width:40px;height:40px;background:rgba(255,255,255,.12);color:#fff;border-radius:50%;border:1px solid rgba(255,255,255,.1)}
+.mini-btn.play-btn:active{transform:scale(.92);background:rgba(255,255,255,.2)}
+.mini-close-btn{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.07);border:none;color:rgba(255,255,255,.35);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.mini-close-btn:active{background:rgba(255,80,80,.2);color:#ff5f5f}
 
 /* ── SHUFFLE FAB ── */
-.shuf-fab{position:fixed;right:16px;z-index:97;width:48px;height:48px;background:var(--grad);border:none;border-radius:50%;color:#fff;cursor:pointer;box-shadow:0 6px 24px rgba(108,92,231,.55);display:none;align-items:center;justify-content:center;transition:all .2s;bottom:152px}
+.shuf-fab{position:fixed;right:16px;z-index:97;width:48px;height:48px;background:var(--grad);border:none;border-radius:50%;color:#fff;cursor:pointer;box-shadow:0 6px 24px rgba(108,92,231,.55);display:none;align-items:center;justify-content:center;transition:all .2s;bottom:168px}
 .shuf-fab.visible{display:flex}
-.shuf-fab.no-mini{bottom:84px}
-.shuf-fab.np-page{bottom:84px}
+.shuf-fab.no-mini{bottom:96px}
+.shuf-fab.np-page{bottom:96px}
 .shuf-fab:hover{transform:scale(1.08)}
 .shuf-fab:active{transform:scale(.93)}
 
@@ -2106,6 +2106,9 @@ function startCodePolling() {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('upiOverlay')?.addEventListener('click', e => { if(e.target===e.currentTarget) closeUpiModal(); });
   document.getElementById('contactOverlay')?.addEventListener('click', e => { if(e.target===e.currentTarget) closeContactAdmin(); });
+  // Mini player init pe hamesha hidden
+  const m = document.getElementById('mini');
+  if(m){ m.classList.remove('up'); m.classList.remove('hidden-np'); }
 });
 
 /* ══════════════════════════════════════════════════
@@ -2352,8 +2355,8 @@ async function boot(){
           return;
         }
         setPlayUI(playing);
-        // Sirf tab mini show karo jab actually playing tha
-        if(wasPlayingBeforeHide)showMini();
+        // Sirf tab mini show karo jab actually playing tha AUR user ne close nahi kiya
+        if(wasPlayingBeforeHide && miniUp) showMini();
         if(window.AndroidBridge){
           const s=songs[curIdx];
           try{AndroidBridge.notifyNewSong(s.title||'',s.artist||'',s.thumb||'',parseDur(s.dur||''));}catch(e){}
@@ -2656,7 +2659,7 @@ function loadYtSongsIntoArray(){
   });
 }
 let curIdx=-1,playing=false,repeat=false,shuffle=false;
-let filterMode='all',searchVal='',miniUp=false,npOpen=false;
+let filterMode='all',searchVal='',miniUp=false,npOpen=false,userClosedMini=false;
 let _currentPlayingId = null; // Playing song ID — refresh ke baad bhi sahi track kare
 let sleepOn=false,sleepTimer=null;
 let aud=document.getElementById('aud');
@@ -2850,6 +2853,7 @@ async function playById(id){
   curIdx=idx;
   _currentPlayingId = id; // Hamesha latest playing ID track karo
   const s=songs[idx];
+  userClosedMini=false; // New song play kiya — mini block hatao
   if(!npOpen)showMini();
   aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
   // User ne manually play kiya — flag set karo
@@ -2901,8 +2905,25 @@ async function playById(id){
   if(!s.url){toast('Audio URL nahi hai','inf');return;}
   _loadAndPlay(s);
 }
-function showMini(){miniUp=true;const m=document.getElementById('mini');m.classList.add('up');m.classList.remove('hidden-np');document.getElementById('shufFab').classList.remove('no-mini');}
-function closeMini(){aud.pause();miniUp=false;const m=document.getElementById('mini');m.classList.remove('up');m.classList.remove('hidden-np');document.getElementById('shufFab').classList.add('no-mini');}
+function showMini(){
+  if(curIdx<0) return; // koi song nahi hai toh mat dikhao
+  miniUp=true;
+  userClosedMini=false; // User ne dobara show kiya — flag reset karo
+  const m=document.getElementById('mini');
+  m.classList.add('up');
+  m.classList.remove('hidden-np');
+  document.getElementById('shufFab').classList.remove('no-mini');
+}
+function closeMini(){
+  aud.pause();
+  miniUp=false;
+  userClosedMini=true;  // User ne explicitly close kiya — dobara auto-show mat karo
+  wasPlayingBeforeHide=false; // important: dobara auto-show nahi hoga
+  const m=document.getElementById('mini');
+  m.classList.remove('up');
+  m.classList.remove('hidden-np');
+  document.getElementById('shufFab').classList.add('no-mini');
+}
 function closeNP(){goPage('home',document.getElementById('nb-home'));}
 function updateNPUI(s){document.getElementById('npTitle').textContent=s.title;document.getElementById('npArtist').textContent=s.artist;document.getElementById('miniTitle').textContent=s.title;document.getElementById('miniArt').textContent=s.artist;const badge=document.getElementById('npBadge');badge.textContent=s.quality;badge.style.display=s.quality?'inline-flex':'none';const artEl=document.getElementById('npArt'),miniTh=document.getElementById('miniThumb'),imgH=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;artEl.innerHTML=imgH;miniTh.innerHTML=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;const faved=favs.includes(s.id),hrt=document.getElementById('npHeart');hrt.classList.toggle('on',faved);hrt.querySelector('svg').setAttribute('fill',faved?'currentColor':'none');artEl.classList.toggle('spin',playing);}
 function updateGlows(){const colors=['#6C5CE7','#FD79A8','#FDCB6E','#00CEC9','#0984E3','#E17055'];document.querySelector('.ga-1').style.background=colors[curIdx%colors.length];document.querySelector('.ga-2').style.background=colors[(curIdx+1)%colors.length];}
@@ -2987,7 +3008,7 @@ window.onAndroidResume = function(){
 
       // Sirf refresh karo agar user background me actually play kar raha tha
       // wasPlayingBeforeHide = false means user ne pause kiya tha — auto-play mat karo
-      const needsRefresh = wasPlayingBeforeHide && (!s.url || !!aud.error || !aud.src);
+      const needsRefresh = wasPlayingBeforeHide && (!s.url || !aud.src);
       if(videoId && needsRefresh){
         fetch(`${API}/api/stream-url`,{
           method:'POST',
@@ -3014,7 +3035,7 @@ window.onAndroidResume = function(){
       // Agar wasPlayingBeforeHide=false (user ne pause kiya tha) — kuch mat karo
     }
     setPlayUI(playing);
-    if(wasPlayingBeforeHide && playing) showMini();
+    if(wasPlayingBeforeHide && playing && miniUp) showMini();
   }
 };
 
@@ -3126,21 +3147,26 @@ function _loadAndPlay(s){
       else if(s.youtube_url) videoId = extractVideoId(s.youtube_url||'');
 
       if(videoId){
+        if(s._refreshing) return; // duplicate error event guard
+        s._refreshing = true;
         toast('URL expire — refresh ho rahi hai...','inf');
         fetch(`${API}/api/stream-url`,{
           method:'POST', headers:{'Content-Type':'application/json'},
           body:JSON.stringify({videoId})
         }).then(r=>r.json()).then(d=>{
+          s._refreshing = false;
           if(d.success && d.url){
             const idx2 = songs.findIndex(x=>x.id===s.id);
             if(idx2>=0) songs[idx2].url = d.url;
             s.url = d.url;
-            _loadAndPlay(s);
+            aud.src = d.url;
+            aud.load();
+            aud.play().catch(()=>{});
           } else {
             toast('Stream fail — next song...','err');
             setTimeout(()=>_playNext(), 1500);
           }
-        }).catch(()=>{ toast('Network error — next song...','err'); setTimeout(()=>_playNext(),2000); });
+        }).catch(()=>{ s._refreshing=false; toast('Network error — next song...','err'); setTimeout(()=>_playNext(),2000); });
       } else {
         if(s.url && aud.error.code !== 4){
           setTimeout(()=>{ aud.src=s.url; aud.load(); aud.play().catch(()=>{}); }, 1500);
@@ -3659,6 +3685,7 @@ async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedC
     
     // Play button
     document.getElementById('ytPlayNowBtn').onclick=()=>{
+      userClosedMini=false; // User ne explicitly play kiya — mini show karo
       if(!npOpen)showMini();
       _loadAndPlay(tempSong);
       ytHideAll();clearSearch();
