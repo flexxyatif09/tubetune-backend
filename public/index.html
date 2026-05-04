@@ -2867,9 +2867,13 @@ async function playById(id){
   else if(s.youtubeUrl) videoId=extractVideoId(s.youtubeUrl);
 
   if(videoId){
-    // Hamesha fresh stream URL fetch karo — chahe s.url ho ya na ho
-    // YouTube URLs expire hoti hain, cached URL se play nahi hoga foreground mein bhi
     updateNPUI(s);
+    // Agar cached URL already hai — seedha play karo, server cache hit karega
+    if(s.url){
+      _loadAndPlay(s);
+      return;
+    }
+    // URL nahi hai — fetch karo
     toast('Loading...','inf');
     try{
       const r=await fetch(`${API}/api/stream-url`,{
@@ -2883,21 +2887,10 @@ async function playById(id){
         if(d.duration) songs[idx].dur=d.duration;
         _loadAndPlay(songs[idx]);
       } else {
-        // Fresh URL nahi mila — agar purani URL hai try karo
-        if(s.url){
-          toast('Purani URL se try ho raha hai...','inf');
-          _loadAndPlay(s);
-        } else {
-          toast('Stream URL nahi mila: '+(d.error||'Unknown error'),'err');
-        }
+        toast('Stream URL nahi mila: '+(d.error||'Unknown error'),'err');
       }
     }catch(e){
-      if(s.url){
-        toast('Network error — purani URL se try...','inf');
-        _loadAndPlay(s);
-      } else {
-        toast('Play error: '+e.message,'err');
-      }
+      toast('Play error: '+e.message,'err');
     }
     return;
   }
@@ -3148,7 +3141,14 @@ function _loadAndPlay(s){
 
       if(videoId){
         if(s._refreshing) return; // duplicate error event guard
+        // Sirf MEDIA_ERR_SRC_NOT_SUPPORTED (4) ya MEDIA_ERR_NETWORK (2) pe refresh karo
+        const errCode = aud.error && aud.error.code;
+        if(!errCode || errCode === 1) return; // MEDIA_ERR_ABORTED — false fire, ignore
         s._refreshing = true;
+        // URL delete karo taaki dobara play pe fresh fetch ho
+        const idx2b = songs.findIndex(x=>x.id===s.id);
+        if(idx2b>=0) delete songs[idx2b].url;
+        delete s.url;
         toast('URL expire — refresh ho rahi hai...','inf');
         fetch(`${API}/api/stream-url`,{
           method:'POST', headers:{'Content-Type':'application/json'},
