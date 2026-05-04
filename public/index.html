@@ -171,7 +171,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .av-crown{position:absolute;top:-8px;right:-4px;display:none;width:16px;height:16px;background:var(--grad-gold);border-radius:50%;display:flex;align-items:center;justify-content:center;display:none}
 .av-crown.show{display:flex}
 
-.scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:80px}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:100px}
 .scroll::-webkit-scrollbar{width:0}
 .pg{display:none;animation:pgIn .3s cubic-bezier(.4,0,.2,1)}
 .pg.on{display:block}
@@ -314,12 +314,12 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .un-title{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:10px}
 
 /* ── BOTTOM NAV ── */
-.bot-nav{position:fixed;bottom:0;left:0;right:0;z-index:99;background:rgba(7,8,15,.95);backdrop-filter:blur(28px) saturate(1.5);border-top:1px solid var(--bd);display:flex;padding:8px 0 max(8px,env(safe-area-inset-bottom));height:68px}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--tx3);font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:.3px;transition:color .15s;position:relative}
-.nav-btn.on{color:var(--p2)}
-.nav-btn.on::after{content:'';position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:30px;height:3px;background:var(--grad);border-radius:0 0 4px 4px}
+.bot-nav{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:99;background:rgba(18,18,28,.92);backdrop-filter:blur(32px) saturate(1.8);border:1px solid rgba(255,255,255,.08);display:flex;padding:8px 12px;height:64px;border-radius:40px;gap:4px;box-shadow:0 8px 32px rgba(0,0,0,.45)}
+.nav-btn{flex:1;min-width:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.35);font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;letter-spacing:.3px;transition:all .2s;position:relative;border-radius:28px;padding:6px 14px}
+.nav-btn.on{color:#fff;background:rgba(255,255,255,.1)}
+.nav-btn.on::after{display:none}
 .nav-btn svg{transition:transform .2s}
-.nav-btn.on svg{transform:scale(1.12)}
+.nav-btn.on svg{transform:scale(1.1)}
 .nav-badge{position:absolute;top:3px;right:calc(50% - 17px);background:var(--acc);color:#fff;font-size:8px;font-weight:800;padding:1px 5px;border-radius:10px;line-height:1.6;display:none}
 
 /* ── MINI PLAYER ── */
@@ -2659,7 +2659,7 @@ let curIdx=-1,playing=false,repeat=false,shuffle=false;
 let filterMode='all',searchVal='',miniUp=false,npOpen=false;
 let _currentPlayingId = null; // Playing song ID — refresh ke baad bhi sahi track kare
 let sleepOn=false,sleepTimer=null;
-const aud=document.getElementById('aud');
+let aud=document.getElementById('aud');
 
 /* ── FAVORITES DB SYNC ── */
 async function loadFavsFromDB(){
@@ -3077,88 +3077,67 @@ function _loadAndPlay(s){
     syncQueueToJava();
   }
 
-  // Clean audio load — pehle pause, phir src set, phir play
-  aud.pause();
-  aud.src = '';
-  aud.load(); // reset state
+  // ── STALE LISTENERS FIX: audio element replace karo ──
+  // cloneNode(false) se bilkul fresh element milta hai — zero listeners
+  const oldAud = aud;
+  const newAud = oldAud.cloneNode(false);
+  oldAud.pause();
+  oldAud.parentNode.replaceChild(newAud, oldAud);
+  aud = newAud;
 
-  // Ek baar load, ek baar play — no stale listeners
-  const onReady = () => {
-    aud.play().catch(err => {
-      // Background mein play fail — 1 sec baad retry
-      setTimeout(() => aud.play().catch(() => {}), 1000);
-    });
-    // Duration Java ko bhejo
+  // Global listeners re-attach karo
+  aud.addEventListener('timeupdate', onTU);
+  aud.addEventListener('ended', onEnded);
+  aud.addEventListener('play', ()=>setPlayUI(true));
+  aud.addEventListener('pause', ()=>setPlayUI(false));
+
+  // Canplay — play karo
+  aud.addEventListener('canplay', function(){
+    aud.play().catch(()=>{ setTimeout(()=>aud.play().catch(()=>{}), 1000); });
     if(window.AndroidBridge && aud.duration && isFinite(aud.duration)){
       try{ AndroidBridge.updatePosition(0, Math.floor(aud.duration)); }catch(e){}
     }
     updateMediaPosition();
-  };
+  }, { once: true });
 
-  // loadeddata = enough data to play (more reliable than canplay)
-  aud.addEventListener('loadeddata', function onLD(){
-    aud.removeEventListener('loadeddata', onLD);
-    aud.removeEventListener('canplay', onCP); // cleanup dono
-    onReady();
-  });
-  const onCP = () => {
-    aud.removeEventListener('canplay', onCP);
-    aud.removeEventListener('loadeddata', onLD);
-    onReady();
-  };
-  aud.addEventListener('canplay', onCP);
-
-  // Duration update
-  aud.addEventListener('loadedmetadata', function onMeta(){
-    aud.removeEventListener('loadedmetadata', onMeta);
+  // Metadata
+  aud.addEventListener('loadedmetadata', function(){
     if(window.AndroidBridge && aud.duration && isFinite(aud.duration)){
       try{ AndroidBridge.updatePosition(0, Math.floor(aud.duration)); }catch(e){}
     }
     updateMediaPosition();
-  });
+  }, { once: true });
 
-  // ── STREAM URL EXPIRY FIX ──
-  // Agar URL expire ho ya load fail ho — fresh URL fetch karo automatically
-  aud.addEventListener('error', function onAudErr(){
-    aud.removeEventListener('error', onAudErr);
-    aud.removeEventListener('loadeddata', onLD);
-    aud.removeEventListener('canplay', onCP);
-
+  // Error — fresh URL fetch karo
+  aud.addEventListener('error', function(){
     let videoId = null;
-    if(s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
+    if(s.id && s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
     else if(s.youtube_id) videoId = s.youtube_id;
-    else if(s.isUserSong) videoId = extractVideoId(s.youtubeUrl||'');
-    else videoId = extractVideoId(s.youtubeUrl||'');
+    else if(s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl||'');
+    else if(s.youtube_url) videoId = extractVideoId(s.youtube_url||'');
 
     if(videoId){
       toast('URL expire — refresh ho rahi hai...','inf');
       fetch(`${API}/api/stream-url`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
+        method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({videoId})
       }).then(r=>r.json()).then(d=>{
         if(d.success && d.url){
           const idx2 = songs.findIndex(x=>x.id===s.id);
           if(idx2>=0) songs[idx2].url = d.url;
           s.url = d.url;
-          aud.src = d.url;
-          aud.load();
-          aud.play().catch(()=>{});
-          toast(s.title+' play ho raha hai','ok');
+          _loadAndPlay(s);
         } else {
-          toast('Stream refresh fail hua — dobara try karo','err');
+          toast('Stream fail — next song...','err');
+          setTimeout(()=>_playNext(), 1500);
         }
-      }).catch(()=>{ toast('Network error — check karo','err'); });
+      }).catch(()=>{ toast('Network error — next song...','err'); setTimeout(()=>_playNext(),2000); });
     } else {
-      // Non-YT song — normal error
       if(s.url && aud.error && aud.error.code !== 4){
-        // MEDIA_ERR_SRC_NOT_SUPPORTED (4) ke alawa retry karo
         setTimeout(()=>{ aud.src=s.url; aud.load(); aud.play().catch(()=>{}); }, 1500);
-      } else {
-        toast('Audio play nahi hua','err');
-      }
+      } else { toast('Audio play nahi hua','err'); }
     }
-  });
+  }, { once: true });
 
   aud.src = s.url;
   aud.load();
