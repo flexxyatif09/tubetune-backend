@@ -1442,8 +1442,8 @@ const SS = {
   save(s) { try { if(s&&!s.expires_at&&s.expires_in) s.expires_at=Math.floor(Date.now()/1000)+parseInt(s.expires_in); localStorage.setItem('tt_sess',JSON.stringify(s)); } catch(_){} },
   get()   { try { return JSON.parse(localStorage.getItem('tt_sess')); } catch(_){ return null; } },
   clear() { localStorage.removeItem('tt_sess'); },
-  user()  { return this.get()?.user||null; },
-  token() { return this.get()?.access_token||null; }
+  user()  { return (this.get()||{}).user||null; },
+  token() { return (this.get()||{}).access_token||null; }
 };
 
 /* ══════════════════════════════════════════════════
@@ -1455,7 +1455,7 @@ let countdownInterval = null;
 
 async function checkPremium() {
   if (!SS.token()) { isPremium = false; premiumSub = null; updatePremiumUI(); return; }
-  const userId = SS.user()?.id;
+  const userId = (SS.user()||{}).id;
   if (!userId) { isPremium = false; premiumSub = null; updatePremiumUI(); return; }
   // ── INSTANT: localStorage cache se turant dikhao (no delay) ──
   try {
@@ -1767,7 +1767,7 @@ async function _registerPendingPayment() {
         body: JSON.stringify({
           plan_id: _upiPlanId, plan_name: _upiPlanName,
           amount: _upiPlanPrice, upi_id: UPI_ID,
-          user_email: user?.email || '', user_id: user?.id || ''
+          user_email: (user?user.email:undefined) || '', user_id: (user?user.id:undefined) || ''
         })
       });
       if (bRes.ok) saved = true;
@@ -1785,8 +1785,8 @@ async function _registerPendingPayment() {
             Prefer: 'return=minimal'
           },
           body: JSON.stringify({
-            user_id: user?.id || null,
-            user_email: user?.email || '',
+            user_id: (user?user.id:undefined) || null,
+            user_email: (user?user.email:undefined) || '',
             plan_id: _upiPlanId,
             plan_name: _upiPlanName,
             amount: _upiPlanPrice,
@@ -1817,8 +1817,8 @@ async function submitUpiVerification() {
       body: JSON.stringify({
         code,
         plan_id:    _upiPlanId,
-        user_email: SS.user()?.email || '',
-        user_id:    SS.user()?.id || ''
+        user_email: (SS.user()||{}).email || '',
+        user_id:    (SS.user()||{}).id || ''
       })
     });
     const d = await r.json();
@@ -1850,7 +1850,7 @@ function openContactAdmin() {
   document.getElementById('contactOverlay').classList.add('open');
   document.getElementById('csStep1').classList.add('on');
   document.getElementById('csStep2').classList.remove('on');
-  const email = SS.user()?.email || '';
+  const email = (SS.user()||{}).email || '';
   document.getElementById('contactEmail').value = email;
   document.getElementById('contactMsg').value = 'Plan: ' + (_upiPlanName||'') + '\nAmount paid: ₹' + (_upiPlanPrice||'');
 }
@@ -1954,7 +1954,7 @@ async function sendToAdmin() {
         body: JSON.stringify({
           user_email: email, plan_name: _upiPlanName||'',
           amount: _upiPlanPrice||0, message: msg,
-          screenshot: screenshotUrl, user_id: SS.user()?.id||''
+          screenshot: screenshotUrl, user_id: (SS.user()||{}).id||''
         })
       });
       if (bRes.ok) { const bd = await bRes.json(); if (bd.success) saved = true; }
@@ -1968,7 +1968,7 @@ async function sendToAdmin() {
         hdr['apikey'] = SB_KEY;
         hdr['Authorization'] = 'Bearer ' + (token || SB_KEY);
         const payload = {
-          user_id: SS.user()?.id || null, user_email: email,
+          user_id: (SS.user()||{}).id || null, user_email: email,
           plan_name: _upiPlanName || '', amount: _upiPlanPrice || 0,
           message: msg, screenshot: screenshotUrl,
           type: 'contact',
@@ -2018,7 +2018,7 @@ async function checkMyPendingCode() {
 
       // LocalStorage mein save karo — back aane par bhi dikhe
       localStorage.setItem('tt_approved_upi_code', JSON.stringify({
-        code, plan: d.payment?.plan_name || '', amount: d.payment?.amount || 0,
+        code, plan: (d.payment&&d.payment.plan_name) || '', amount: (d.payment&&d.payment.amount) || 0,
         savedAt: Date.now()
       }));
 
@@ -2030,7 +2030,7 @@ async function checkMyPendingCode() {
   } catch(e) {
     // Fallback: Supabase se direct check
     try {
-      const userId = SS.user()?.id;
+      const userId = (SS.user()||{}).id;
       if (!userId) return;
       const r2 = await fetch(
         `${SB_URL}/rest/v1/upi_payments?user_id=eq.${userId}&status=eq.approved&select=verify_code,approved_at,plan_name,amount&order=approved_at.desc&limit=1`,
@@ -2104,8 +2104,8 @@ function startCodePolling() {
 
 // Overlay click to close
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('upiOverlay')?.addEventListener('click', e => { if(e.target===e.currentTarget) closeUpiModal(); });
-  document.getElementById('contactOverlay')?.addEventListener('click', e => { if(e.target===e.currentTarget) closeContactAdmin(); });
+  (document.getElementById('upiOverlay')&&document.getElementById('upiOverlay').addEventListener)('click', e => { if(e.target===e.currentTarget) closeUpiModal(); });
+  (document.getElementById('contactOverlay')&&document.getElementById('contactOverlay').addEventListener)('click', e => { if(e.target===e.currentTarget) closeContactAdmin(); });
   // Mini player init pe hamesha hidden
   const m = document.getElementById('mini');
   if(m){ m.classList.remove('up'); m.classList.remove('hidden-np'); }
@@ -2165,9 +2165,9 @@ async function doSignup(){
   const btn=document.getElementById('signupBtn');btn.classList.add('ld');btn.disabled=true;
   try{
     const{ok,data}=await sbAuth('signup',{email,password:pass,data:{name}});
-    if(!ok){const em=data?.error_description||data?.msg||data?.message||'Signup failed';if(em.toLowerCase().includes('already registered'))throw new Error('Yeh email pehle se registered hai — Sign in karo');throw new Error(em);}
-    const uid=data.user?.id;if(!uid)throw new Error('User ID nahi mili');
-    let token=data.session?.access_token,user=data.user;
+    if(!ok){const em=(data?data.error_description:undefined)||(data?data.msg:undefined)||(data?data.message:undefined)||'Signup failed';if(em.toLowerCase().includes('already registered'))throw new Error('Yeh email pehle se registered hai — Sign in karo');throw new Error(em);}
+    const uid=data.user&&data.user.id;if(!uid)throw new Error('User ID nahi mili');
+    let token=data.session&&data.session.access_token,user=data.user;
     if(!token){setMsg('signupMsg','Account bana, login ho raha hai...','ok');await new Promise(r=>setTimeout(r,1000));const{ok:lok,data:ld}=await sbAuth('token?grant_type=password',{email,password:pass});if(lok&&ld.access_token){token=ld.access_token;user=ld.user||user;SS.save(ld);}else{localStorage.setItem('tt_pending',JSON.stringify({id:uid,name,email}));}}
     else SS.save(data.session);
     await insertUserRow(uid,name,email,token);
@@ -2185,12 +2185,12 @@ async function doLogin(){
   const btn=document.getElementById('loginBtn');btn.classList.add('ld');btn.disabled=true;
   try{
     const{ok,data}=await sbAuth('token?grant_type=password',{email,password:pass});
-    if(!ok){const em=data?.error_description||data?.msg||data?.message||'Login failed';if(em.toLowerCase().includes('invalid'))throw new Error('Email ya password galat hai');throw new Error(em);}
+    if(!ok){const em=(data?data.error_description:undefined)||(data?data.msg:undefined)||(data?data.message:undefined)||'Login failed';if(em.toLowerCase().includes('invalid'))throw new Error('Email ya password galat hai');throw new Error(em);}
     SS.save(data);
     const pending=JSON.parse(localStorage.getItem('tt_pending')||'null');
-    if(pending?.id)await insertUserRow(pending.id,pending.name,pending.email,data.access_token);
-    const uname=data.user?.user_metadata?.name||email.split('@')[0];
-    await insertUserRow(data.user?.id,uname,email,data.access_token);
+    if((pending?pending.id:undefined))await insertUserRow(pending.id,pending.name,pending.email,data.access_token);
+    const uname=(data.user&&data.user.user_metadata&&data.user.user_metadata.name)||email.split('@')[0];
+    await insertUserRow(data.user&&data.user.id,uname,email,data.access_token);
     setMsg('loginMsg','Login ho gaya!','ok');
     setTimeout(()=>enterApp(data.user),700);
   }catch(e){setMsg('loginMsg',e.message||'Login fail hua','err');}
@@ -2221,7 +2221,7 @@ function enterApp(user){
 
 function updateUserUI(user){
   if(!user)return;
-  const name=user.user_metadata?.name||user.email?.split('@')[0]||'User',email=user.email||'',av=name.charAt(0).toUpperCase();
+  const name=(user.user_metadata&&user.user_metadata.name)||(user.email&&user.email.split('@')[0])||'User',email=user.email||'',av=name.charAt(0).toUpperCase();
   document.getElementById('avInitial').textContent=av;
   document.getElementById('heroGreet').textContent=`Hey, ${name.split(' ')[0]}`;
   document.getElementById('profAv').textContent=av;
@@ -2238,7 +2238,7 @@ async function appConfigGet(key){
     const r=await fetch(`${SB_URL}/rest/v1/app_config?key=eq.${encodeURIComponent(key)}&select=key,value`,{headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}});
     if(!r.ok)return null;
     const d=await r.json();
-    return d[0]?.value??null;
+    return (d[0]?d[0].value:undefined)??null;
   }catch{return null;}
 }
 
@@ -2249,7 +2249,7 @@ async function checkAppStatus(){
     const results={};
     await Promise.all(keys.map(async k=>{
       const r=await fetch(`${SB_URL}/rest/v1/app_config?key=eq.${encodeURIComponent(k)}&select=value`,{headers:H});
-      if(r.ok){const d=await r.json();results[k]=d[0]?.value??null;}
+      if(r.ok){const d=await r.json();results[k]=(d[0]?d[0].value:undefined)??null;}
       else results[k]=null;
     }));
 
@@ -2346,7 +2346,7 @@ async function boot(){
       return;
     }
     if(document.visibilityState==='visible'){
-      const appActive=document.getElementById('mainApp')?.classList.contains('on');
+      const appActive=(document.getElementById('mainApp')&&document.getElementById('mainApp').classList).contains('on');
       if(appActive&&curIdx>=0&&aud.src){
         if(bgEndedPending&&(aud.ended||aud.paused&&aud.currentTime>=aud.duration-0.5)){
           bgEndedPending=false;
@@ -2438,7 +2438,7 @@ async function saveName(){
     const session=SS.get();
     const r=await fetch(`${SB_URL}/auth/v1/user`,{method:'PUT',headers:{apikey:SB_KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({data:{name}})});
     const data=await r.json();if(!r.ok)throw new Error(data.msg||'Error');
-    await sbFetch(`/rest/v1/users?id=eq.${session.user?.id}`,{method:'PATCH',body:JSON.stringify({name})});
+    await sbFetch(`/rest/v1/users?id=eq.${session.user&&session.user.id}`,{method:'PATCH',body:JSON.stringify({name})});
     if(session.user)session.user.user_metadata={...session.user.user_metadata,name};
     SS.save(session);updateUserUI(session.user);setEditMsg('nameMsg','Name update ho gaya!','ok');setTimeout(closeEdit,1000);
   }catch(e){setEditMsg('nameMsg',e.message||'Error','err');}
@@ -2839,7 +2839,7 @@ function getFiltered(){
 function songIco(s){return s.thumb?`<img src="${s.thumb}" onerror="this.style.display='none'" loading="lazy">`:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;}
 function eqOrPlay(isNow){return isNow?`<div class="eq-bars ${playing?'':'paused'}"><div class="eq-b"></div><div class="eq-b"></div><div class="eq-b"></div></div>`:`<svg width="13" height="13" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;}
 function heartBtn(id,faved,ctx){if(ctx==='upnext')return'';return`<button class="s-heart ${faved?'on':''}" onclick="event.stopPropagation();toggleFav('${id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="${faved?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>`;}
-function makeRow(s,i,ctx){const isNow=curIdx!==-1&&songs[curIdx]?.id===s.id,faved=favs.includes(s.id),numCell=ctx!=='upnext'?`<div class="s-num">${i+1}</div>`:'',sz=ctx==='upnext'?'width:42px;height:42px':'',dur=s.dur!=='—'?`<span class="s-dur">${s.dur}</span>`:'';const addPl=ctx!=='upnext'?`<button onclick="event.stopPropagation();showAddToPlaylist('${s.id}')" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="Playlist mein add karo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`:'';return`<div class="s-row ${isNow?'now-on':''}" onclick="playById('${s.id}')">${numCell}<div class="s-thumb" style="${sz}">${songIco(s)}<div class="s-ov">${eqOrPlay(isNow)}</div></div><div class="s-info"><div class="s-name">${s.title}</div><div class="s-art">${s.artist}</div></div>${dur}${addPl}${heartBtn(s.id,faved,ctx)}</div>`;}
+function makeRow(s,i,ctx){const isNow=curIdx!==-1&&(songs[curIdx]?songs[curIdx].id:undefined)===s.id,faved=favs.includes(s.id),numCell=ctx!=='upnext'?`<div class="s-num">${i+1}</div>`:'',sz=ctx==='upnext'?'width:42px;height:42px':'',dur=s.dur!=='—'?`<span class="s-dur">${s.dur}</span>`:'';const addPl=ctx!=='upnext'?`<button onclick="event.stopPropagation();showAddToPlaylist('${s.id}')" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="Playlist mein add karo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`:'';return`<div class="s-row ${isNow?'now-on':''}" onclick="playById('${s.id}')">${numCell}<div class="s-thumb" style="${sz}">${songIco(s)}<div class="s-ov">${eqOrPlay(isNow)}</div></div><div class="s-info"><div class="s-name">${s.title}</div><div class="s-art">${s.artist}</div></div>${dur}${addPl}${heartBtn(s.id,faved,ctx)}</div>`;}
 
 function renderSongs(){filtered=getFiltered();const g=document.getElementById('songsList');if(!filtered.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><h3>${filterMode==='mine'?'Koi song nahi':songs.length?'Koi result nahi':'Library Khali Hai'}</h3><p>${filterMode==='mine'?'YouTube se search karo aur + My Library dabao':songs.length?'Kuch aur search try karo':'Admin panel se songs add karo'}</p></div>`;return;}g.innerHTML=filtered.map((s,i)=>makeRow(s,i,'home')).join('');}
 function renderFavs(){const list=songs.filter(s=>favs.includes(s.id));document.getElementById('favsCount').textContent=`${list.length} songs`;const g=document.getElementById('favsList');if(!list.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><h3>Koi Favorite Nahi</h3><p>Songs pe dil icon dabao</p></div>`;return;}g.innerHTML=list.map((s,i)=>makeRow(s,i,'favs')).join('');}
@@ -2881,7 +2881,7 @@ async function playById(id){
       const d=await r.json();
       if(d.success&&d.url){
         songs[idx].url=d.url;
-        if(d.duration) songs[idx].dur=d.duration;
+        if(d.duration) songs[idx].dur=fmtDur(d.duration);
         _loadAndPlay(songs[idx]);
       } else {
         toast('Stream URL nahi mila','err');
@@ -3056,7 +3056,7 @@ function _playNext(){
     }).then(r=>r.json()).then(d=>{
       if(d.success && d.url){
         songs[curIdx].url = d.url;
-        if(d.duration) songs[curIdx].dur = d.duration;
+        if(d.duration) songs[curIdx].dur = fmtDur(d.duration);
         _loadAndPlay(songs[curIdx]);
       }
     }).catch(e=>console.warn('_playNext stream error:',e));
@@ -3165,7 +3165,7 @@ function toggleFav(id){
   localStorage.setItem('tt_favs',JSON.stringify(favs));
   saveFavToDB(id, adding);
   renderFavBadge();renderSongs();renderFavs();
-  if(curIdx>=0&&songs[curIdx]?.id===id){
+  if(curIdx>=0&&(songs[curIdx]?songs[curIdx].id:undefined)===id){
     const faved=favs.includes(id),hrt=document.getElementById('npHeart');
     hrt.classList.toggle('on',faved);
     hrt.querySelector('svg').setAttribute('fill',faved?'currentColor':'none');
@@ -3306,7 +3306,7 @@ async function createPlaylist(){
   try{
     const token = SS.token();
     if(!token){toast('Login karke try karo','err');return;}
-    const userId = SS.user()?.id;
+    const userId = (SS.user()||{}).id;
     if(!userId){toast('User ID nahi mili','err');return;}
     const r=await fetch(SB_URL+'/rest/v1/playlists',{
       method:'POST',
@@ -3589,7 +3589,7 @@ async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedC
     let token=SS.token();
     if(isRetry){
       const sess=SS.get();
-      if(sess?.refresh_token){
+      if((sess?sess.refresh_token:undefined)){
         try{
           const rr=await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:sess.refresh_token})});
           const rd=await rr.json();
@@ -3680,7 +3680,7 @@ async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedC
     try{
       const savedData = await saveToMyLibrary(videoId, title, channel, thumb, streamData.duration||'0:00');
       // saveToMyLibrary ne DB ID se entry add ki — yt_ wali temporary duplicate hatao
-      const dbId = savedData?.id;
+      const dbId = (savedData?savedData.id:undefined);
       if(dbId && dbId !== tempSong.id) {
         const ytDupIdx = songs.findIndex(s => s.id === tempSong.id);
         if(ytDupIdx >= 0) songs.splice(ytDupIdx, 1);
