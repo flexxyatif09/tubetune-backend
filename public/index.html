@@ -43,7 +43,7 @@ if('serviceWorker' in navigator){
     });
   `;
   const swBlob = new Blob([swCode], {type:'text/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(swBlob), {scope: '/'})
+  try{ navigator.serviceWorker.register(URL.createObjectURL(swBlob), {scope: '/'}) }catch(e){ console.warn("SW register failed:",e.message); }
     .then(() => console.log('TubeTune PWA ready ✅'))
     .catch(e => console.warn('SW:', e));
 }
@@ -2848,31 +2848,31 @@ function renderUpNext(){const g=document.getElementById('upNextList');if(curIdx<
 function renderFavBadge(){const b=document.getElementById('favBadge');b.textContent=favs.length;b.style.display=favs.length?'block':'none';}
 
 /* ── PLAYBACK ── */
+let _playLock=false; // concurrent playById calls rok
 async function playById(id){
-  const idx=songs.findIndex(s=>s.id===id);
-  if(idx<0)return;
-  curIdx=idx;
-  _currentPlayingId = id; // Hamesha latest playing ID track karo
-  const s=songs[idx];
-  userClosedMini=false; // New song play kiya — mini block hatao
-  if(!npOpen)showMini();
-  aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
-  // User ne manually play kiya — flag set karo
-  wasPlayingBeforeHide = true;
+  if(_playLock) return; // pehle wali call chal rahi hai — ignore
+  _playLock=true;
+  try{
+    const idx=songs.findIndex(s=>s.id===id);
+    if(idx<0) return;
+    curIdx=idx;
+    _currentPlayingId = id;
+    const s=songs[idx];
+    userClosedMini=false;
+    if(!npOpen) showMini();
+    aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
+    wasPlayingBeforeHide=true;
 
-  // videoId nikalo — sabhi cases cover karo
-  let videoId=null;
-  if(s.id.startsWith('yt_')) videoId=s.id.replace('yt_','');
-  else if(s.youtube_id) videoId=s.youtube_id;
-  else if(s.isUserSong && s.youtubeUrl) videoId=extractVideoId(s.youtubeUrl);
-  else if(s.youtubeUrl) videoId=extractVideoId(s.youtubeUrl);
+    // videoId nikalo
+    let videoId=null;
+    if(s.id.startsWith('yt_')) videoId=s.id.replace('yt_','');
+    else if(s.youtube_id) videoId=s.youtube_id;
+    else if(s.isUserSong && s.youtubeUrl) videoId=extractVideoId(s.youtubeUrl);
+    else if(s.youtubeUrl) videoId=extractVideoId(s.youtubeUrl);
 
-  if(videoId){
-    updateNPUI(s);
-    toast('Loading...','inf');
-    // Hamesha server se fresh URL lo — server cache handle karega (55 min TTL)
-    // s.url pe depend mat karo — YouTube URLs expire hoti hain
-    try{
+    if(videoId){
+      updateNPUI(s);
+      toast('Loading...','inf');
       const r=await fetch(`${API}/api/stream-url`,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -2886,14 +2886,16 @@ async function playById(id){
       } else {
         toast('Stream URL nahi mila','err');
       }
-    }catch(e){
-      toast('Play error: '+e.message,'err');
+      return;
     }
-    return;
-  }
 
-  if(!s.url){toast('Audio URL nahi hai','inf');return;}
-  _loadAndPlay(s);
+    if(!s.url){toast('Audio URL nahi hai','inf');return;}
+    _loadAndPlay(s);
+  } catch(e){
+    toast('Play error: '+e.message,'err');
+  } finally{
+    _playLock=false; // hamesha unlock karo
+  }
 }
 function showMini(){
   if(curIdx<0) return; // koi song nahi hai toh mat dikhao
@@ -3236,7 +3238,19 @@ function shareNP(){
 
 boot();
 
-function toast(msg,type='inf'){const el=document.createElement('div');el.className=`toast ${type}`;el.innerHTML=`<div class="toast-dot"></div><span>${msg}</span>`;document.getElementById('toastBox').appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(14px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),320);},3000);}
+function toast(msg,type='inf'){
+  const box=document.getElementById('toastBox');
+  // Same message already show ho raha hai — duplicate mat banao
+  const existing=[...box.querySelectorAll('.toast span')];
+  if(existing.some(el=>el.textContent===msg)) return;
+  // Max 2 toasts — purane hatao
+  while(box.children.length>=2) box.firstChild.remove();
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.innerHTML=`<div class="toast-dot"></div><span>${msg}</span>`;
+  box.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(14px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),320);},3000);
+}
 
 
 /* ══════════════════════════════════════════════════
