@@ -3088,25 +3088,18 @@ function _loadAndPlay(s){
     syncQueueToJava();
   }
 
-  // ── STALE LISTENERS FIX: audio element replace karo ──
-  const oldAud = aud;
-  const newAud = oldAud.cloneNode(false);
-  oldAud.pause();
-  oldAud.parentNode.replaceChild(newAud, oldAud);
-  aud = newAud;
+  // Audio: pause aur src clear karo — cloneNode nahi (stale reference bug)
+  aud.pause();
+  aud.removeAttribute('src');
+  aud.load();
 
-  // Global listeners re-attach karo
-  aud.addEventListener('timeupdate', onTU);
-  aud.addEventListener('ended', onEnded);
-  aud.addEventListener('play', ()=>setPlayUI(true));
-  aud.addEventListener('pause', ()=>setPlayUI(false));
+  // src set karo
+  aud.src = s.url;
+  aud.load();
 
   // Canplay — play karo
   aud.addEventListener('canplay', function(){
     aud.play().catch(()=>{ setTimeout(()=>aud.play().catch(()=>{}), 1000); });
-    if(window.AndroidBridge && aud.duration && isFinite(aud.duration)){
-      try{ AndroidBridge.updatePosition(0, Math.floor(aud.duration)); }catch(e){}
-    }
     updateMediaPosition();
   }, { once: true });
 
@@ -3118,52 +3111,39 @@ function _loadAndPlay(s){
     updateMediaPosition();
   }, { once: true });
 
-  // src set karo aur load karo
-  aud.src = s.url;
-  aud.load();
+  // Error handler — is specific load ke liye, { once:true } se auto-cleanup
+  aud.addEventListener('error', function onAudioError(){
+    if(!aud.error) return;
+    const errCode = aud.error.code;
+    if(errCode === 1) return; // MEDIA_ERR_ABORTED — browser ne cancel kiya, ignore
 
-  // Error listener — loadstart ke baad lagao taaki false fires na ho
-  aud.addEventListener('loadstart', function(){
-    aud.addEventListener('error', function onAudioError(){
-      // Agar src change ho chuka hai toh ignore karo
-      if(aud.src !== s.url && aud.src !== window.location.href) return;
-      if(!aud.error) return;
-      // MEDIA_ERR_ABORTED (1) = browser ne khud cancel kiya (song change) — ignore
-      const errCode = aud.error.code;
-      if(errCode === 1) return;
+    let videoId = null;
+    if(s.id && s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
+    else if(s.youtube_id) videoId = s.youtube_id;
+    else if(s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl||'');
+    else if(s.youtube_url) videoId = extractVideoId(s.youtube_url||'');
 
-      let videoId = null;
-      if(s.id && s.id.startsWith('yt_')) videoId = s.id.replace('yt_','');
-      else if(s.youtube_id) videoId = s.youtube_id;
-      else if(s.youtubeUrl) videoId = extractVideoId(s.youtubeUrl||'');
-      else if(s.youtube_url) videoId = extractVideoId(s.youtube_url||'');
-
-      if(videoId){
-        if(_urlRefreshing[videoId]) return;
-        _urlRefreshing[videoId] = true;
-        // Song cache clear karo
-        const sidx = songs.findIndex(x=>x.id===s.id);
-        if(sidx>=0) songs[sidx].url = '';
-        // Force=true se server cache bypass karke fresh URL lo
-        fetch(`${API}/api/stream-url`,{
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({videoId, force:true})
-        }).then(r=>r.json()).then(d=>{
-          _urlRefreshing[videoId] = false;
-          if(d.success && d.url){
-            const sidx2 = songs.findIndex(x=>x.id===s.id);
-            if(sidx2>=0) songs[sidx2].url = d.url;
-            aud.src = d.url;
-            aud.load();
-            aud.play().catch(()=>{});
-          } else {
-            setTimeout(()=>_playNext(), 1500);
-          }
-        }).catch(()=>{ _urlRefreshing[videoId]=false; setTimeout(()=>_playNext(),2000); });
-      } else if(errCode !== 4) {
-        setTimeout(()=>{ aud.src=s.url; aud.load(); aud.play().catch(()=>{}); }, 1500);
-      }
-    }, { once: true });
+    if(videoId){
+      if(_urlRefreshing[videoId]) return;
+      _urlRefreshing[videoId] = true;
+      const sidx = songs.findIndex(x=>x.id===s.id);
+      if(sidx>=0) songs[sidx].url = '';
+      // Force fetch — server cache bypass
+      fetch(`${API}/api/stream-url`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({videoId, force:true})
+      }).then(r=>r.json()).then(d=>{
+        _urlRefreshing[videoId] = false;
+        if(d.success && d.url){
+          // playById se dobara play karo — sab listeners fresh honge
+          const sidx2 = songs.findIndex(x=>x.id===s.id);
+          if(sidx2>=0){ songs[sidx2].url = d.url; playById(s.id); }
+          else { setTimeout(()=>_playNext(), 1500); }
+        } else {
+          setTimeout(()=>_playNext(), 1500);
+        }
+      }).catch(()=>{ _urlRefreshing[videoId]=false; setTimeout(()=>_playNext(),2000); });
+    }
   }, { once: true });
 
   // Deferred renders
