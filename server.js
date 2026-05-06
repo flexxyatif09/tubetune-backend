@@ -49,6 +49,12 @@ app.get('/manifest.json', (req, res) => {
   });
 });
 
+// ── Ads.txt — Google AdSense verification ──
+app.get('/ads.txt', (req, res) => {
+  res.type('text/plain');
+  res.send('google.com, pub-7152284347803145, DIRECT, f08c47fec0942fa0');
+});
+
 // ── Normal client (anon key) — public operations ke liye ──
 const supabase = createClient(
   process.env.SUPABASE_URL,
