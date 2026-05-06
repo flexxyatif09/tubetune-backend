@@ -17,10 +17,6 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="icon" type="image/png" href="/icons/icon-192.png">
 
-<!-- Google AdSense -->
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7152284347803145"
-     crossorigin="anonymous"></script>
-
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- UPI Payment - No Razorpay needed -->
 <script>
@@ -2617,7 +2613,7 @@ async function loadMyLibrary() {
         songs.push({
           id: s.id, title: s.title, artist: s.artist,
           thumb: s.thumbnail, url: '',
-          dur: s.duration, quality: '128kbps',
+          dur: fmtDur(s.duration), quality: '128kbps',
           date: s.created_at, isUserSong: true,
           youtube_id: ytId, youtubeUrl: ytUrl
         });
@@ -2638,6 +2634,10 @@ async function loadMyLibrary() {
     const userSongs  = songs.filter(s => s.isUserSong || s.id.startsWith('yt_'));
     userSongs.sort((a, b) => new Date(b.date) - new Date(a.date));
     songs = [...userSongs, ...adminSongs];
+
+    // ── STEP 6: Hero count update karo — total songs (admin + user) ──
+    const heroCountEl = document.getElementById('heroCount');
+    if(heroCountEl) heroCountEl.textContent = `${songs.length} songs available`;
 
   } catch(e) { console.warn('loadMyLibrary:', e.message); }
 }
