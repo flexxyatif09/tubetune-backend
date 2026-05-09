@@ -2444,6 +2444,7 @@ async function doLogin(){
 
 async function doLogout(){
   try{await sbFetch('/auth/v1/logout',{method:'POST'});}catch(_){}
+  stopDevicePolling();
   SS.clear();isPremium=false;premiumSub=null;stopCountdown();
   closeProfile();aud.pause();
   document.getElementById('mini').classList.remove('up');
@@ -3578,6 +3579,7 @@ function shareNP(){
 /* ── DEVICE LIMIT ── */
 const MAX_DEVICES = 2;
 const DEVICE_KEY = 'tt_device_id';
+let _devicePollInterval = null; // polling timer
 
 function getDeviceId() {
   let id = localStorage.getItem(DEVICE_KEY);
@@ -3595,6 +3597,40 @@ function getDeviceName() {
   if (/Windows/i.test(ua)) return '💻 Windows PC';
   if (/Mac/i.test(ua)) return '💻 Mac';
   return '🌐 Browser';
+}
+
+// ── Device existence check — sirf yeh device DB mein hai ya nahi ──
+async function checkThisDeviceExists() {
+  if (!SS.token()) return;
+  const userId = (SS.user() || {}).id;
+  if (!userId) return;
+  const deviceId = getDeviceId();
+
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/user_devices?user_id=eq.${userId}&device_id=eq.${deviceId}&select=device_id`,
+      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SS.token() } }
+    );
+    if (!r.ok) return; // network error — logout mat karo
+    const rows = await r.json();
+
+    if (!rows || rows.length === 0) {
+      // Device DB mein nahi hai — kisi ne logout kar diya
+      stopDevicePolling();
+      toast('Tumhare account se is device ko logout kar diya gaya.', 'err');
+      setTimeout(() => doLogout(), 2000);
+    }
+  } catch(e) { /* network fail — ignore */ }
+}
+
+// Polling start karo — har 30 sec mein check
+function startDevicePolling() {
+  stopDevicePolling();
+  _devicePollInterval = setInterval(checkThisDeviceExists, 30000);
+}
+
+function stopDevicePolling() {
+  if (_devicePollInterval) { clearInterval(_devicePollInterval); _devicePollInterval = null; }
 }
 
 async function checkDeviceLimit() {
@@ -3708,110 +3744,64 @@ function deviceModalClose() {
   doLogout();
 }
 
-/* ── STREAK SYSTEM (DB-first, day-wise history) ── */
-
-// localStorage sirf offline cache ke liye — DB primary source hai
-function getStreakKey() {
-  const userId = (SS.user() || {}).id;
-  return userId ? 'tt_streak_' + userId : 'tt_streak';
-}
+/* ── STREAK SYSTEM ── */
+const STREAK_KEY = 'tt_streak';
 
 function getStreakData() {
   try {
-    return JSON.parse(localStorage.getItem(getStreakKey()) || 'null') || {
-      current: 0, best: 0, lastDate: null, totalDays: 0, todayPlayed: false, playedDates: []
+    return JSON.parse(localStorage.getItem(STREAK_KEY) || 'null') || {
+      current: 0, best: 0, lastDate: null, totalDays: 0, todayPlayed: false
     };
-  } catch(e) { return { current: 0, best: 0, lastDate: null, totalDays: 0, todayPlayed: false, playedDates: [] }; }
+  } catch(e) { return { current: 0, best: 0, lastDate: null, totalDays: 0, todayPlayed: false }; }
 }
 
 function saveStreakData(d) {
-  localStorage.setItem(getStreakKey(), JSON.stringify(d));
+  localStorage.setItem(STREAK_KEY, JSON.stringify(d));
 }
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
-// DB se streak load karo — login ke baad call hota hai
-async function loadStreakFromDB() {
-  if (!SS.token()) return;
-  const userId = (SS.user() || {}).id;
-  if (!userId) return;
-  try {
-    const r = await fetch(
-      `${SB_URL}/rest/v1/user_stats?user_id=eq.${userId}&select=streak_current,streak_best,total_days,last_played_date,played_dates,songs_this_week`,
-      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SS.token() } }
-    );
-    if (!r.ok) return;
-    const rows = await r.json();
-    if (!rows || !rows.length) return;
-
-    const row = rows[0];
-    const today = todayStr();
-
-    // DB se aaye data ko localStorage mein sync karo
-    const d = {
-      current: row.streak_current || 0,
-      best: row.streak_best || 0,
-      lastDate: row.last_played_date || null,
-      totalDays: row.total_days || 0,
-      todayPlayed: row.last_played_date === today,
-      playedDates: row.played_dates || [],
-      songsThisWeek: row.songs_this_week || 0
-    };
-
-    // DB se aaya data — streak gap check karo
-    // Agar last played 2+ din pehle tha toh streak already broken hai DB mein
-    // Sirf local data se override mat karo — DB wins
-    saveStreakData(d);
-    updateStreakUI();
-  } catch(e) { console.warn('Streak DB load fail:', e.message); }
-}
-
 function recordListening() {
   const d = getStreakData();
   const today = todayStr();
-  if (d.lastDate === today) return; // Aaj already count ho chuka hai
+  if (d.lastDate === today) return; // Already counted today
 
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yStr = yesterday.toISOString().slice(0, 10);
 
   if (d.lastDate === yStr) {
-    d.current += 1;       // Kal bhi suna tha — streak badhao
+    // Yesterday suna tha — streak badhao
+    d.current += 1;
   } else if (!d.lastDate) {
-    d.current = 1;        // Pehli baar
+    // Pehli baar
+    d.current = 1;
   } else {
-    d.current = 1;        // Gap aa gaya — reset
+    // Gap aa gaya — reset
+    d.current = 1;
   }
 
   d.best = Math.max(d.best || 0, d.current);
   d.lastDate = today;
   d.totalDays = (d.totalDays || 0) + 1;
   d.todayPlayed = true;
-
-  // Day-wise history — last 90 din rakhenge
-  if (!Array.isArray(d.playedDates)) d.playedDates = [];
-  if (!d.playedDates.includes(today)) {
-    d.playedDates.push(today);
-    // Sirf last 90 din rakhenge — purane hatao
-    d.playedDates = d.playedDates.slice(-90);
-  }
-
   saveStreakData(d);
+
+  // Check badge milega?
   checkStreakBadges(d.current);
   updateStreakUI();
 
-  // DB mein save karo (fire & forget)
-  syncStreakToDB(d);
+  // Supabase mein save karo (fire & forget)
+  syncStreakToSupabase(d);
 }
 
-async function syncStreakToDB(d) {
+async function syncStreakToSupabase(d) {
   if (!SS.token()) return;
   const userId = (SS.user() || {}).id;
   if (!userId) return;
   try {
-    const userName = (SS.user() && ((SS.user().user_metadata && SS.user().user_metadata.name) || SS.user().email?.split('@')[0])) || '';
     await fetch(`${SB_URL}/rest/v1/user_stats`, {
       method: 'POST',
       headers: {
@@ -3821,21 +3811,15 @@ async function syncStreakToDB(d) {
       },
       body: JSON.stringify({
         user_id: userId,
-        user_name: userName,
         streak_current: d.current,
         streak_best: d.best,
         total_days: d.totalDays,
         last_played_date: d.lastDate,
-        played_dates: d.playedDates || [],
-        songs_this_week: d.songsThisWeek || 0,
-        updated_at: new Date().toISOString()
+        songs_this_week: (getStreakData().songsThisWeek || 0)
       })
     });
   } catch(e) {}
 }
-
-// Legacy function name — backward compat
-const syncStreakToSupabase = syncStreakToDB;
 
 function updateStreakUI() {
   const d = getStreakData();
@@ -3880,19 +3864,26 @@ function updateStreakUI() {
     const gamiMsg = document.getElementById('gamiStreakMsg');
     if (gamiMsg) gamiMsg.childNodes[gamiMsg.childNodes.length - 1].textContent = ' ' + msg;
 
-    // Last 7 days dots — playedDates array se exact days check karo
+    // Last 7 days dots
     const daysRow = document.getElementById('gamiDaysRow');
     if (daysRow) {
       const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-      const playedSet = new Set(Array.isArray(d.playedDates) ? d.playedDates : []);
       let html = '';
       for (let i = 6; i >= 0; i--) {
         const dt = new Date();
         dt.setDate(dt.getDate() - i);
         const ds = dt.toISOString().slice(0, 10);
         const isToday = ds === today;
-        const done = playedSet.has(ds);
-        const cls = isToday && done ? 'today' : isToday ? 'today' : done ? 'done' : 'miss';
+        // Is this day in the current streak range?
+        let done = false;
+        if (d.lastDate && streak > 0) {
+          const last = new Date(d.lastDate);
+          const lim = new Date(d.lastDate);
+          lim.setDate(lim.getDate() - (streak - 1));
+          const dsDate = new Date(ds);
+          done = dsDate >= lim && dsDate <= last;
+        }
+        const cls = isToday && todayDone ? 'today' : done ? 'done' : isToday ? 'today' : 'miss';
         html += `<div class="streak-day-dot ${cls}">${dayNames[dt.getDay()]}</div>`;
       }
       daysRow.innerHTML = html;
@@ -4175,13 +4166,14 @@ function hookPlayTracking() {
 /* ── INIT GAMI ON APP START ── */
 function initGamification() {
   hookPlayTracking();
-  updateStreakUI(); // localStorage se instant show karo
-  // DB se fresh streak load karo — sab devices pe sync rahegi
-  loadStreakFromDB().then(() => updateStreakUI());
+  updateStreakUI();
   // Check badges silently after 2s
   setTimeout(checkBadges, 2000);
-  // Device check
+  // Device check on start
   setTimeout(() => checkDeviceLimit(), 3000);
+  // Device polling — har 30 sec mein check karo device exist karta hai ya nahi
+  // Agar kisi ne logout kar diya toh auto logout ho jayega
+  startDevicePolling();
 }
 
 boot();
