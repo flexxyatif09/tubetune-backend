@@ -18,6 +18,11 @@
 <link rel="icon" type="image/png" href="/icons/icon-192.png">
 
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Anime.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<!-- AOS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
 <!-- UPI Payment - No Razorpay needed -->
 <script>
 // Service Worker — background audio + caching
@@ -657,6 +662,162 @@ audio{display:none}
 .cs-btn{width:100%;padding:15px;background:var(--grad);border:none;border-radius:14px;color:#fff;font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s}
 .cs-btn-out{width:100%;margin-top:8px;padding:13px;background:none;border:1px solid rgba(255,255,255,.1);border-radius:14px;color:var(--tx2);font-family:'Outfit',sans-serif;font-size:14px;cursor:pointer}
 
+
+/* ══ ANIME.JS + AOS ANIMATIONS ══ */
+
+/* Song row entrance animation */
+.s-row {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: background .15s, opacity .35s ease, transform .35s ease;
+}
+.s-row.anim-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Staggered song rows */
+.s-row:nth-child(1){transition-delay:.03s}
+.s-row:nth-child(2){transition-delay:.06s}
+.s-row:nth-child(3){transition-delay:.09s}
+.s-row:nth-child(4){transition-delay:.12s}
+.s-row:nth-child(5){transition-delay:.15s}
+.s-row:nth-child(6){transition-delay:.18s}
+.s-row:nth-child(7){transition-delay:.21s}
+.s-row:nth-child(8){transition-delay:.24s}
+.s-row:nth-child(9){transition-delay:.27s}
+.s-row:nth-child(10){transition-delay:.30s}
+
+/* Recent cards entrance */
+.rc-card {
+  opacity: 0;
+  transform: scale(.92) translateY(10px);
+  transition: all .35s cubic-bezier(.34,1.56,.64,1);
+}
+.rc-card.anim-in {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+.rc-card:nth-child(1){transition-delay:.05s}
+.rc-card:nth-child(2){transition-delay:.12s}
+.rc-card:nth-child(3){transition-delay:.19s}
+
+/* Hero card entrance */
+.hero-card {
+  transition: transform .3s ease, box-shadow .3s ease;
+}
+.hero-card:active {
+  transform: scale(.99);
+}
+
+/* Nav bar button press animation */
+.nb-btn {
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), color .18s, background .18s !important;
+}
+.nb-btn:active {
+  transform: scale(.88) !important;
+}
+
+/* Header logo bounce */
+.hdr-logo-icon {
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.hdr-logo-icon:active {
+  transform: scale(.88) rotate(-8deg);
+}
+
+/* Mini player slide up animation */
+#mini {
+  transition: transform .38s cubic-bezier(.34,1.2,.64,1), opacity .35s ease !important;
+}
+#mini.up {
+  animation: miniSlideUp .38s cubic-bezier(.34,1.2,.64,1) forwards;
+}
+@keyframes miniSlideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Mini player controls bounce */
+#mini .mini-ctrl {
+  transition: transform .18s cubic-bezier(.34,1.56,.64,1);
+}
+#mini .mini-ctrl:active {
+  transform: scale(.82);
+}
+
+/* Chip active scale */
+.chip {
+  transition: all .18s cubic-bezier(.34,1.3,.64,1) !important;
+}
+.chip:active {
+  transform: scale(.93);
+}
+
+/* NowPlaying art pulse on play */
+.np-art.spin {
+  animation: vinylSpin 10s linear infinite, artGlow 2.5s ease-in-out infinite alternate;
+}
+@keyframes artGlow {
+  from { box-shadow: 0 24px 72px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.05); }
+  to   { box-shadow: 0 24px 72px rgba(108,92,231,.4), 0 0 30px rgba(108,92,231,.25), 0 0 0 1px rgba(255,255,255,.08); }
+}
+
+/* Favorite heart pop */
+.s-heart {
+  transition: all .15s, transform .25s cubic-bezier(.34,1.8,.64,1) !important;
+}
+.s-heart.pop {
+  animation: heartPop .35s cubic-bezier(.34,1.8,.64,1);
+}
+@keyframes heartPop {
+  0%  { transform: scale(1); }
+  40% { transform: scale(1.5); }
+  70% { transform: scale(.85); }
+  100%{ transform: scale(1); }
+}
+
+/* NP play button pulse */
+#npPlayBtn {
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s !important;
+}
+#npPlayBtn:active {
+  transform: scale(.9) !important;
+}
+
+/* Add song button ripple */
+.s-add {
+  transition: transform .18s cubic-bezier(.34,1.56,.64,1), color .15s !important;
+}
+.s-add:active {
+  transform: scale(.8) rotate(45deg);
+}
+
+/* Toast entrance */
+.toast {
+  animation: toastIn .35s cubic-bezier(.34,1.3,.64,1) !important;
+}
+@keyframes toastIn {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* Glow orbs slow float */
+.ga-1 { animation: floatOrb1 8s ease-in-out infinite alternate; }
+.ga-2 { animation: floatOrb2 11s ease-in-out infinite alternate; }
+.ga-3 { animation: floatOrb3 13s ease-in-out infinite alternate; }
+@keyframes floatOrb1 { from{transform:translate(0,0)} to{transform:translate(18px,-22px)} }
+@keyframes floatOrb2 { from{transform:translate(0,0)} to{transform:translate(-14px,18px)} }
+@keyframes floatOrb3 { from{transform:translate(0,0)} to{transform:translate(12px,14px)} }
+
+/* Page transitions */
+.pg { transition: opacity .28s ease, transform .28s cubic-bezier(.4,0,.2,1); }
+.pg:not(.on) { opacity: 0; pointer-events: none; transform: translateY(12px); }
+.pg.on { opacity: 1; transform: translateY(0); }
+
+/* AOS override for dark theme */
+[data-aos] { pointer-events: auto !important; }
+
 </style>
 </head>
 <body>
@@ -864,7 +1025,7 @@ audio{display:none}
 
     <!-- HOME PAGE -->
     <div class="pg on" id="pg-home">
-      <div class="search-bar">
+      <div class="search-bar" data-aos="fade-down" data-aos-duration="500">
         <div class="search-inner">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="searchQ" placeholder="Songs, artists search karo..." oninput="onSearch()">
@@ -945,11 +1106,11 @@ audio{display:none}
       </div>
 
       <div class="hero-wrap" id="heroArea">
-        <div class="hero-card">
-          <div class="hero-greeting" id="heroGreet">Hey there</div>
+        <div class="hero-card" data-aos="fade-up" data-aos-duration="700" data-aos-delay="100">
+          <div class="hero-greeting" id="heroGreet" data-aos="fade-right" data-aos-duration="500" data-aos-delay="200">Hey there</div>
           <div class="hero-title">Apna Music<br><em>Suno</em></div>
           <div class="hero-sub">Sab kuch ek jagah — no ads, no limits</div>
-          <div class="hero-stats">
+          <div class="hero-stats" data-aos="fade-up" data-aos-duration="500" data-aos-delay="350">
             <div class="hero-pill"><div class="hero-pulse"></div><span id="heroCount">Loading...</span></div>
             <div class="hero-premium-pill" id="heroPremiumPill">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z"/></svg>
@@ -961,13 +1122,13 @@ audio{display:none}
       </div>
 
       <div id="recentArea" style="display:none">
-        <div class="sec-hdr"><div class="sec-title">Recently Played</div></div>
+        <div class="sec-hdr" data-aos="fade-right" data-aos-duration="400"><div class="sec-title">Recently Played</div></div>
         <div class="recent-row" id="recentList"></div>
       </div>
 
       <div class="load-box" id="loadBox"><div class="loader"></div><div class="load-txt">Songs load ho rahi hain...</div></div>
       <div class="err-card" id="errCard"><h4>Connection failed</h4><span id="errTxt"></span></div>
-      <div class="chips-row" id="chipRow" style="display:none">
+      <div class="chips-row" id="chipRow" style="display:none" data-aos="fade-up" data-aos-duration="400" data-aos-delay="100">
         <div class="chip on" onclick="setFilter('all',this)">All Songs</div>
         <div class="chip" onclick="setFilter('mine',this)">My Songs</div>
         <div class="chip" onclick="setFilter('newest',this)">Newest First</div>
@@ -980,7 +1141,7 @@ audio{display:none}
 
     <!-- FAVORITES PAGE -->
     <div class="pg" id="pg-favs">
-      <div class="favs-hdr">
+      <div class="favs-hdr" data-aos="fade-up" data-aos-duration="600">
         <h2>Favorites <em><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:middle;color:var(--acc)"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></em></h2>
         <p id="favsCount">0 songs</p>
       </div>
@@ -2542,7 +2703,7 @@ async function saveToMyLibrary(videoId, title, artist, thumbnail, duration) {
   const newSong = {
     id: songId, title, artist,
     thumb: thumbnail, url: '',
-    dur: duration, quality: '128kbps',
+    dur: fmtDur(duration), quality: '128kbps',
     date: new Date().toISOString(),
     // isUserSong flag ZAROORI hai — My Songs filter aur highlight ke liye
     isUserSong: true,
@@ -2845,9 +3006,14 @@ function eqOrPlay(isNow){return isNow?`<div class="eq-bars ${playing?'':'paused'
 function heartBtn(id,faved,ctx){if(ctx==='upnext')return'';return`<button class="s-heart ${faved?'on':''}" onclick="event.stopPropagation();toggleFav('${id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="${faved?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>`;}
 function makeRow(s,i,ctx){const isNow=curIdx!==-1&&(songs[curIdx]?songs[curIdx].id:undefined)===s.id,faved=favs.includes(s.id),numCell=ctx!=='upnext'?`<div class="s-num">${i+1}</div>`:'',sz=ctx==='upnext'?'width:42px;height:42px':'',dur=s.dur!=='—'?`<span class="s-dur">${s.dur}</span>`:'';const addPl=ctx!=='upnext'?`<button onclick="event.stopPropagation();showAddToPlaylist('${s.id}')" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="Playlist mein add karo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`:'';return`<div class="s-row ${isNow?'now-on':''}" onclick="playById('${s.id}')">${numCell}<div class="s-thumb" style="${sz}">${songIco(s)}<div class="s-ov">${eqOrPlay(isNow)}</div></div><div class="s-info"><div class="s-name">${s.title}</div><div class="s-art">${s.artist}</div></div>${dur}${addPl}${heartBtn(s.id,faved,ctx)}</div>`;}
 
-function renderSongs(){filtered=getFiltered();const g=document.getElementById('songsList');if(!filtered.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><h3>${filterMode==='mine'?'Koi song nahi':songs.length?'Koi result nahi':'Library Khali Hai'}</h3><p>${filterMode==='mine'?'YouTube se search karo aur + My Library dabao':songs.length?'Kuch aur search try karo':'Admin panel se songs add karo'}</p></div>`;return;}g.innerHTML=filtered.map((s,i)=>makeRow(s,i,'home')).join('');}
+function renderSongs(){filtered=getFiltered();const g=document.getElementById('songsList');if(!filtered.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><h3>${filterMode==='mine'?'Koi song nahi':songs.length?'Koi result nahi':'Library Khali Hai'}</h3><p>${filterMode==='mine'?'YouTube se search karo aur + My Library dabao':songs.length?'Kuch aur search try karo':'Admin panel se songs add karo'}</p></div>`;return;}g.innerHTML=filtered.map((s,i)=>makeRow(s,i,'home')).join('');
+  requestAnimationFrame(()=>{ if(typeof animateSongRows==='function') animateSongRows(); });
+}
 function renderFavs(){const list=songs.filter(s=>favs.includes(s.id));document.getElementById('favsCount').textContent=`${list.length} songs`;const g=document.getElementById('favsList');if(!list.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><h3>Koi Favorite Nahi</h3><p>Songs pe dil icon dabao</p></div>`;return;}g.innerHTML=list.map((s,i)=>makeRow(s,i,'favs')).join('');}
-function renderRecent(){const sec=document.getElementById('recentArea');if(!recent.length||searchVal){sec.style.display='none';return;}const rs=recent.map(id=>songs.find(s=>s.id===id)).filter(Boolean).slice(0,10);if(!rs.length){sec.style.display='none';return;}sec.style.display='';document.getElementById('recentList').innerHTML=rs.map(s=>`<div class="rc-card" onclick="playById('${s.id}')"><div class="rc-art">${s.thumb?`<img src="${s.thumb}" onerror="this.style.display='none'" loading="lazy">`:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`}<div class="rc-play-ov"><div class="rc-play-ring"><svg width="14" height="14" viewBox="0 0 24 24" fill="#111" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div></div><div class="rc-name">${s.title}</div><div class="rc-artist">${s.artist}</div></div>`).join('');}
+function renderRecent(){
+  const sec=document.getElementById('recentArea');if(!recent.length||searchVal){sec.style.display='none';return;}const rs=recent.map(id=>songs.find(s=>s.id===id)).filter(Boolean).slice(0,10);if(!rs.length){sec.style.display='none';return;}sec.style.display='';document.getElementById('recentList').innerHTML=rs.map(s=>`<div class="rc-card" onclick="playById('${s.id}')"><div class="rc-art">${s.thumb?`<img src="${s.thumb}" onerror="this.style.display='none'" loading="lazy">`:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`}<div class="rc-play-ov"><div class="rc-play-ring"><svg width="14" height="14" viewBox="0 0 24 24" fill="#111" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div></div><div class="rc-name">${s.title}</div><div class="rc-artist">${s.artist}</div></div>`).join('');
+  requestAnimationFrame(()=>{ if(typeof animateRecentCards==='function') animateRecentCards(); });
+}
 function renderUpNext(){const g=document.getElementById('upNextList');if(curIdx<0){g.innerHTML='';return;}const q=shuffle?[]:songs.slice(curIdx+1,curIdx+6);if(!q.length){g.innerHTML=`<div style="color:var(--tx3);font-size:12px;padding:10px 0">Queue khatam</div>`;return;}g.innerHTML=q.map((s,i)=>makeRow(s,i,'upnext')).join('');}
 function renderFavBadge(){const b=document.getElementById('favBadge');b.textContent=favs.length;b.style.display=favs.length?'block':'none';}
 
@@ -2902,11 +3068,12 @@ async function playById(id){
   }
 }
 function showMini(){
-  if(curIdx<0) return; // koi song nahi hai toh mat dikhao
+  if(curIdx<0) return;
   miniUp=true;
-  userClosedMini=false; // User ne dobara show kiya — flag reset karo
+  userClosedMini=false;
   const m=document.getElementById('mini');
   m.classList.add('up');
+  requestAnimationFrame(() => { if(typeof animateMiniIn === 'function') animateMiniIn(); });
   m.classList.remove('hidden-np');
   document.getElementById('shufFab').classList.remove('no-mini');
 }
@@ -3654,7 +3821,7 @@ async function ytFetchSong(isRetry=false, fixedVideoId='', fixedTitle='', fixedC
       id:'yt_'+videoId,
       title, artist:channel,
       thumb, url:streamData.url,
-      dur:streamData.duration||'—',
+      dur:fmtDur(streamData.duration)||'—',
       quality:'128kbps',
       date:new Date().toISOString()
     };
@@ -3733,6 +3900,158 @@ async function ytRefreshSongs(){
     }
   }catch(e){console.warn('ytRefreshSongs:',e);}
 }
+
+// ══ ANIME.JS + AOS INIT ══
+(function initAnimations(){
+
+  // AOS Init — scroll animations
+  if(typeof AOS !== 'undefined'){
+    AOS.init({
+      duration: 600,
+      easing: 'ease-out-cubic',
+      once: true,         // Sirf pehli baar animate karo
+      offset: 20,
+      disable: false
+    });
+  }
+
+  // ── Anime.js: Header logo entrance ──
+  if(typeof anime !== 'undefined'){
+    anime({
+      targets: '.hdr-logo-icon',
+      scale: [0, 1],
+      rotate: [-15, 0],
+      opacity: [0, 1],
+      duration: 700,
+      delay: 200,
+      easing: 'spring(1, 80, 12, 0)'
+    });
+    anime({
+      targets: '.hdr-logo-name',
+      translateX: [-20, 0],
+      opacity: [0, 1],
+      duration: 500,
+      delay: 350,
+      easing: 'easeOutCubic'
+    });
+    anime({
+      targets: '.hdr-right',
+      translateX: [20, 0],
+      opacity: [0, 1],
+      duration: 500,
+      delay: 400,
+      easing: 'easeOutCubic'
+    });
+  }
+})();
+
+// ── Song rows stagger animation (called after renderSongs) ──
+function animateSongRows(){
+  const rows = document.querySelectorAll('.s-row');
+  rows.forEach((r, i) => {
+    r.style.opacity = '0';
+    r.style.transform = 'translateY(14px)';
+    setTimeout(() => {
+      r.style.transition = 'opacity .32s ease, transform .32s cubic-bezier(.34,1.1,.64,1)';
+      r.style.opacity = '1';
+      r.style.transform = 'translateY(0)';
+    }, 30 + i * 45);
+  });
+}
+
+// ── Recent cards stagger animation ──
+function animateRecentCards(){
+  if(typeof anime === 'undefined') return;
+  anime({
+    targets: '.rc-card',
+    scale: [0.88, 1],
+    translateY: [14, 0],
+    opacity: [0, 1],
+    delay: anime.stagger(90, {start: 80}),
+    duration: 420,
+    easing: 'spring(1, 70, 14, 0)'
+  });
+}
+
+// ── Heart pop animation ──
+function animateHeart(btn){
+  if(!btn) return;
+  btn.classList.remove('pop');
+  void btn.offsetWidth; // reflow
+  btn.classList.add('pop');
+  if(typeof anime !== 'undefined'){
+    anime({
+      targets: btn,
+      scale: [1, 1.55, 0.9, 1],
+      duration: 380,
+      easing: 'easeOutElastic(1, .6)'
+    });
+  }
+}
+
+// ── Mini player slide in with Anime.js ──
+function animateMiniIn(){
+  if(typeof anime === 'undefined') return;
+  anime({
+    targets: '#mini',
+    translateY: [80, 0],
+    opacity: [0, 1],
+    duration: 450,
+    easing: 'spring(1, 80, 12, 0)'
+  });
+}
+
+// ── Page switch animation ──
+function animatePageSwitch(el){
+  if(typeof anime === 'undefined') return;
+  anime({
+    targets: el,
+    translateY: [18, 0],
+    opacity: [0, 1],
+    duration: 320,
+    easing: 'easeOutCubic'
+  });
+}
+
+// ── NP art entry animation ──
+function animateNPEntry(){
+  if(typeof anime === 'undefined') return;
+  anime({
+    targets: '.np-art-outer',
+    scale: [0.82, 1],
+    opacity: [0, 1],
+    duration: 550,
+    easing: 'spring(1, 70, 12, 0)'
+  });
+  anime({
+    targets: '.np-info',
+    translateY: [20, 0],
+    opacity: [0, 1],
+    duration: 500,
+    delay: 120,
+    easing: 'easeOutCubic'
+  });
+  anime({
+    targets: '.np-prog, .np-actions, .np-controls',
+    translateY: [16, 0],
+    opacity: [0, 1],
+    delay: anime.stagger(60, {start: 200}),
+    duration: 420,
+    easing: 'easeOutCubic'
+  });
+}
+
+// ── Chip click wave ──
+function animateChip(el){
+  if(typeof anime === 'undefined') return;
+  anime({
+    targets: el,
+    scale: [1, 0.9, 1.04, 1],
+    duration: 320,
+    easing: 'easeOutElastic(1, .7)'
+  });
+}
+
 </script>
 </body>
 </html>
