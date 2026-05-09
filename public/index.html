@@ -1212,6 +1212,10 @@ audio{display:none}
               </div>
               <div class="pac-plan" id="pacPlanName">—</div>
               <div class="pac-exp" id="pacExpiry">—</div>
+              <div id="pacDeviceLimit" style="display:none;margin-top:6px;font-size:11px;font-weight:700;color:var(--grn);background:rgba(0,206,201,.08);border:1px solid rgba(0,206,201,.2);border-radius:20px;padding:3px 10px;display:inline-flex;align-items:center;gap:5px;width:fit-content">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                <span id="pacDeviceLimitTxt">—</span>
+              </div>
             </div>
           </div>
           <div class="pac-features">
@@ -1511,7 +1515,7 @@ audio{display:none}
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
     </div>
     <div class="device-title">Device Limit Poori Ho Gayi</div>
-    <div class="device-sub">TubeTune ek account pe sirf <strong>2 devices</strong> pe chal sakta hai. Ek purana device logout karo.</div>
+    <div class="device-sub" id="deviceModalSub">TubeTune ek account pe sirf <strong>2 devices</strong> pe chal sakta hai. Ek purana device logout karo.</div>
     <div class="device-list" id="deviceList"></div>
     <button class="device-btn device-btn-secondary" onclick="deviceModalClose()">Cancel — Yahan se Logout Karo</button>
   </div>
@@ -1651,7 +1655,7 @@ audio{display:none}
     <div class="edit-view" id="editDeviceView">
       <div class="edit-back" onclick="closeEdit()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Back</div>
       <div class="edit-title">Device Management</div>
-      <div style="font-size:12px;color:var(--tx3);margin-bottom:16px;line-height:1.5">Tumhare account pe max <strong style="color:var(--tx2)">2 devices</strong> allowed hain. Purane devices ko yahan se logout kar sakte ho.</div>
+      <div style="font-size:12px;color:var(--tx3);margin-bottom:16px;line-height:1.5" id="deviceMgmtLimitTxt">Tumhare account pe max <strong style="color:var(--tx2)">2 devices</strong> allowed hain. Purane devices ko yahan se logout kar sakte ho.</div>
       <div id="profileDeviceList" style="display:flex;flex-direction:column;gap:8px">
         <div style="text-align:center;padding:24px;color:var(--tx3)">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.4"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
@@ -1800,6 +1804,22 @@ function updatePremiumUI() {
       document.getElementById('pacExpiry').textContent = `Valid till ${exp2.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}`;
     } else {
       document.getElementById('pacExpiry').textContent = 'Premium subscription active hai';
+    }
+    // Device limit pill — plan se fetch karo
+    const pacDL = document.getElementById('pacDeviceLimit');
+    const pacDLTxt = document.getElementById('pacDeviceLimitTxt');
+    if (pacDL && pacDLTxt && premiumSub.plan_id) {
+      fetch(`${SB_URL}/rest/v1/plans?id=eq.${premiumSub.plan_id}&select=device_limit`, {
+        headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SS.token() }
+      }).then(r => r.json()).then(rows => {
+        if (rows && rows[0] && rows[0].device_limit != null) {
+          const dl = rows[0].device_limit;
+          pacDLTxt.textContent = dl >= 99 ? 'Unlimited Devices' : dl === 1 ? '1 Device only' : dl + ' Devices';
+          pacDL.style.display = 'inline-flex';
+        }
+      }).catch(() => {});
+    } else if (pacDL && pacDLTxt) {
+      pacDL.style.display = 'none';
     }
   } else {
     pac.classList.remove('show');
@@ -2444,7 +2464,6 @@ async function doLogin(){
 
 async function doLogout(){
   try{await sbFetch('/auth/v1/logout',{method:'POST'});}catch(_){}
-  stopDevicePolling();
   SS.clear();isPremium=false;premiumSub=null;stopCountdown();
   closeProfile();aud.pause();
   document.getElementById('mini').classList.remove('up');
@@ -3579,7 +3598,6 @@ function shareNP(){
 /* ── DEVICE LIMIT ── */
 const MAX_DEVICES = 2;
 const DEVICE_KEY = 'tt_device_id';
-let _devicePollInterval = null; // polling timer
 
 function getDeviceId() {
   let id = localStorage.getItem(DEVICE_KEY);
@@ -3597,40 +3615,6 @@ function getDeviceName() {
   if (/Windows/i.test(ua)) return '💻 Windows PC';
   if (/Mac/i.test(ua)) return '💻 Mac';
   return '🌐 Browser';
-}
-
-// ── Device existence check — sirf yeh device DB mein hai ya nahi ──
-async function checkThisDeviceExists() {
-  if (!SS.token()) return;
-  const userId = (SS.user() || {}).id;
-  if (!userId) return;
-  const deviceId = getDeviceId();
-
-  try {
-    const r = await fetch(
-      `${SB_URL}/rest/v1/user_devices?user_id=eq.${userId}&device_id=eq.${deviceId}&select=device_id`,
-      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SS.token() } }
-    );
-    if (!r.ok) return; // network error — logout mat karo
-    const rows = await r.json();
-
-    if (!rows || rows.length === 0) {
-      // Device DB mein nahi hai — kisi ne logout kar diya
-      stopDevicePolling();
-      toast('Tumhare account se is device ko logout kar diya gaya.', 'err');
-      setTimeout(() => doLogout(), 2000);
-    }
-  } catch(e) { /* network fail — ignore */ }
-}
-
-// Polling start karo — har 30 sec mein check
-function startDevicePolling() {
-  stopDevicePolling();
-  _devicePollInterval = setInterval(checkThisDeviceExists, 30000);
-}
-
-function stopDevicePolling() {
-  if (_devicePollInterval) { clearInterval(_devicePollInterval); _devicePollInterval = null; }
 }
 
 async function checkDeviceLimit() {
@@ -3658,13 +3642,22 @@ async function checkDeviceLimit() {
         );
         if (planR.ok) {
           const plans = await planR.json();
-          if (plans && plans[0] && plans[0].device_limit) {
+          if (plans && plans[0] && plans[0].device_limit != null) {
             maxDevices = plans[0].device_limit;
           }
         }
       }
     }
   } catch(e) { /* fail silently — use default */ }
+
+  // Device modal aur management page mein actual limit dikhao
+  const limitTxt = maxDevices >= 99 ? 'Unlimited' : maxDevices;
+  const modalSub = document.getElementById('deviceModalSub');
+  if (modalSub) modalSub.innerHTML = `TubeTune ek account pe sirf <strong>${limitTxt} device${maxDevices > 1 && maxDevices < 99 ? 's' : ''}</strong> pe chal sakta hai. Ek purana device logout karo.`;
+  const mgmtTxt = document.getElementById('deviceMgmtLimitTxt');
+  if (mgmtTxt) mgmtTxt.innerHTML = `Tumhare account pe max <strong style="color:var(--tx2)">${limitTxt} device${maxDevices > 1 && maxDevices < 99 ? 's' : ''}</strong> allowed hain. Purane devices ko yahan se logout kar sakte ho.`;
+  const mgmtSub = document.getElementById('deviceMgmtSub');
+  if (mgmtSub) mgmtSub.textContent = `${limitTxt} devices allowed`;
 
   try {
     // Upsert current device
@@ -3686,7 +3679,7 @@ async function checkDeviceLimit() {
 
     const top = allDevices.slice(0, maxDevices).map(d => d.device_id);
     if (!top.includes(deviceId) && allDevices.length > maxDevices) {
-      showDeviceModal(allDevices, deviceId);
+      showDeviceModal(allDevices, deviceId, maxDevices);
       return false;
     }
     return true;
@@ -3744,7 +3737,7 @@ function deviceModalClose() {
   doLogout();
 }
 
-/* ── STREAK SYSTEM ── */
+/* ── STREAK SYSTEM — Supabase DB backed (Snapchat style) ── */
 const STREAK_KEY = 'tt_streak';
 
 function getStreakData() {
@@ -3763,23 +3756,91 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
+// Supabase se streak load karo — app open hone par call hota hai
+async function loadStreakFromDB() {
+  if (!SS.token()) return;
+  const userId = (SS.user() || {}).id;
+  if (!userId) return;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/user_stats?user_id=eq.${userId}&select=streak_current,streak_best,total_days,last_played_date`, {
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SS.token() }
+    });
+    if (!r.ok) return;
+    const rows = await r.json();
+    if (!rows || !rows[0]) return;
+    const db = rows[0];
+    const local = getStreakData();
+
+    // DB ka data fresh hai ya local ka — dono compare karo
+    const dbDate = db.last_played_date || null;
+    const localDate = local.lastDate || null;
+    const dbStreak = db.streak_current || 0;
+    const localStreak = local.current || 0;
+
+    // Check karo: 48 ghante ke andar koi activity nahi?
+    const now = new Date();
+    const lastPlayDate = dbDate ? new Date(dbDate) : null;
+    const hoursSinceLast = lastPlayDate ? (now - lastPlayDate) / (1000 * 60 * 60) : 9999;
+
+    let mergedData;
+    // Agar DB ka data zyada recent hai ya equal hai
+    if (!localDate || (dbDate && dbDate >= localDate)) {
+      mergedData = {
+        current: dbStreak,
+        best: Math.max(db.streak_best || 0, local.best || 0),
+        lastDate: dbDate,
+        totalDays: Math.max(db.total_days || 0, local.totalDays || 0),
+        todayPlayed: dbDate === todayStr()
+      };
+    } else {
+      // Local data zyada fresh — usse rakho
+      mergedData = {
+        ...local,
+        best: Math.max(local.best || 0, db.streak_best || 0)
+      };
+    }
+
+    // 48 ghante reset check — agar 48+ ghante ho gaye aur aaj nahi suna
+    if (hoursSinceLast >= 48 && mergedData.todayPlayed === false) {
+      if (mergedData.current > 0) {
+        mergedData.current = 0; // Streak reset!
+        // DB mein bhi reset karo
+        syncStreakToSupabase(mergedData);
+      }
+    }
+
+    saveStreakData(mergedData);
+    updateStreakUI();
+  } catch(e) { console.warn('loadStreakFromDB:', e); }
+}
+
 function recordListening() {
   const d = getStreakData();
   const today = todayStr();
   if (d.lastDate === today) return; // Already counted today
 
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yStr = yesterday.toISOString().slice(0, 10);
+  const now = new Date();
+  const lastDate = d.lastDate ? new Date(d.lastDate) : null;
+  const hoursSinceLast = lastDate ? (now - lastDate) / (1000 * 60 * 60) : 9999;
 
-  if (d.lastDate === yStr) {
-    // Yesterday suna tha — streak badhao
-    d.current += 1;
-  } else if (!d.lastDate) {
+  if (lastDate && hoursSinceLast < 48) {
+    // 48 ghante ke andar suna tha — streak badhao
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toISOString().slice(0, 10);
+
+    if (d.lastDate === yStr) {
+      // Bilkul kal suna tha — streak badhao
+      d.current += 1;
+    } else {
+      // Beech mein kuch din miss hue lekin 48hr limit mein tha (edge case) — reset
+      d.current = 1;
+    }
+  } else if (!lastDate) {
     // Pehli baar
     d.current = 1;
   } else {
-    // Gap aa gaya — reset
+    // 48 ghante se zyada gap — streak RESET
     d.current = 1;
   }
 
@@ -3815,7 +3876,7 @@ async function syncStreakToSupabase(d) {
         streak_best: d.best,
         total_days: d.totalDays,
         last_played_date: d.lastDate,
-        songs_this_week: (getStreakData().songsThisWeek || 0)
+        updated_at: new Date().toISOString()
       })
     });
   } catch(e) {}
@@ -4166,14 +4227,13 @@ function hookPlayTracking() {
 /* ── INIT GAMI ON APP START ── */
 function initGamification() {
   hookPlayTracking();
-  updateStreakUI();
+  updateStreakUI(); // Local se pehle dikhao (fast)
+  // Supabase se streak load karo — app install ke baad bhi streak milegi
+  setTimeout(() => loadStreakFromDB(), 1500);
   // Check badges silently after 2s
   setTimeout(checkBadges, 2000);
-  // Device check on start
+  // Device check
   setTimeout(() => checkDeviceLimit(), 3000);
-  // Device polling — har 30 sec mein check karo device exist karta hai ya nahi
-  // Agar kisi ne logout kar diya toh auto logout ho jayega
-  startDevicePolling();
 }
 
 boot();
