@@ -3977,16 +3977,113 @@ function saveEarnedBadges(list) {
   localStorage.setItem(BADGES_KEY, JSON.stringify(list));
 }
 
-function checkBadges() {
+// ── Supabase se badges load karo (app install/reinstall ke baad bhi milenge) ──
+async function loadBadgesFromDB() {
+  if (!SS.token()) return;
+  const userId = (SS.user() || {}).id;
+  if (!userId) return;
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/user_badges?user_id=eq.${userId}&select=badge_id,earned_at`,
+      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SS.token() } }
+    );
+    if (!r.ok) return;
+    const rows = await r.json();
+    if (!rows || !rows.length) return;
+
+    // DB se mili badges ko local se merge karo
+    const local = getEarnedBadges();
+    const localIds = new Set(local.map(b => b.id));
+    let changed = false;
+
+    for (const row of rows) {
+      if (!localIds.has(row.badge_id)) {
+        local.push({ id: row.badge_id, earnedAt: row.earned_at });
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveEarnedBadges(local);
+      renderBadgesGrid();
+    }
+
+    // Also sync total_plays and other stats from user_stats
+    const statsR = await fetch(
+      `${SB_URL}/rest/v1/user_stats?user_id=eq.${userId}&select=total_plays,night_owl,early_bird`,
+      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SS.token() } }
+    );
+    if (statsR.ok) {
+      const statsRows = await statsR.json();
+      if (statsRows && statsRows[0]) {
+        const dbStats = statsRows[0];
+        // Local se zyada ho to DB ka use karo
+        const localPlays = parseInt(localStorage.getItem('tt_total_plays') || '0');
+        if ((dbStats.total_plays || 0) > localPlays) {
+          localStorage.setItem('tt_total_plays', String(dbStats.total_plays));
+        }
+        if (dbStats.night_owl) localStorage.setItem('tt_night_owl', '1');
+        if (dbStats.early_bird) localStorage.setItem('tt_early_bird', '1');
+      }
+    }
+
+    // Ab badges check karo — DB se aaya data leke
+    checkBadges();
+  } catch(e) { console.warn('loadBadgesFromDB:', e); }
+}
+
+// ── Naya badge earn hone par Supabase mein save karo ──
+async function syncBadgeToDB(badgeId, earnedAt) {
+  if (!SS.token()) return;
+  const userId = (SS.user() || {}).id;
+  if (!userId) return;
+  try {
+    await fetch(`${SB_URL}/rest/v1/user_badges`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY, Authorization: 'Bearer ' + SS.token(),
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal,resolution=ignore-duplicates'
+      },
+      body: JSON.stringify({ user_id: userId, badge_id: badgeId, earned_at: earnedAt })
+    });
+  } catch(e) {}
+}
+
+// ── user_stats mein total_plays + night_owl/early_bird bhi save karo ──
+async function syncPlayStatsToDB() {
+  if (!SS.token()) return;
+  const userId = (SS.user() || {}).id;
+  if (!userId) return;
+  try {
+    const totalPlays = parseInt(localStorage.getItem('tt_total_plays') || '0');
+    const nightOwl = localStorage.getItem('tt_night_owl') === '1';
+    const earlyBird = localStorage.getItem('tt_early_bird') === '1';
+    await fetch(`${SB_URL}/rest/v1/user_stats`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY, Authorization: 'Bearer ' + SS.token(),
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal,resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        total_plays: totalPlays,
+        night_owl: nightOwl,
+        early_bird: earlyBird,
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch(e) {}
+}
+
+function _buildBadgeStats() {
   const d = getStreakData();
   const totalPlays = parseInt(localStorage.getItem('tt_total_plays') || '0');
   const hour = new Date().getHours();
-  const prevNight = localStorage.getItem('tt_night_owl') === '1';
-  const prevEarly = localStorage.getItem('tt_early_bird') === '1';
   if (hour >= 22 || hour < 2) localStorage.setItem('tt_night_owl', '1');
   if (hour >= 4 && hour < 6) localStorage.setItem('tt_early_bird', '1');
-
-  const stats = {
+  return {
     totalPlays,
     streakBest: d.best || 0,
     nightOwl: localStorage.getItem('tt_night_owl') === '1',
@@ -3995,15 +4092,21 @@ function checkBadges() {
     playlistCount: playlists.length,
     isPremium: isPremium
   };
+}
 
+function checkBadges() {
+  const stats = _buildBadgeStats();
   const earned = getEarnedBadges();
   const earnedIds = new Set(earned.map(b => b.id));
   let newUnlocks = [];
 
   for (const badge of ALL_BADGES) {
     if (!earnedIds.has(badge.id) && badge.check(stats)) {
-      earned.push({ id: badge.id, earnedAt: new Date().toISOString() });
+      const earnedAt = new Date().toISOString();
+      earned.push({ id: badge.id, earnedAt });
       newUnlocks.push(badge);
+      // Supabase mein save karo (fire & forget)
+      syncBadgeToDB(badge.id, earnedAt);
     }
   }
 
@@ -4012,7 +4115,6 @@ function checkBadges() {
     newUnlocks.forEach((b, i) => {
       setTimeout(() => showBadgeUnlockToast(b), i * 2200);
     });
-    // Navbar dot
     const dot = document.getElementById('newBadgeDot');
     if (dot) dot.style.display = 'inline-block';
   }
@@ -4023,19 +4125,18 @@ function checkBadges() {
 function checkStreakBadges(streak) {
   const d = getStreakData();
   const stats = {
-    totalPlays: parseInt(localStorage.getItem('tt_total_plays') || '0'),
-    streakBest: d.best || streak,
-    nightOwl: localStorage.getItem('tt_night_owl') === '1',
-    earlyBird: localStorage.getItem('tt_early_bird') === '1',
-    favCount: (JSON.parse(localStorage.getItem('tt_favs') || '[]')).length,
-    playlistCount: playlists.length,
-    isPremium: isPremium
+    ..._buildBadgeStats(),
+    streakBest: Math.max(d.best || 0, streak)
   };
   const earned = getEarnedBadges();
   const earnedIds = new Set(earned.map(b => b.id));
   const newBadges = ALL_BADGES.filter(b => !earnedIds.has(b.id) && b.check(stats));
   if (newBadges.length) {
-    newBadges.forEach(b => earned.push({ id: b.id, earnedAt: new Date().toISOString() }));
+    newBadges.forEach(b => {
+      const earnedAt = new Date().toISOString();
+      earned.push({ id: b.id, earnedAt });
+      syncBadgeToDB(b.id, earnedAt);
+    });
     saveEarnedBadges(earned);
     newBadges.forEach((b, i) => setTimeout(() => showBadgeUnlockToast(b), i * 2200));
   }
@@ -4200,6 +4301,8 @@ function hookPlayTracking() {
     recordListening();
     // Badge check (throttled)
     if (prev % 5 === 0 || prev < 5) checkBadges();
+    // Sync play stats to Supabase (har 5 plays pe)
+    if (prev % 5 === 0 || prev < 3) syncPlayStatsToDB();
 
     // Sync weekly count to Supabase
     if (SS.token()) {
@@ -4228,12 +4331,13 @@ function hookPlayTracking() {
 function initGamification() {
   hookPlayTracking();
   updateStreakUI(); // Local se pehle dikhao (fast)
-  // Supabase se streak load karo — app install ke baad bhi streak milegi
+  // Supabase se streak + badges load karo — reinstall ke baad bhi sab wapas aayega
   setTimeout(() => loadStreakFromDB(), 1500);
-  // Check badges silently after 2s
-  setTimeout(checkBadges, 2000);
+  setTimeout(() => loadBadgesFromDB(), 2000);
+  // Check badges silently after 3s
+  setTimeout(checkBadges, 3000);
   // Device check
-  setTimeout(() => checkDeviceLimit(), 3000);
+  setTimeout(() => checkDeviceLimit(), 3500);
 }
 
 boot();
