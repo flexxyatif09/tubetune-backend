@@ -160,44 +160,13 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .lb-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lb-songs{font-size:12px;color:var(--tx3);margin-top:1px}
 .lb-trophy{font-size:18px;flex-shrink:0}
+.lb-trophy svg{display:block}
+.lb-score-bar{height:3px;border-radius:2px;margin-top:6px;background:var(--s4);overflow:hidden}
+.lb-score-bar-fill{height:100%;border-radius:2px;transition:width .6s ease}
+.lb-score-num{font-size:10px;color:var(--tx3);font-family:'DM Mono',monospace;margin-top:3px}
+.lb-loading-shimmer{background:linear-gradient(90deg,var(--s2) 25%,var(--s3) 50%,var(--s2) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:16px;height:66px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .lb-me-badge{position:absolute;right:10px;top:6px;font-size:9px;font-weight:700;background:var(--p);color:#fff;border-radius:8px;padding:2px 6px}
-
-/* ── PRIVACY & ABOUT PAGES ── */
-.info-page-view{position:fixed;inset:0;z-index:9500;background:var(--bg);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);overflow:hidden}
-.info-page-view.open{transform:translateX(0)}
-.info-page-topbar{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--s1)}
-.info-page-back{width:36px;height:36px;border-radius:12px;background:var(--s2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx2);flex-shrink:0;transition:all .15s}
-.info-page-back:active{background:var(--s3);color:var(--tx)}
-.info-page-title{font-size:17px;font-weight:800;letter-spacing:-.3px;color:var(--tx);flex:1}
-.info-page-body{flex:1;overflow-y:auto;padding:24px 20px 60px;-webkit-overflow-scrolling:touch}
-.info-page-body::-webkit-scrollbar{display:none}
-.info-hero-banner{background:var(--s1);border:1px solid var(--bd2);border-radius:22px;padding:24px 20px;margin-bottom:24px;text-align:center;position:relative;overflow:hidden}
-.info-hero-banner::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad);pointer-events:none}
-.info-hero-icon-wrap{width:64px;height:64px;border-radius:20px;background:var(--grad);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 28px rgba(108,92,231,.4)}
-.info-hero-name{font-size:22px;font-weight:900;letter-spacing:-.5px;color:var(--tx);margin-bottom:6px}
-.info-hero-sub{font-size:13px;color:var(--tx3);line-height:1.6;font-weight:400}
-.info-section{margin-bottom:20px}
-.info-section-title{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--tx3);margin-bottom:10px;display:flex;align-items:center;gap:8px}
-.info-section-title::after{content:'';flex:1;height:1px;background:var(--bd)}
-.info-card{background:var(--s1);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:10px}
-.info-card-title{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:6px;display:flex;align-items:center;gap:8px}
-.info-card-title svg{color:var(--p2);flex-shrink:0}
-.info-card-text{font-size:13px;color:var(--tx2);line-height:1.7;font-weight:400}
-.info-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
-.info-stat{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:14px 10px;text-align:center}
-.info-stat-num{font-size:22px;font-weight:900;color:var(--tx);letter-spacing:-.5px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.info-stat-lbl{font-size:10px;color:var(--tx3);font-weight:600;margin-top:3px}
-.info-team-row{display:flex;align-items:center;gap:12px;padding:12px;background:var(--s1);border:1px solid var(--bd);border-radius:14px;margin-bottom:8px}
-.info-team-av{width:42px;height:42px;border-radius:14px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;flex-shrink:0}
-.info-team-name{font-size:14px;font-weight:700;color:var(--tx)}
-.info-team-role{font-size:11px;color:var(--tx3);margin-top:2px}
-.info-contact-btn{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--s1);border:1px solid var(--bd2);border-radius:14px;cursor:pointer;transition:all .15s;margin-bottom:8px;text-decoration:none}
-.info-contact-btn:active{background:var(--s2)}
-.info-contact-ico{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.info-contact-txt{flex:1}
-.info-contact-lbl{font-size:14px;font-weight:700;color:var(--tx)}
-.info-contact-val{font-size:12px;color:var(--tx3);font-family:'DM Mono',monospace;margin-top:2px}
-.info-version-tag{text-align:center;font-size:11px;color:var(--tx3);padding:20px 0 10px;font-family:'DM Mono',monospace}
 
 /* Device Limit Modal */
 .device-modal{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(12px)}
@@ -1354,9 +1323,21 @@ audio{display:none}
 
         <!-- LEADERBOARD -->
         <div class="gami-section">
-          <div class="gami-sec-title">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-            Is Hafte Ka Leaderboard
+          <div class="gami-sec-title" style="justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px;flex:1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Is Hafte Ka Leaderboard
+              <div style="flex:1;height:1px;background:var(--bd)"></div>
+            </div>
+            <button id="lbRefreshBtn" onclick="loadLeaderboard(true)" style="background:none;border:none;cursor:pointer;color:var(--tx3);padding:2px 4px;display:flex;align-items:center;gap:4px;font-size:10px;font-family:'Outfit',sans-serif;font-weight:600;letter-spacing:.5px;flex-shrink:0;transition:color .15s" onmouseenter="this.style.color='var(--p2)'" onmouseleave="this.style.color='var(--tx3)'">
+              <svg id="lbRefreshIcon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+              REFRESH
+            </button>
+          </div>
+          <div id="lbWeekInfo" style="font-size:11px;color:var(--tx3);margin-bottom:12px;display:flex;align-items:center;gap:6px;padding:0 2px">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span id="lbWeekRange">—</span>
+            <span style="margin-left:auto;font-weight:700" id="lbMyRankBadge"></span>
           </div>
           <div id="leaderboardList" class="leaderboard-list">
             <div style="text-align:center;padding:32px;color:var(--tx3)">
@@ -1364,6 +1345,7 @@ audio{display:none}
               <div style="font-size:13px">Load ho raha hai...</div>
             </div>
           </div>
+          <div id="lbLastUpdated" style="text-align:center;font-size:10px;color:var(--tx3);margin-top:10px;font-family:'DM Mono',monospace"></div>
         </div>
 
       </div>
@@ -1658,20 +1640,6 @@ audio{display:none}
           <div class="menu-txt"><div class="menu-lbl">Device Management</div><div class="menu-sub" id="deviceMgmtSub">Logged-in devices dekho</div></div>
           <svg class="menu-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
-        <div class="menu-item" onclick="openInfoPage('privacy')">
-          <div class="menu-ico" style="background:rgba(108,92,231,.12)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </div>
-          <div class="menu-txt"><div class="menu-lbl">Privacy Policy</div><div class="menu-sub">Aapka data kaise use hota hai</div></div>
-          <svg class="menu-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-        <div class="menu-item" onclick="openInfoPage('about')">
-          <div class="menu-ico" style="background:rgba(0,206,201,.12)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--grn)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          </div>
-          <div class="menu-txt"><div class="menu-lbl">About TubeTune</div><div class="menu-sub">App ke baare mein jaano</div></div>
-          <svg class="menu-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
         <div class="sheet-divider"></div>
         <div class="menu-item" onclick="doLogout()">
           <div class="menu-ico red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
@@ -1709,217 +1677,10 @@ audio{display:none}
   </div>
 </div>
 
-<!-- ══ PRIVACY POLICY PAGE ══ -->
-<div class="info-page-view" id="privacyPage">
-  <div class="info-page-topbar">
-    <div class="info-page-back" onclick="closeInfoPage('privacy')">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    </div>
-    <div class="info-page-title">Privacy Policy</div>
-    <div style="width:36px"></div>
-  </div>
-  <div class="info-page-body">
-    <div class="info-hero-banner">
-      <div class="info-hero-icon-wrap">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      </div>
-      <div class="info-hero-name">Privacy Policy</div>
-      <div class="info-hero-sub">Aapki privacy hamari zimmedari hai.<br>Yeh policy batati hai ki hum aapka data kaise handle karte hain.</div>
-    </div>
-
-    <div class="info-section">
-      <div class="info-section-title">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        Data Collection
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          Account Information
-        </div>
-        <div class="info-card-text">Hum sirf aapka naam, email address, aur password (encrypted form mein) store karte hain. Yeh information aapka account banane aur login ke liye zaroori hai.</div>
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-          Listening History
-        </div>
-        <div class="info-card-text">Aapki listening history aur favorite songs aapke account se linked hain. Yeh data sirf aapke liye personalized experience dene ke liye use hota hai.</div>
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-          Device Information
-        </div>
-        <div class="info-card-text">Multi-device login ke liye hum aapke devices ki basic information (device type, last active time) track karte hain. Aap kabhi bhi Device Management se kisi bhi device ko logout kar sakte hain.</div>
-      </div>
-    </div>
-
-    <div class="info-section">
-      <div class="info-section-title">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Data Security
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          Encryption & Safety
-        </div>
-        <div class="info-card-text">Aapka data Supabase ke secure servers par store hota hai jo industry-standard encryption use karta hai. Passwords kabhi bhi plain text mein store nahi hote — sirf hashed form mein.</div>
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          No Data Selling
-        </div>
-        <div class="info-card-text">TubeTune aapka koi bhi personal data third parties ko sell ya share nahi karta. Aapka data sirf aapka hai.</div>
-      </div>
-    </div>
-
-    <div class="info-section">
-      <div class="info-section-title">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        Your Rights
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-          Data Control
-        </div>
-        <div class="info-card-text">Aap kisi bhi waqt apna account delete kar sakte hain, apna naam change kar sakte hain, ya hamare support se contact karke apna data delete karwa sakte hain.</div>
-      </div>
-    </div>
-
-    <div class="info-version-tag">Last updated: May 2025 • TubeTune v2.0</div>
-  </div>
-</div>
-
-<!-- ══ ABOUT PAGE ══ -->
-<div class="info-page-view" id="aboutPage">
-  <div class="info-page-topbar">
-    <div class="info-page-back" onclick="closeInfoPage('about')">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    </div>
-    <div class="info-page-title">About TubeTune</div>
-    <div style="width:36px"></div>
-  </div>
-  <div class="info-page-body">
-    <div class="info-hero-banner">
-      <div class="info-hero-icon-wrap">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-      </div>
-      <div class="info-hero-name">TubeTune</div>
-      <div class="info-hero-sub">YouTube se music, sirf tumhare liye.<br>Free mein sunao — Premium mein unlimited enjoy karo.</div>
-    </div>
-
-    <div class="info-stat-row">
-      <div class="info-stat">
-        <div class="info-stat-num">∞</div>
-        <div class="info-stat-lbl">Songs</div>
-      </div>
-      <div class="info-stat">
-        <div class="info-stat-num">3</div>
-        <div class="info-stat-lbl">Devices</div>
-      </div>
-      <div class="info-stat">
-        <div class="info-stat-num">v2.0</div>
-        <div class="info-stat-lbl">Version</div>
-      </div>
-    </div>
-
-    <div class="info-section">
-      <div class="info-section-title">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        Key Features
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--acc2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          YouTube Search & Play
-        </div>
-        <div class="info-card-text">Koi bhi song YouTube se directly search karo aur seedha stream karo — koi download nahi, koi wait nahi.</div>
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          My Library
-        </div>
-        <div class="info-card-text">Apne favorite songs ko My Library mein save karo aur kabhi bhi easily access karo.</div>
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          Gamification System
-        </div>
-        <div class="info-card-text">Daily streaks, badges, aur leaderboard ke saath music sunna aur bhi fun ho jaata hai. Apni listening habits track karo!</div>
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--grn)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-          Multi-Device Support
-        </div>
-        <div class="info-card-text">Premium users 3 devices par ek saath TubeTune use kar sakte hain — phone, tablet, aur computer par bhi.</div>
-      </div>
-    </div>
-
-    <div class="info-section">
-      <div class="info-section-title">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Team
-      </div>
-      <div class="info-team-row">
-        <div class="info-team-av" style="background:var(--grad)">M</div>
-        <div>
-          <div class="info-team-name">Mohammad Atif</div>
-          <div class="info-team-role">Founder & Developer</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="info-section">
-      <div class="info-section-title">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        Contact Us
-      </div>
-      <a class="info-contact-btn" href="mailto:atifazmi514@gmail.com">
-        <div class="info-contact-ico" style="background:rgba(108,92,231,.12)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        </div>
-        <div class="info-contact-txt">
-          <div class="info-contact-lbl">Email Support</div>
-          <div class="info-contact-val">atifazmi514@gmail.com</div>
-        </div>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-      </a>
-    </div>
-
-    <div class="info-version-tag">TubeTune v2.0 • Built with ❤️ in India</div>
-  </div>
-</div>
-
 <div class="toasts" id="toastBox"></div>
 <audio id="aud"></audio>
 
 <script>
-/* ══════════════════════════════════════════════════
-   PRIVACY & ABOUT PAGE FUNCTIONS
-══════════════════════════════════════════════════ */
-function openInfoPage(type) {
-  const pageId = type === 'privacy' ? 'privacyPage' : 'aboutPage';
-  const el = document.getElementById(pageId);
-  if (!el) return;
-  el.style.display = 'flex';
-  el.style.flexDirection = 'column';
-  requestAnimationFrame(() => { el.classList.add('open'); });
-}
-function closeInfoPage(type) {
-  const pageId = type === 'privacy' ? 'privacyPage' : 'aboutPage';
-  const el = document.getElementById(pageId);
-  if (!el) return;
-  el.classList.remove('open');
-  setTimeout(() => { el.style.display = ''; }, 360);
-}
-
 /* ══════════════════════════════════════════════════
    CONFIG
 ══════════════════════════════════════════════════ */
@@ -3703,6 +3464,7 @@ function _loadAndPlay(s){
   // Canplay — play karo
   aud.addEventListener('canplay', function(){
     aud.play().catch(()=>{ setTimeout(()=>aud.play().catch(()=>{}), 1000); });
+    _countSongPlay(s.id); // sirf naye song pe count — pause/resume safe
     updateMediaPosition();
   }, { once: true });
 
@@ -4451,68 +4213,242 @@ function renderBadgesGrid() {
   }).join('');
 }
 
-/* ── LEADERBOARD ── */
-async function loadLeaderboard() {
+/* ══════════════════════════════════════════════════
+   LEADERBOARD — FULL DB-BACKED SYSTEM
+══════════════════════════════════════════════════ */
+
+/* Helper: current ISO week key "YYYY-Www" (Monday start) */
+function getWeekKey(date) {
+  const d = date ? new Date(date) : new Date();
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() - day + 1); // Monday
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10); // "2025-05-05"
+}
+
+/* Helper: week start date object */
+function getWeekStart() {
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const ws = new Date(now);
+  ws.setDate(now.getDate() - day + 1);
+  ws.setHours(0, 0, 0, 0);
+  return ws;
+}
+
+/* Format date as "5 May" */
+function fmtDate(d) {
+  return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+}
+
+/* Trophy SVG icons (no emoji) */
+function trophySVG(rank) {
+  if (rank === 1) return `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 9H4a2 2 0 01-2-2V5h4M18 9h2a2 2 0 002-2V5h-4" stroke="#F9CA24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M6 5h12v7a6 6 0 01-12 0V5z" fill="rgba(249,202,36,.18)" stroke="#F9CA24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9 21h6M12 18v3" stroke="#F9CA24" stroke-width="2" stroke-linecap="round"/>
+    <path d="M8 21h8" stroke="#F9CA24" stroke-width="2" stroke-linecap="round"/>
+  </svg>`;
+  if (rank === 2) return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 9H4a2 2 0 01-2-2V5h4M18 9h2a2 2 0 002-2V5h-4" stroke="#C0C0C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M6 5h12v7a6 6 0 01-12 0V5z" fill="rgba(192,192,192,.12)" stroke="#C0C0C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9 21h6M12 18v3M8 21h8" stroke="#C0C0C0" stroke-width="2" stroke-linecap="round"/>
+  </svg>`;
+  if (rank === 3) return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 9H4a2 2 0 01-2-2V5h4M18 9h2a2 2 0 002-2V5h-4" stroke="#CD7F32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M6 5h12v7a6 6 0 01-12 0V5z" fill="rgba(205,127,50,.12)" stroke="#CD7F32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9 21h6M12 18v3M8 21h8" stroke="#CD7F32" stroke-width="2" stroke-linecap="round"/>
+  </svg>`;
+  return '';
+}
+
+/* ── SYNC WEEKLY COUNT TO DB (called on every play) ── */
+async function syncWeeklyCountToDB() {
+  if (!SS.token()) return;
+  const userId = (SS.user() || {}).id;
+  if (!userId) return;
+  const userName = (SS.user() && ((SS.user().user_metadata && SS.user().user_metadata.name) || SS.user().email?.split('@')[0])) || '';
+
+  const thisWeek = getWeekKey();
+  const wk = JSON.parse(localStorage.getItem('tt_weekly_plays') || '{"week":"","count":0}');
+  // Reset if new week
+  if (wk.week !== thisWeek) { wk.week = thisWeek; wk.count = 0; }
+
+  try {
+    // First: fetch existing record for this user
+    const fetchR = await fetch(
+      `${SB_URL}/rest/v1/user_stats?user_id=eq.${userId}&select=songs_this_week,week_key`,
+      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SS.token() } }
+    );
+    const existing = fetchR.ok ? await fetchR.json() : [];
+    const rec = existing[0] || {};
+
+    // If week changed in DB too, reset to local count; else use max(db, local)
+    const dbWeek = rec.week_key || '';
+    const dbCount = (dbWeek === thisWeek) ? (rec.songs_this_week || 0) : 0;
+    const newCount = Math.max(dbCount, wk.count);
+
+    await fetch(`${SB_URL}/rest/v1/user_stats`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY, Authorization: 'Bearer ' + SS.token(),
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal,resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        user_name: userName,
+        songs_this_week: newCount,
+        week_key: thisWeek,
+        last_play_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch(e) { console.warn('syncWeeklyCountToDB:', e); }
+}
+
+/* ── LOAD LEADERBOARD FROM DB ── */
+async function loadLeaderboard(forceRefresh = false) {
   const el = document.getElementById('leaderboardList');
   if (!el) return;
 
-  // Week start (Monday)
-  const now = new Date();
-  const day = now.getDay() || 7;
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - (day - 1));
-  weekStart.setHours(0, 0, 0, 0);
+  const weekRangeEl = document.getElementById('lbWeekRange');
+  const lastUpdEl = document.getElementById('lbLastUpdated');
+  const myRankBadgeEl = document.getElementById('lbMyRankBadge');
+  const refreshIcon = document.getElementById('lbRefreshIcon');
+
+  // Week range display
+  const ws = getWeekStart();
+  const we = new Date(ws); we.setDate(ws.getDate() + 6);
+  if (weekRangeEl) weekRangeEl.textContent = fmtDate(ws) + ' – ' + fmtDate(we);
+
+  const thisWeek = getWeekKey();
+
+  // Shimmer loading
+  el.innerHTML = [1,2,3].map(() => `<div class="lb-loading-shimmer"></div>`).join('');
+  if (refreshIcon) refreshIcon.style.animation = 'spinning .7s linear infinite';
 
   try {
-    // user_stats table se weekly data fetch karo
+    // Fetch top 10 for THIS week only
     const r = await fetch(
-      `${SB_URL}/rest/v1/user_stats?select=user_id,songs_this_week,user_name&order=songs_this_week.desc&limit=10`,
+      `${SB_URL}/rest/v1/user_stats?select=user_id,user_name,songs_this_week,week_key,last_play_at&week_key=eq.${thisWeek}&order=songs_this_week.desc&limit=10`,
       { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + (SS.token() || SB_KEY) } }
     );
 
-    if (!r.ok) throw new Error('Table nahi mili');
-    const rows = await r.json();
-    if (!rows || !rows.length) throw new Error('No data');
+    if (!r.ok) throw new Error('Fetch failed: ' + r.status);
+    let rows = await r.json();
+
+    // Filter: only rows with at least 1 play this week
+    rows = (rows || []).filter(row => (row.songs_this_week || 0) > 0);
 
     const myId = (SS.user() || {}).id;
+    const myRow = rows.find(r => r.user_id === myId);
+    const myRank = myRow ? rows.indexOf(myRow) + 1 : null;
+
+    // My rank badge update
+    if (myRankBadgeEl) {
+      if (myRank) {
+        myRankBadgeEl.innerHTML = `<span style="background:rgba(108,92,231,.15);border:1px solid rgba(108,92,231,.3);color:var(--p2);border-radius:8px;padding:2px 8px;font-size:10px;font-weight:700">Tumhara rank: #${myRank}</span>`;
+      } else {
+        myRankBadgeEl.innerHTML = `<span style="color:var(--tx3);font-size:10px">Abhi unranked</span>`;
+      }
+    }
+
+    if (!rows.length) throw new Error('No plays this week yet');
+
+    // Max songs for progress bar
+    const maxSongs = rows[0]?.songs_this_week || 1;
+
     el.innerHTML = rows.map((row, i) => {
       const isMe = row.user_id === myId;
       const rank = i + 1;
       const rankClass = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
-      const trophy = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
-      const name = row.user_name || 'Listener #' + rank;
+      const name = row.user_name || ('Listener #' + rank);
       const songs = row.songs_this_week || 0;
       const av = name.charAt(0).toUpperCase();
+      const barPct = Math.max(8, Math.round((songs / maxSongs) * 100));
+      const barColor = rank === 1 ? 'var(--gold)' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--p2)';
+      const lastPlay = row.last_play_at ? new Date(row.last_play_at) : null;
+      const lastPlayStr = lastPlay ? fmtDate(lastPlay) : '';
+
       return `<div class="lb-row ${isMe ? 'me' : ''} ${rank === 1 ? 'gold-row' : ''}">
         ${isMe ? '<div class="lb-me-badge">Tum</div>' : ''}
         <div class="lb-rank ${rankClass}">${rank}</div>
-        <div class="lb-av">${av}</div>
+        <div class="lb-av" style="${rank===1?'background:linear-gradient(135deg,#F9CA24,#F0932B)':rank===2?'background:linear-gradient(135deg,#C0C0C0,#888)':rank===3?'background:linear-gradient(135deg,#CD7F32,#8B4513)':''}">${av}</div>
         <div class="lb-info">
-          <div class="lb-name">${name}${isMe ? ' (Tum)' : ''}</div>
-          <div class="lb-songs">${songs} songs is hafte</div>
+          <div class="lb-name">${name}${isMe ? ' <span style="font-size:10px;font-weight:700;color:var(--p2);background:rgba(108,92,231,.12);border-radius:6px;padding:1px 6px">Tum</span>' : ''}</div>
+          <div class="lb-songs">${songs} song${songs !== 1 ? 's' : ''} is hafte</div>
+          <div class="lb-score-bar"><div class="lb-score-bar-fill" style="width:${barPct}%;background:${barColor}"></div></div>
         </div>
-        ${trophy ? `<div class="lb-trophy">${trophy}</div>` : ''}
+        <div class="lb-trophy" style="display:flex;align-items:center">${trophySVG(rank)}</div>
       </div>`;
     }).join('');
 
+    // Last updated
+    const now = new Date();
+    if (lastUpdEl) lastUpdEl.textContent = 'Updated: ' + now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+    // Cache to localStorage for quick re-display
+    localStorage.setItem('tt_lb_cache', JSON.stringify({ week: thisWeek, rows, cachedAt: now.toISOString() }));
+
   } catch(e) {
-    // Fallback — local only data
-    const myId = (SS.user() || {}).id;
+    console.warn('Leaderboard DB error:', e.message);
+
+    // Try cache first
+    try {
+      const cached = JSON.parse(localStorage.getItem('tt_lb_cache') || '{}');
+      if (cached.week === thisWeek && cached.rows && cached.rows.length) {
+        const myId = (SS.user() || {}).id;
+        const maxSongs = cached.rows[0]?.songs_this_week || 1;
+        el.innerHTML = cached.rows.map((row, i) => {
+          const isMe = row.user_id === myId;
+          const rank = i + 1;
+          const rankClass = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
+          const name = row.user_name || ('Listener #' + rank);
+          const songs = row.songs_this_week || 0;
+          const av = name.charAt(0).toUpperCase();
+          const barPct = Math.max(8, Math.round((songs / maxSongs) * 100));
+          const barColor = rank === 1 ? 'var(--gold)' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--p2)';
+          return `<div class="lb-row ${isMe ? 'me' : ''} ${rank === 1 ? 'gold-row' : ''}">
+            ${isMe ? '<div class="lb-me-badge">Tum</div>' : ''}
+            <div class="lb-rank ${rankClass}">${rank}</div>
+            <div class="lb-av">${av}</div>
+            <div class="lb-info">
+              <div class="lb-name">${name}${isMe ? ' <span style="font-size:10px;font-weight:700;color:var(--p2);background:rgba(108,92,231,.12);border-radius:6px;padding:1px 6px">Tum</span>' : ''}</div>
+              <div class="lb-songs">${songs} songs is hafte</div>
+              <div class="lb-score-bar"><div class="lb-score-bar-fill" style="width:${barPct}%;background:${barColor}"></div></div>
+            </div>
+            <div class="lb-trophy">${trophySVG(rank)}</div>
+          </div>`;
+        }).join('');
+        if (lastUpdEl) lastUpdEl.textContent = 'Cached — Refresh karo';
+        return;
+      }
+    } catch(_) {}
+
+    // No cache — show empty with current user
     const myName = (SS.user() && ((SS.user().user_metadata && SS.user().user_metadata.name) || SS.user().email?.split('@')[0])) || 'Tum';
-    const totalPlays = parseInt(localStorage.getItem('tt_total_plays') || '0');
+    const wk = JSON.parse(localStorage.getItem('tt_weekly_plays') || '{"week":"","count":0}');
+    const localCount = (wk.week === thisWeek) ? wk.count : 0;
     el.innerHTML = `
-      <div class="lb-row me">
+      <div style="text-align:center;padding:28px 16px">
+        <div style="width:52px;height:52px;border-radius:16px;background:var(--s2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:var(--tx2);margin-bottom:6px">Abhi koi data nahi</div>
+        <div style="font-size:12px;color:var(--tx3);line-height:1.5">Is hafte songs suno aur leaderboard mein aao!</div>
+      </div>
+      ${localCount > 0 ? `<div class="lb-row me" style="margin-top:8px">
         <div class="lb-me-badge">Tum</div>
-        <div class="lb-rank">—</div>
+        <div class="lb-rank" style="color:var(--p2)">—</div>
         <div class="lb-av">${myName.charAt(0).toUpperCase()}</div>
         <div class="lb-info">
           <div class="lb-name">${myName}</div>
-          <div class="lb-songs">${totalPlays} songs abhi tak</div>
+          <div class="lb-songs">${localCount} songs is hafte (local)</div>
         </div>
-      </div>
-      <div style="text-align:center;padding:20px 0 10px;color:var(--tx3);font-size:13px">
-        Leaderboard abhi available nahi hai. Pehle kuch songs suno!
-      </div>`;
+      </div>` : ''}`;
+  } finally {
+    if (refreshIcon) refreshIcon.style.animation = '';
   }
 }
 
@@ -4525,56 +4461,41 @@ function loadGamiPage() {
   if (dot) dot.style.display = 'none';
 }
 
-/* ── TRACK PLAYS (hook into _loadAndPlay) ── */
+/* ── TRACK PLAYS — PAUSE/RESUME SAFE FIX ── */
+// Bug: 'play' event pause→resume pe bhi fire hota tha → count double hota tha
+// Fix: song ID track karo — same ID dobara count nahi hogi
 const _origLoadAndPlay = _loadAndPlay;
 window._trackingHooked = false;
+let _lastCountedSongId = null;
+
+function _countSongPlay(songId) {
+  // Same song already counted? (pause → resume) → ignore
+  if (!songId || songId === _lastCountedSongId) return;
+  _lastCountedSongId = songId;
+
+  // Total plays
+  const prev = parseInt(localStorage.getItem('tt_total_plays') || '0');
+  localStorage.setItem('tt_total_plays', String(prev + 1));
+
+  // Weekly count
+  const wk = JSON.parse(localStorage.getItem('tt_weekly_plays') || '{"week":"","count":0}');
+  const wkKey = getWeekKey();
+  if (wk.week !== wkKey) { wk.week = wkKey; wk.count = 0; }
+  wk.count++;
+  localStorage.setItem('tt_weekly_plays', JSON.stringify(wk));
+
+  // Streak + badges + DB sync
+  recordListening();
+  if (prev % 5 === 0 || prev < 5) checkBadges();
+  if (prev % 5 === 0 || prev < 3) syncPlayStatsToDB();
+  syncWeeklyCountToDB();
+}
 
 function hookPlayTracking() {
   if (window._trackingHooked) return;
   window._trackingHooked = true;
-  aud.addEventListener('play', () => {
-    // Count play
-    const prev = parseInt(localStorage.getItem('tt_total_plays') || '0');
-    localStorage.setItem('tt_total_plays', String(prev + 1));
-    // Weekly count
-    const wk = JSON.parse(localStorage.getItem('tt_weekly_plays') || '{"week":"","count":0}');
-    const now = new Date();
-    const day = now.getDay() || 7;
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - (day - 1));
-    const wkKey = weekStart.toISOString().slice(0, 10);
-    if (wk.week !== wkKey) { wk.week = wkKey; wk.count = 0; }
-    wk.count++;
-    localStorage.setItem('tt_weekly_plays', JSON.stringify(wk));
-
-    // Streak record (once per session / per day)
-    recordListening();
-    // Badge check (throttled)
-    if (prev % 5 === 0 || prev < 5) checkBadges();
-    // Sync play stats to Supabase (har 5 plays pe)
-    if (prev % 5 === 0 || prev < 3) syncPlayStatsToDB();
-
-    // Sync weekly count to Supabase
-    if (SS.token()) {
-      const userId = (SS.user() || {}).id;
-      const userName = (SS.user() && ((SS.user().user_metadata && SS.user().user_metadata.name) || SS.user().email?.split('@')[0])) || '';
-      if (userId) {
-        fetch(`${SB_URL}/rest/v1/user_stats`, {
-          method: 'POST',
-          headers: {
-            apikey: SB_KEY, Authorization: 'Bearer ' + SS.token(),
-            'Content-Type': 'application/json',
-            Prefer: 'return=minimal,resolution=merge-duplicates'
-          },
-          body: JSON.stringify({
-            user_id: userId, user_name: userName,
-            songs_this_week: wk.count,
-            updated_at: new Date().toISOString()
-          })
-        }).catch(() => {});
-      }
-    }
-  });
+  // Counting ab 'play' event se NAHI — _countSongPlay() se hoti hai
+  // jo canplay me call hoti hai (sirf naya song load hone par)
 }
 
 /* ── INIT GAMI ON APP START ── */
