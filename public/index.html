@@ -510,6 +510,42 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .sheet-menu{padding:14px 12px 8px}
 .menu-item{display:flex;align-items:center;gap:14px;padding:13px 12px;border-radius:16px;cursor:pointer;transition:background .15s}
 .menu-item:hover{background:var(--s2)}
+
+/* ── INFO PAGES (Privacy Policy & About) ── */
+.info-page-view{position:fixed;inset:0;z-index:9500;background:var(--bg);display:none;flex-direction:column;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);overflow:hidden}
+.info-page-view.open{transform:translateX(0)}
+.info-page-topbar{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--s1)}
+.info-page-back{width:36px;height:36px;border-radius:12px;background:var(--s2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx2);flex-shrink:0;transition:all .15s}
+.info-page-back:active{background:var(--s3)}
+.info-page-title{font-size:17px;font-weight:800;letter-spacing:-.3px;color:var(--tx);flex:1}
+.info-page-body{flex:1;overflow-y:auto;padding:24px 20px 60px;-webkit-overflow-scrolling:touch}
+.info-page-body::-webkit-scrollbar{display:none}
+.info-hero-banner{background:var(--s1);border:1px solid var(--bd2);border-radius:22px;padding:24px 20px;margin-bottom:24px;text-align:center;position:relative;overflow:hidden}
+.info-hero-banner::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad);pointer-events:none}
+.info-hero-icon-wrap{width:64px;height:64px;border-radius:20px;background:var(--grad);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 28px rgba(108,92,231,.4)}
+.info-hero-name{font-size:22px;font-weight:900;letter-spacing:-.5px;color:var(--tx);margin-bottom:6px}
+.info-hero-sub{font-size:13px;color:var(--tx3);line-height:1.6;font-weight:400}
+.info-section{margin-bottom:20px}
+.info-section-title{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--tx3);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.info-section-title::after{content:'';flex:1;height:1px;background:var(--bd)}
+.info-card{background:var(--s1);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:10px}
+.info-card-title{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.info-card-title svg{color:var(--p2);flex-shrink:0}
+.info-card-text{font-size:13px;color:var(--tx2);line-height:1.7;font-weight:400}
+.info-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.info-stat{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:14px 10px;text-align:center}
+.info-stat-num{font-size:22px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.5px}
+.info-stat-lbl{font-size:10px;color:var(--tx3);font-weight:600;margin-top:3px}
+.info-team-row{display:flex;align-items:center;gap:12px;padding:12px;background:var(--s1);border:1px solid var(--bd);border-radius:14px;margin-bottom:8px}
+.info-team-av{width:42px;height:42px;border-radius:14px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;flex-shrink:0}
+.info-team-name{font-size:14px;font-weight:700;color:var(--tx)}
+.info-team-role{font-size:11px;color:var(--tx3);margin-top:2px}
+.info-contact-btn{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--s1);border:1px solid var(--bd2);border-radius:14px;cursor:pointer;transition:all .15s;margin-bottom:8px;text-decoration:none}
+.info-contact-btn:active{background:var(--s2)}
+.info-contact-ico{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.info-contact-lbl{font-size:14px;font-weight:700;color:var(--tx)}
+.info-contact-val{font-size:12px;color:var(--tx3);font-family:'DM Mono',monospace;margin-top:2px}
+.info-version-tag{text-align:center;font-size:11px;color:var(--tx3);padding:20px 0 10px;font-family:'DM Mono',monospace}
 .menu-ico{width:40px;height:40px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .menu-ico.purple{background:rgba(108,92,231,.12);color:var(--p2)}
 .menu-ico.pink{background:rgba(253,121,168,.12);color:var(--acc)}
@@ -1640,6 +1676,16 @@ audio{display:none}
           <div class="menu-txt"><div class="menu-lbl">Device Management</div><div class="menu-sub" id="deviceMgmtSub">Logged-in devices dekho</div></div>
           <svg class="menu-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
+        <div class="menu-item" onclick="openInfoPage('privacy')">
+          <div class="menu-ico" style="background:rgba(108,92,231,.12)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <div class="menu-txt"><div class="menu-lbl">Privacy Policy</div><div class="menu-sub">Aapka data kaise use hota hai</div></div>
+          <svg class="menu-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="menu-item" onclick="openInfoPage('about')">
+          <div class="menu-ico" style="background:rgba(0,206,201,.12)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--grn)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+          <div class="menu-txt"><div class="menu-lbl">About TubeTune</div><div class="menu-sub">App ke baare mein jaano</div></div>
+          <svg class="menu-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
         <div class="sheet-divider"></div>
         <div class="menu-item" onclick="doLogout()">
           <div class="menu-ico red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
@@ -1677,10 +1723,200 @@ audio{display:none}
   </div>
 </div>
 
+<!-- ══ PRIVACY POLICY PAGE ══ -->
+<div class="info-page-view" id="privacyPage">
+  <div class="info-page-topbar">
+    <div class="info-page-back" onclick="closeInfoPage('privacy')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </div>
+    <div class="info-page-title">Privacy Policy</div>
+    <div style="width:36px"></div>
+  </div>
+  <div class="info-page-body">
+    <div class="info-hero-banner">
+      <div class="info-hero-icon-wrap">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div class="info-hero-name">Privacy Policy</div>
+      <div class="info-hero-sub">Aapki privacy hamari zimmedari hai.<br>Yeh policy batati hai ki hum aapka data kaise handle karte hain.</div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Data Collection
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Account Information
+        </div>
+        <div class="info-card-text">Hum sirf aapka naam, email address, aur password (encrypted form mein) store karte hain. Yeh information aapka account banane aur login ke liye zaroori hai.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          Listening History
+        </div>
+        <div class="info-card-text">Aapki listening history aur favorite songs aapke account se linked hain. Yeh data sirf aapke liye personalized experience dene ke liye use hota hai.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          Device Information
+        </div>
+        <div class="info-card-text">Multi-device login ke liye hum aapke devices ki basic information (device type, last active time) track karte hain. Aap kabhi bhi Device Management se kisi bhi device ko logout kar sakte hain.</div>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Data Security
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Encryption & Safety
+        </div>
+        <div class="info-card-text">Aapka data Supabase ke secure servers par store hota hai jo industry-standard encryption use karta hai. Passwords kabhi bhi plain text mein store nahi hote — sirf hashed form mein.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          No Data Selling
+        </div>
+        <div class="info-card-text">TubeTune aapka koi bhi personal data third parties ko sell ya share nahi karta. Aapka data sirf aapka hai.</div>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Your Rights
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          Data Control
+        </div>
+        <div class="info-card-text">Aap kisi bhi waqt apna account delete kar sakte hain, apna naam change kar sakte hain, ya hamare support se contact karke apna data delete karwa sakte hain.</div>
+      </div>
+    </div>
+
+    <div class="info-version-tag">Last updated: May 2025 • TubeTune v2.0</div>
+  </div>
+</div>
+
+<!-- ══ ABOUT PAGE ══ -->
+<div class="info-page-view" id="aboutPage">
+  <div class="info-page-topbar">
+    <div class="info-page-back" onclick="closeInfoPage('about')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </div>
+    <div class="info-page-title">About TubeTune</div>
+    <div style="width:36px"></div>
+  </div>
+  <div class="info-page-body">
+    <div class="info-hero-banner">
+      <div class="info-hero-icon-wrap">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
+      <div class="info-hero-name">TubeTune</div>
+      <div class="info-hero-sub">YouTube se music, sirf tumhare liye.<br>Free mein sunao — Premium mein unlimited enjoy karo.</div>
+    </div>
+
+    <div class="info-stat-row">
+      <div class="info-stat"><div class="info-stat-num">∞</div><div class="info-stat-lbl">Songs</div></div>
+      <div class="info-stat"><div class="info-stat-num">3</div><div class="info-stat-lbl">Devices</div></div>
+      <div class="info-stat"><div class="info-stat-num">v2.0</div><div class="info-stat-lbl">Version</div></div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Key Features
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--acc2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          YouTube Search & Play
+        </div>
+        <div class="info-card-text">Koi bhi song YouTube se directly search karo aur seedha stream karo — koi download nahi, koi wait nahi.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          My Library
+        </div>
+        <div class="info-card-text">Apne favorite songs ko My Library mein save karo aur kabhi bhi easily access karo.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Gamification System
+        </div>
+        <div class="info-card-text">Daily streaks, badges, aur leaderboard ke saath music sunna aur bhi fun ho jaata hai!</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--grn)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          Multi-Device Support
+        </div>
+        <div class="info-card-text">Premium users 3 devices par ek saath TubeTune use kar sakte hain.</div>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Team
+      </div>
+      <div class="info-team-row">
+        <div class="info-team-av">M</div>
+        <div><div class="info-team-name">Mohammad Atif</div><div class="info-team-role">Founder & Developer</div></div>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Contact Us
+      </div>
+      <a class="info-contact-btn" href="mailto:atifazmi514@gmail.com">
+        <div class="info-contact-ico" style="background:rgba(108,92,231,.12)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        <div style="flex:1"><div class="info-contact-lbl">Email Support</div><div class="info-contact-val">atifazmi514@gmail.com</div></div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+    </div>
+
+    <div class="info-version-tag">TubeTune v2.0 • Built with ❤️ in India</div>
+  </div>
+</div>
+
 <div class="toasts" id="toastBox"></div>
 <audio id="aud"></audio>
 
 <script>
+/* ══════════════════════════════════════════════════
+   PRIVACY & ABOUT PAGE FUNCTIONS
+══════════════════════════════════════════════════ */
+function openInfoPage(type) {
+  const el = document.getElementById(type === 'privacy' ? 'privacyPage' : 'aboutPage');
+  if (!el) return;
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+  requestAnimationFrame(() => el.classList.add('open'));
+}
+function closeInfoPage(type) {
+  const el = document.getElementById(type === 'privacy' ? 'privacyPage' : 'aboutPage');
+  if (!el) return;
+  el.classList.remove('open');
+  setTimeout(() => { el.style.display = ''; }, 360);
+}
+
 /* ══════════════════════════════════════════════════
    CONFIG
 ══════════════════════════════════════════════════ */
@@ -3464,7 +3700,6 @@ function _loadAndPlay(s){
   // Canplay — play karo
   aud.addEventListener('canplay', function(){
     aud.play().catch(()=>{ setTimeout(()=>aud.play().catch(()=>{}), 1000); });
-    _countSongPlay(s.id); // sirf naye song pe count — pause/resume safe
     updateMediaPosition();
   }, { once: true });
 
@@ -4461,41 +4696,34 @@ function loadGamiPage() {
   if (dot) dot.style.display = 'none';
 }
 
-/* ── TRACK PLAYS — PAUSE/RESUME SAFE FIX ── */
-// Bug: 'play' event pause→resume pe bhi fire hota tha → count double hota tha
-// Fix: song ID track karo — same ID dobara count nahi hogi
+/* ── TRACK PLAYS (hook into _loadAndPlay) ── */
 const _origLoadAndPlay = _loadAndPlay;
 window._trackingHooked = false;
-let _lastCountedSongId = null;
-
-function _countSongPlay(songId) {
-  // Same song already counted? (pause → resume) → ignore
-  if (!songId || songId === _lastCountedSongId) return;
-  _lastCountedSongId = songId;
-
-  // Total plays
-  const prev = parseInt(localStorage.getItem('tt_total_plays') || '0');
-  localStorage.setItem('tt_total_plays', String(prev + 1));
-
-  // Weekly count
-  const wk = JSON.parse(localStorage.getItem('tt_weekly_plays') || '{"week":"","count":0}');
-  const wkKey = getWeekKey();
-  if (wk.week !== wkKey) { wk.week = wkKey; wk.count = 0; }
-  wk.count++;
-  localStorage.setItem('tt_weekly_plays', JSON.stringify(wk));
-
-  // Streak + badges + DB sync
-  recordListening();
-  if (prev % 5 === 0 || prev < 5) checkBadges();
-  if (prev % 5 === 0 || prev < 3) syncPlayStatsToDB();
-  syncWeeklyCountToDB();
-}
 
 function hookPlayTracking() {
   if (window._trackingHooked) return;
   window._trackingHooked = true;
-  // Counting ab 'play' event se NAHI — _countSongPlay() se hoti hai
-  // jo canplay me call hoti hai (sirf naya song load hone par)
+  aud.addEventListener('play', () => {
+    // Count play
+    const prev = parseInt(localStorage.getItem('tt_total_plays') || '0');
+    localStorage.setItem('tt_total_plays', String(prev + 1));
+    // Weekly count — use consistent getWeekKey()
+    const wk = JSON.parse(localStorage.getItem('tt_weekly_plays') || '{"week":"","count":0}');
+    const wkKey = getWeekKey();
+    if (wk.week !== wkKey) { wk.week = wkKey; wk.count = 0; }
+    wk.count++;
+    localStorage.setItem('tt_weekly_plays', JSON.stringify(wk));
+
+    // Streak record (once per session / per day)
+    recordListening();
+    // Badge check (throttled)
+    if (prev % 5 === 0 || prev < 5) checkBadges();
+    // Sync play stats to Supabase (har 5 plays pe)
+    if (prev % 5 === 0 || prev < 3) syncPlayStatsToDB();
+
+    // Sync weekly count to Supabase — new robust version (har play pe)
+    syncWeeklyCountToDB();
+  });
 }
 
 /* ── INIT GAMI ON APP START ── */
