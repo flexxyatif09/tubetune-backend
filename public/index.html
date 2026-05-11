@@ -3875,6 +3875,13 @@ function renderFavBadge(){const b=document.getElementById('favBadge');b.textCont
 let _playLock=false; // concurrent playById calls rok
 async function playById(id){
   if(_playLock) return; // pehle wali call chal rahi hai — ignore
+
+  // ✅ Agar song downloaded hai — seedha offline blob se play karo, online mat jao
+  if(typeof isDownloaded === 'function' && isDownloaded(id)){
+    await playDownloaded(id);
+    return;
+  }
+
   _playLock=true;
   try{
     const idx=songs.findIndex(s=>s.id===id);
@@ -4074,6 +4081,19 @@ window.onAndroidResume = function(){
 };
 
 function _playNext(){
+  wasPlayingBeforeHide = true;
+  const dlMeta = getDlMeta();
+
+  // ✅ Agar downloaded songs hain — unhi queue mein auto-next karo
+  if(dlMeta.length > 0){
+    const currentId = curIdx >= 0 && songs[curIdx] ? songs[curIdx].id : null;
+    const dlIdx = dlMeta.findIndex(d => d.id === currentId);
+    const nextDl = dlMeta[(dlIdx+1) % dlMeta.length];
+    playDownloaded(nextDl.id);
+    return;
+  }
+
+  // Fallback: normal online queue
   if(!songs.length) return;
   if(shuffle) curIdx = Math.floor(Math.random()*songs.length);
   else curIdx = curIdx+1 < songs.length ? curIdx+1 : 0;
@@ -4089,8 +4109,6 @@ function _playNext(){
   if(videoId){
     // UI update karo — loading state
     updateNPUI(s);
-    // wasPlayingBeforeHide true rakho kyunki song auto-next hua (user ne play kiya tha)
-    wasPlayingBeforeHide = true;
     fetch(`${API}/api/stream-url`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
@@ -4106,7 +4124,6 @@ function _playNext(){
   }
 
   if(!s.url) return;
-  wasPlayingBeforeHide = true;
   _loadAndPlay(s);
 }
 
@@ -4197,8 +4214,40 @@ function _loadAndPlay(s){
   });
 }
 
-function nextS(){if(!songs.length)return;wasPlayingBeforeHide=true;if(shuffle)curIdx=Math.floor(Math.random()*songs.length);else curIdx=curIdx+1<songs.length?curIdx+1:0;playById(songs[curIdx].id);}
-function prevS(){if(aud.currentTime>3){aud.currentTime=0;return;}wasPlayingBeforeHide=true;curIdx=curIdx>0?curIdx-1:songs.length-1;playById(songs[curIdx].id);}
+function nextS(){
+  wasPlayingBeforeHide=true;
+  const dlMeta=getDlMeta();
+  // Agar downloaded queue mein songs hain — unhi mein navigate karo
+  if(dlMeta.length>0){
+    const currentId=curIdx>=0&&songs[curIdx]?songs[curIdx].id:null;
+    const dlIdx=dlMeta.findIndex(d=>d.id===currentId);
+    const nextDl=dlMeta[(dlIdx+1)%dlMeta.length];
+    playById(nextDl.id);
+    return;
+  }
+  // Fallback: normal songs queue
+  if(!songs.length)return;
+  if(shuffle)curIdx=Math.floor(Math.random()*songs.length);
+  else curIdx=curIdx+1<songs.length?curIdx+1:0;
+  playById(songs[curIdx].id);
+}
+function prevS(){
+  if(aud.currentTime>3){aud.currentTime=0;return;}
+  wasPlayingBeforeHide=true;
+  const dlMeta=getDlMeta();
+  // Agar downloaded queue mein songs hain — unhi mein navigate karo
+  if(dlMeta.length>0){
+    const currentId=curIdx>=0&&songs[curIdx]?songs[curIdx].id:null;
+    const dlIdx=dlMeta.findIndex(d=>d.id===currentId);
+    const prevDl=dlMeta[(dlIdx-1+dlMeta.length)%dlMeta.length];
+    playById(prevDl.id);
+    return;
+  }
+  // Fallback: normal songs queue
+  if(!songs.length)return;
+  curIdx=curIdx>0?curIdx-1:songs.length-1;
+  playById(songs[curIdx].id);
+}
 function shuffleAll(){if(!songs.length)return;shuffle=true;document.getElementById('npShuf').classList.add('on');curIdx=Math.floor(Math.random()*songs.length);playById(songs[curIdx].id);toast('Shuffle play shuru','ok');}
 function toggleFav(id){
   const adding = !favs.includes(id);
