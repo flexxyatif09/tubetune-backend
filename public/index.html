@@ -2185,12 +2185,12 @@ async function playDownloaded(id) {
       toast('Song info nahi mili', 'err'); return;
     }
 
-    // Direct play from blob — koi stream fetch nahi
-    aud.pause();
-    aud.removeAttribute('src');
-    aud.load();
-    aud.src = blobUrl;
-    aud.load();
+    // Progress reset
+    document.getElementById('npBar').style.width = '0%';
+    document.getElementById('miniFill').style.width = '0%';
+    document.getElementById('npRing').style.setProperty('--prog', '0%');
+    document.getElementById('npCur').textContent = '0:00';
+    document.getElementById('npDur').textContent = '0:00';
 
     // Mini player show karo pehle, phir play
     userClosedMini = false;
@@ -2198,13 +2198,66 @@ async function playDownloaded(id) {
     updateNPUI(s);
     if (!npOpen) showMini();
 
+    // ✅ AndroidBridge notification — bilkul online _loadAndPlay ki tarah
+    if (window.AndroidBridge) {
+      const durSec = (s.dur && s.dur !== '—') ? parseDur(s.dur) : 240;
+      try { AndroidBridge.notifyNewSong(s.title || '', s.artist || '', s.thumb || '', durSec); } catch(e) {}
+      syncQueueToJava();
+    }
+
+    // ✅ MediaSession metadata — lock screen / notification ke liye
+    if ('mediaSession' in navigator) {
+      const artwork = s.thumb ? [{ src: s.thumb, sizes: '512x512', type: 'image/jpeg' }] : [];
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: s.title || '—',
+        artist: s.artist || '—',
+        album: 'TubeTune',
+        artwork: artwork
+      });
+      navigator.mediaSession.playbackState = 'playing';
+
+      // MediaSession action handlers — online wale ki tarah
+      try {
+        navigator.mediaSession.setActionHandler('play',         () => { wasPlayingBeforeHide = true;  aud.play().catch(() => {}); });
+        navigator.mediaSession.setActionHandler('pause',        () => { wasPlayingBeforeHide = false; aud.pause(); });
+        navigator.mediaSession.setActionHandler('nexttrack',    () => { wasPlayingBeforeHide = true;  nextS(); });
+        navigator.mediaSession.setActionHandler('previoustrack',() => { wasPlayingBeforeHide = true;  prevS(); });
+        navigator.mediaSession.setActionHandler('seekto', (d) => {
+          if (d.seekTime !== undefined && aud.duration) {
+            aud.currentTime = d.seekTime;
+            updateMediaPosition();
+          }
+        });
+      } catch(e) {}
+    }
+
+    // Direct play from blob — koi stream fetch nahi
+    aud.pause();
+    aud.removeAttribute('src');
+    aud.load();
+    aud.src = blobUrl;
+    aud.load();
+
     aud.addEventListener('canplay', function onCanPlay() {
       aud.removeEventListener('canplay', onCanPlay);
       aud.play().then(() => {
         setPlayUI(true);
+        updateMediaPosition();
+        // Android position update
+        if (window.AndroidBridge && aud.duration && isFinite(aud.duration)) {
+          try { AndroidBridge.updatePosition(0, Math.floor(aud.duration)); } catch(e) {}
+        }
       }).catch(() => {
         setTimeout(() => aud.play().catch(() => {}), 500);
       });
+    });
+
+    aud.addEventListener('loadedmetadata', function onMeta() {
+      aud.removeEventListener('loadedmetadata', onMeta);
+      if (window.AndroidBridge && aud.duration && isFinite(aud.duration)) {
+        try { AndroidBridge.updatePosition(0, Math.floor(aud.duration)); } catch(e) {}
+      }
+      updateMediaPosition();
     });
 
     recent = [id, ...recent.filter(x => x !== id)].slice(0, 30);
@@ -2212,7 +2265,13 @@ async function playDownloaded(id) {
 
     const shortTitle = s.title.length > 28 ? s.title.slice(0, 28).trim() + '…' : s.title;
     toast(`▶ Playing offline — ${shortTitle}`, 'ok');
-    renderDownloadsPage();
+
+    // Deferred renders
+    requestAnimationFrame(() => {
+      renderDownloadsPage();
+      setTimeout(() => { renderRecent(); renderUpNext(); updateGlows(); }, 80);
+    });
+
   } catch(e) {
     toast('Play error: ' + e.message, 'err');
   }
@@ -5834,187 +5893,5 @@ async function ytRefreshSongs(){
 }
 </script>
 
-<script>
-// ═══════════════════════════════════════════════════════════
-//  TubeTune — Network Overlay + Offline Mode Handler
-//  Yeh code </body> se pehle HTML file mein add karo
-// ═══════════════════════════════════════════════════════════
-
-(function () {
-  // ── Overlay HTML inject karo ─────────────────────────────
-  const overlayHTML = `
-<div id="tt-offline-overlay" style="
-  display:none;position:fixed;inset:0;z-index:99999;
-  background:#07080F;flex-direction:column;
-  font-family:'Outfit',sans-serif;
-">
-  <!-- Top bar -->
-  <div style="padding:16px 20px;display:flex;align-items:center;gap:12px">
-    <div style="width:38px;height:38px;border-radius:12px;
-      background:linear-gradient(135deg,#6C5CE7,#a855f7);
-      display:flex;align-items:center;justify-content:center">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
-        <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-      </svg>
-    </div>
-    <div style="font-size:20px;font-weight:800;letter-spacing:-.5px">
-      Tube<span style="color:#a855f7">Tune</span>
-    </div>
-  </div>
-
-  <!-- Pages nav hint bar -->
-  <div id="tt-offline-pages" style="
-    display:flex;overflow-x:auto;gap:8px;padding:0 20px 16px;
-    border-bottom:1px solid rgba(255,255,255,.06);
-    scrollbar-width:none;
-  ">
-    <!-- JS se inject hoga -->
-  </div>
-
-  <!-- Main content -->
-  <div style="flex:1;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;padding:32px 28px;text-align:center">
-    
-    <div style="position:relative;width:96px;height:96px;margin:0 auto 28px">
-      <div style="position:absolute;inset:-6px;border-radius:34px;
-        border:1px solid rgba(255,118,117,.25);animation:ttPulse 2s ease-in-out infinite"></div>
-      <div style="position:absolute;inset:-14px;border-radius:42px;
-        border:1px solid rgba(255,118,117,.12);animation:ttPulse 2s ease-in-out .5s infinite"></div>
-      <div style="width:96px;height:96px;border-radius:28px;
-        background:rgba(255,118,117,.1);border:1px solid rgba(255,118,117,.2);
-        display:flex;align-items:center;justify-content:center">
-        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ff7675" stroke-width="1.5" stroke-linecap="round">
-          <line x1="1" y1="1" x2="23" y2="23"/>
-          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
-          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
-          <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
-          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
-          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-          <line x1="12" y1="20" x2="12.01" y2="20"/>
-        </svg>
-      </div>
-    </div>
-
-    <h2 style="font-size:26px;font-weight:900;letter-spacing:-.5px;margin-bottom:10px;color:#fff">
-      You're Offline
-    </h2>
-    <p style="font-size:14px;color:rgba(255,255,255,.45);line-height:1.7;margin-bottom:10px">
-      No internet connection detected.<br>
-      Check your Wi-Fi or mobile data.
-    </p>
-    <div style="display:inline-flex;align-items:center;gap:8px;
-      background:rgba(255,118,117,.08);border:1px solid rgba(255,118,117,.15);
-      border-radius:50px;padding:8px 18px;margin-bottom:36px">
-      <div style="width:8px;height:8px;border-radius:50%;background:#ff7675;
-        animation:ttBlink 1.2s ease-in-out infinite"></div>
-      <span style="font-size:13px;color:#ff7675;font-weight:600">No Network</span>
-    </div>
-
-    <!-- Downloads button -->
-    <button onclick="window._ttGoDownloads()" style="
-      display:flex;align-items:center;justify-content:center;gap:10px;
-      background:linear-gradient(135deg,#6C5CE7,#a855f7);color:#fff;
-      border:none;padding:16px 28px;border-radius:16px;font-size:16px;
-      font-weight:700;cursor:pointer;width:100%;max-width:340px;
-      box-shadow:0 8px 24px rgba(108,92,231,.4);margin-bottom:14px">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      Listen Downloaded Songs
-    </button>
-
-    <p style="font-size:12px;color:rgba(255,255,255,.25);line-height:1.6">
-      Your downloaded songs are available<br>even without internet connection
-    </p>
-  </div>
-
-  <style>
-    @keyframes ttPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.04)} }
-    @keyframes ttBlink { 0%,100%{opacity:1} 50%{opacity:.2} }
-    #tt-offline-overlay { animation: ttFadeIn .3s ease }
-    @keyframes ttFadeIn { from{opacity:0} to{opacity:1} }
-    #tt-offline-pages::-webkit-scrollbar { display:none }
-  </style>
-</div>`;
-
-  // DOM ready hone par inject karo
-  function init() {
-    document.body.insertAdjacentHTML('beforeend', overlayHTML);
-    
-    // Net check on load
-    if (!navigator.onLine) showOfflineOverlay();
-
-    // Browser online/offline events
-    window.addEventListener('online',  hideOfflineOverlay);
-    window.addEventListener('offline', showOfflineOverlay);
-  }
-
-  // ── Overlay show ─────────────────────────────────────────
-  function showOfflineOverlay() {
-    const el = document.getElementById('tt-offline-overlay');
-    if (!el) return;
-    el.style.display = 'flex';
-
-    // Sirf Downloads page allow karo — baaki sab block
-    // Automatically Downloads page pe le jao
-    setTimeout(() => {
-      if (typeof goPage === 'function') {
-        const dlBtn = document.getElementById('nb-downloads');
-        if (dlBtn) goPage('downloads', dlBtn);
-      }
-    }, 100);
-  }
-
-  // ── Overlay hide ─────────────────────────────────────────
-  function hideOfflineOverlay() {
-    const el = document.getElementById('tt-offline-overlay');
-    if (!el) return;
-    el.style.opacity = '0';
-    el.style.transition = 'opacity .3s';
-    setTimeout(() => {
-      el.style.display = 'none';
-      el.style.opacity = '';
-      el.style.transition = '';
-    }, 300);
-  }
-
-  // ── Downloads pe navigate karo ───────────────────────────
-  window._ttGoDownloads = function () {
-    hideOfflineOverlay();
-    setTimeout(() => {
-      if (typeof goPage === 'function') {
-        const dlBtn = document.getElementById('nb-downloads');
-        if (dlBtn) {
-          goPage('downloads', dlBtn);
-          if (typeof renderDownloadsPage === 'function') renderDownloadsPage();
-        }
-      }
-    }, 50);
-  };
-
-  // ── Java Bridge callbacks ─────────────────────────────────
-  // Android native ne net lost detect kiya
-  window.onNetworkLost = function () {
-    showOfflineOverlay();
-  };
-
-  // Android native ne net wapas detect kiya
-  window.onNetworkRestored = function () {
-    hideOfflineOverlay();
-    // Optional: page reload karo to get fresh content
-    // location.reload();
-  };
-
-  // DOM ready check
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-})();
-
-</script>
 </body>
 </html>
