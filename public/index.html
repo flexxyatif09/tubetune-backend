@@ -406,6 +406,17 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .np-info{text-align:center;margin-bottom:20px}
 .np-title{font-size:22px;font-weight:900;letter-spacing:-.6px;line-height:1.2;color:var(--tx)}
 .np-artist{font-size:14px;color:var(--tx2);margin-top:5px;font-weight:500}
+
+/* ── DOWNLOAD BUTTON ── */
+.np-dl-btn{display:flex;align-items:center;justify-content:center;gap:8px;margin:14px auto 0;padding:12px 28px;border-radius:14px;background:var(--s2);border:1px solid var(--bd2);cursor:pointer;font-size:13px;font-weight:700;color:var(--tx2);font-family:'Outfit',sans-serif;transition:all .2s;width:100%;max-width:280px}
+.np-dl-btn:active{background:var(--s3);transform:scale(.97)}
+.np-dl-btn.downloading{color:var(--p2);border-color:rgba(108,92,231,.3);background:rgba(108,92,231,.08)}
+.np-dl-btn.done{color:#00b894;border-color:rgba(0,184,148,.3);background:rgba(0,184,148,.08)}
+.np-dl-btn svg{flex-shrink:0;transition:transform .3s}
+.np-dl-btn.downloading svg{animation:dlBounce .7s ease infinite}
+@keyframes dlBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+.dl-progress-wrap{margin:10px auto 0;width:100%;max-width:280px;height:3px;border-radius:2px;background:var(--s3);overflow:hidden;display:none}
+.dl-progress-bar{height:100%;width:0%;background:var(--grad);border-radius:2px;transition:width .3s}
 .np-badge{display:inline-flex;align-items:center;background:rgba(0,206,201,.1);color:var(--grn);border-radius:8px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:.5px;font-family:'DM Mono',monospace;margin-top:9px}
 .np-actions{display:flex;justify-content:center;gap:12px;margin-bottom:20px}
 .np-action{width:44px;height:44px;border-radius:50%;background:var(--s2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx2);transition:all .18s}
@@ -1218,6 +1229,14 @@ audio{display:none}
           <div class="vol-track" id="volTrack" onclick="setVol(event)"><div class="vol-fill" id="volFill"></div></div>
           <svg class="vol-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         </div>
+        <!-- DOWNLOAD BUTTON -->
+        <button class="np-dl-btn" id="npDlBtn" onclick="downloadCurrentSong()">
+          <svg id="npDlIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span id="npDlTxt">Download Song</span>
+        </button>
+        <div class="dl-progress-wrap" id="dlProgressWrap">
+          <div class="dl-progress-bar" id="dlProgressBar"></div>
+        </div>
         <div class="up-next"><div class="un-title">Up Next</div><div class="songs-wrap" id="upNextList" style="padding:0"></div></div>
       </div>
     </div>
@@ -1384,6 +1403,27 @@ audio{display:none}
           <div id="lbLastUpdated" style="text-align:center;font-size:10px;color:var(--tx3);margin-top:10px;font-family:'DM Mono',monospace"></div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- DOWNLOADS PAGE -->
+    <div class="pg" id="pg-downloads">
+      <div style="padding:0 16px 180px">
+        <!-- Header -->
+        <div style="padding:18px 0 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);margin-bottom:20px">
+          <div>
+            <div style="font-size:22px;font-weight:900;letter-spacing:-.5px">Downloads</div>
+            <div style="font-size:12px;color:var(--tx3);margin-top:3px" id="dlSubtitle">Offline songs yahan milenge</div>
+          </div>
+          <button id="dlClearBtn" onclick="clearAllDownloads()" style="background:rgba(255,118,117,.1);border:1px solid rgba(255,118,117,.2);border-radius:12px;color:var(--red);font-size:12px;font-weight:700;padding:8px 12px;cursor:pointer;font-family:'Outfit',sans-serif;display:none">Sab Hatao</button>
+        </div>
+        <!-- Offline indicator -->
+        <div id="dlOfflineBanner" style="display:none;background:rgba(0,206,201,.08);border:1px solid rgba(0,206,201,.2);border-radius:14px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--grn)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.61 4.36 2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <span style="font-size:12px;color:var(--grn);font-weight:600">Offline mode — Downloaded songs hi play honge</span>
+        </div>
+        <!-- Songs list -->
+        <div id="dlSongsList"></div>
       </div>
     </div>
 
@@ -1598,6 +1638,11 @@ audio{display:none}
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
     Trophies
     <span class="nav-badge" id="newBadgeDot" style="display:none;background:var(--acc);width:7px;height:7px;min-width:7px;padding:0;border-radius:50%;top:4px;right:20px"></span>
+  </button>
+  <button class="nav-btn" id="nb-downloads" onclick="goPage('downloads',this);renderDownloadsPage()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Downloads
+    <span class="nav-badge" id="dlBadge" style="display:none"></span>
   </button>
   <button class="nav-btn" id="nb-premium" onclick="goPage('premium',this)">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -1900,6 +1945,312 @@ audio{display:none}
 <audio id="aud"></audio>
 
 <script>
+/* ══════════════════════════════════════════════════
+   DOWNLOAD FUNCTIONS — IndexedDB backed offline storage
+══════════════════════════════════════════════════ */
+
+/* ── IndexedDB Setup ── */
+const DL_DB_NAME = 'tubetune_dl';
+const DL_DB_VER  = 1;
+const DL_STORE   = 'blobs';
+let _dlDB = null;
+
+function openDlDB() {
+  if (_dlDB) return Promise.resolve(_dlDB);
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DL_DB_NAME, DL_DB_VER);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(DL_STORE, { keyPath: 'id' });
+    req.onsuccess = e => { _dlDB = e.target.result; res(_dlDB); };
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+async function dlSaveBlob(id, blob) {
+  const db = await openDlDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(DL_STORE, 'readwrite');
+    tx.objectStore(DL_STORE).put({ id, blob });
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+
+async function dlGetBlob(id) {
+  const db = await openDlDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(DL_STORE, 'readonly');
+    const req = tx.objectStore(DL_STORE).get(id);
+    req.onsuccess = () => res(req.result ? req.result.blob : null);
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+async function dlDeleteBlob(id) {
+  const db = await openDlDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(DL_STORE, 'readwrite');
+    tx.objectStore(DL_STORE).delete(id);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+
+/* ── Downloads Metadata (localStorage) ── */
+const DL_META_KEY = 'tt_downloads';
+
+function getDlMeta() {
+  try { return JSON.parse(localStorage.getItem(DL_META_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveDlMeta(arr) {
+  localStorage.setItem(DL_META_KEY, JSON.stringify(arr));
+  updateDlBadge();
+}
+function addDlMeta(s, ext) {
+  const meta = getDlMeta();
+  if (!meta.find(x => x.id === s.id)) {
+    meta.unshift({ id: s.id, title: s.title, artist: s.artist, thumb: s.thumb || '', dur: s.dur || '—', ext, dlAt: new Date().toISOString() });
+  }
+  saveDlMeta(meta);
+}
+function removeDlMeta(id) {
+  saveDlMeta(getDlMeta().filter(x => x.id !== id));
+}
+function isDownloaded(id) {
+  return getDlMeta().some(x => x.id === id);
+}
+function updateDlBadge() {
+  const cnt = getDlMeta().length;
+  const badge = document.getElementById('dlBadge');
+  if (!badge) return;
+  if (cnt > 0) { badge.textContent = cnt; badge.style.display = 'block'; }
+  else badge.style.display = 'none';
+}
+
+/* ── Downloads Page Render ── */
+function renderDownloadsPage() {
+  const meta = getDlMeta();
+  const list = document.getElementById('dlSongsList');
+  const sub  = document.getElementById('dlSubtitle');
+  const clearBtn = document.getElementById('dlClearBtn');
+  if (!list) return;
+
+  if (sub) sub.textContent = meta.length ? `${meta.length} song${meta.length > 1 ? 's' : ''} downloaded` : 'Koi download nahi hai abhi';
+  if (clearBtn) clearBtn.style.display = meta.length ? 'block' : 'none';
+
+  // Offline banner
+  const banner = document.getElementById('dlOfflineBanner');
+  if (banner) banner.style.display = !navigator.onLine ? 'flex' : 'none';
+
+  if (!meta.length) {
+    list.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--tx3)">
+      <div style="width:64px;height:64px;border-radius:20px;background:var(--s2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--tx2)">Koi Downloaded Song Nahi</div>
+      <div style="font-size:13px;line-height:1.6">Song list mein ↓ button dabao<br>aur song offline sun sako</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = meta.map((dl, i) => {
+    // Check if this song is currently playing
+    const isNow = curIdx >= 0 && songs[curIdx] && songs[curIdx].id === dl.id;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="playDownloaded('${dl.id}')">
+      <div style="width:46px;height:46px;border-radius:12px;background:var(--s3);overflow:hidden;flex-shrink:0;position:relative">
+        ${dl.thumb ? `<img src="${dl.thumb}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3);position:absolute;inset:0;margin:auto"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`}
+        ${isNow ? `<div style="position:absolute;inset:0;background:rgba(108,92,231,.6);display:flex;align-items:center;justify-content:center"><div class="eq-bars ${playing ? '' : 'paused'}"><div class="eq-b"></div><div class="eq-b"></div><div class="eq-b"></div></div></div>` : ''}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${isNow ? 'var(--p2)' : 'var(--tx)'}">${dl.title}</div>
+        <div style="font-size:12px;color:var(--tx3);margin-top:2px;display:flex;align-items:center;gap:6px">
+          ${dl.artist}
+          <span style="display:inline-flex;align-items:center;gap:3px;background:rgba(0,206,201,.1);color:var(--grn);border-radius:6px;padding:1px 6px;font-size:10px;font-weight:700">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" style="display:none"/></svg>
+            offline
+          </span>
+        </div>
+      </div>
+      <span style="font-size:11px;color:var(--tx3);font-family:'DM Mono',monospace;flex-shrink:0">${dl.dur !== '—' ? dl.dur : ''}</span>
+      <button onclick="event.stopPropagation();deleteDownload('${dl.id}')" style="background:rgba(255,118,117,.08);border:1px solid rgba(255,118,117,.15);border-radius:10px;color:var(--red);cursor:pointer;padding:7px 10px;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Hatao">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+/* ── Play Downloaded (offline first) ── */
+async function playDownloaded(id) {
+  try {
+    const blob = await dlGetBlob(id);
+    if (!blob) { toast('Song data nahi mila, delete ho gaya?', 'err'); return; }
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Find song in songs[] agar available ho (metadata ke liye)
+    let s = songs.find(x => x.id === id);
+    const meta = getDlMeta().find(x => x.id === id);
+    if (!s && meta) {
+      // Temporary song object from download metadata
+      s = { id: meta.id, title: meta.title, artist: meta.artist, thumb: meta.thumb, dur: meta.dur, quality: 'Downloaded', url: blobUrl, date: meta.dlAt };
+    } else if (s) {
+      s = { ...s, url: blobUrl };
+    } else {
+      toast('Song info nahi mili', 'err'); return;
+    }
+
+    userClosedMini = false;
+    if (!npOpen) showMini();
+    wasPlayingBeforeHide = true;
+
+    // Direct play from blob — koi stream fetch nahi
+    aud.pause();
+    aud.removeAttribute('src');
+    aud.load();
+    aud.src = blobUrl;
+    aud.load();
+    aud.addEventListener('canplay', function() {
+      aud.play().catch(() => { setTimeout(() => aud.play().catch(() => {}), 1000); });
+    }, { once: true });
+
+    updateNPUI(s);
+    recent = [id, ...recent.filter(x => x !== id)].slice(0, 30);
+    localStorage.setItem('tt_recent', JSON.stringify(recent));
+
+    // curIdx update karo agar song songs[] mein hai
+    const idx = songs.findIndex(x => x.id === id);
+    if (idx >= 0) { curIdx = idx; _currentPlayingId = id; }
+
+    toast(`"${s.title}" offline play ho raha hai`, 'ok');
+  } catch(e) {
+    toast('Play error: ' + e.message, 'err');
+  }
+}
+
+/* ── Delete a downloaded song ── */
+async function deleteDownload(id) {
+  try {
+    await dlDeleteBlob(id);
+    removeDlMeta(id);
+    renderDownloadsPage();
+    renderSongs(); // Download button state reset
+    toast('Hataya gaya', 'inf');
+  } catch(e) {
+    toast('Delete fail hua', 'err');
+  }
+}
+
+/* ── Clear all downloads ── */
+async function clearAllDownloads() {
+  const meta = getDlMeta();
+  if (!meta.length) return;
+  for (const dl of meta) {
+    try { await dlDeleteBlob(dl.id); } catch(e) {}
+  }
+  saveDlMeta([]);
+  renderDownloadsPage();
+  renderSongs();
+  toast('Sab downloads hata diye', 'inf');
+}
+
+/* ── Helper: videoId se stream URL fetch karo ── */
+async function getStreamUrl(song) {
+  if (song.url) return song.url;
+  let videoId = null;
+  if (song.id && song.id.startsWith('yt_')) videoId = song.id.replace('yt_', '');
+  else if (song.youtube_id) videoId = song.youtube_id;
+  else if (song.youtubeUrl) videoId = extractVideoId(song.youtubeUrl);
+  if (!videoId) return null;
+  const r = await fetch(`${API}/api/stream-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videoId })
+  });
+  const d = await r.json();
+  return (d.success && d.url) ? d.url : null;
+}
+
+/* ── Now Playing screen se download ── */
+async function downloadCurrentSong() {
+  if (curIdx < 0) { toast('Pehle koi song play karo', 'inf'); return; }
+  const s = songs[curIdx];
+  if (!s) return;
+  await _doDownload(s, 'npDlBtn', 'npDlIco', 'npDlTxt');
+}
+
+/* ── Song card se download (by ID) ── */
+async function downloadSongById(songId) {
+  const s = songs.find(x => x.id === songId);
+  if (!s) { toast('Song nahi mila', 'err'); return; }
+  // Agar already downloaded, direct play karo
+  if (isDownloaded(songId)) {
+    toast('Pehle se downloaded hai — play karo!', 'ok');
+    return;
+  }
+  const btnId = 'dlbtn-' + songId;
+  await _doDownload(s, btnId, null, null);
+}
+
+/* ── Core download logic (IndexedDB mein save karo) ── */
+async function _doDownload(s, btnId, icoId, txtId) {
+  const btn = document.getElementById(btnId);
+  const ico = icoId ? document.getElementById(icoId) : null;
+  const txt = txtId ? document.getElementById(txtId) : null;
+  const progWrap = document.getElementById('dlProgressWrap');
+  const progBar  = document.getElementById('dlProgressBar');
+
+  if (btn && btn.classList.contains('downloading')) return;
+
+  if (btn) btn.classList.add('downloading');
+  if (txt) txt.textContent = 'URL fetch ho rahi hai...';
+  if (progWrap) { progWrap.style.display = 'block'; progBar.style.width = '10%'; }
+
+  try {
+    const streamUrl = await getStreamUrl(s);
+    if (!streamUrl) throw new Error('Stream URL nahi mila');
+
+    if (txt) txt.textContent = 'Download ho raha hai...';
+    if (progBar) progBar.style.width = '35%';
+
+    const resp = await fetch(streamUrl);
+    if (!resp.ok) throw new Error('Audio fetch failed');
+
+    if (progBar) progBar.style.width = '70%';
+
+    const blob = await resp.blob();
+    if (progBar) progBar.style.width = '90%';
+
+    const ext = blob.type.includes('webm') ? 'webm' : blob.type.includes('ogg') ? 'ogg' : 'm4a';
+
+    // IndexedDB mein save karo
+    await dlSaveBlob(s.id, blob);
+    addDlMeta(s, ext);
+
+    if (progBar) progBar.style.width = '100%';
+
+    // Success UI
+    if (btn) { btn.classList.remove('downloading'); btn.classList.add('done'); }
+    if (ico) ico.innerHTML = `<polyline points="20 6 9 17 4 12"/>`;
+    if (txt) txt.textContent = 'Downloaded!';
+    toast(`"${s.title}" download ho gaya — Downloads mein milega`, 'ok');
+
+    // Button permanently green (downloaded state)
+    if (btn) {
+      btn.title = 'Downloaded — Downloads page pe jao';
+      btn.style.color = 'var(--grn)';
+    }
+
+    renderSongs();
+
+    setTimeout(() => {
+      if (progWrap) { progWrap.style.display = 'none'; progBar.style.width = '0%'; }
+    }, 2000);
+
+  } catch(e) {
+    console.error('Download error:', e);
+    if (btn) { btn.classList.remove('downloading'); btn.style.color = ''; }
+    if (txt) txt.textContent = 'Download Song';
+    if (progWrap) { progWrap.style.display = 'none'; progBar.style.width = '0%'; }
+    toast('Download fail hua: ' + e.message, 'err');
+  }
+}
+
 /* ══════════════════════════════════════════════════
    PRIVACY & ABOUT PAGE FUNCTIONS
 ══════════════════════════════════════════════════ */
@@ -2726,6 +3077,7 @@ function enterApp(user){
   authEl.classList.add('hidden');
   document.getElementById('mainApp').classList.add('on');
   updateUserUI(user);
+  updateDlBadge(); // Downloads badge startup pe
   checkPremium(); // cache-first instant UI
   Promise.all([loadSongs(),loadPlaylists(),loadFavsFromDB()])
     .then(()=>{handleDeeplink();});
@@ -3386,6 +3738,7 @@ async function goPage(name,btn){
   if(btn) btn.classList.add('on');
   document.getElementById('scrollArea').scrollTop=0;
   if(name==='favs') renderFavs();
+  if(name==='downloads') renderDownloadsPage();
   if(name==='np'){npOpen=true;renderUpNext();}else npOpen=false;
   if(name==='premium'){if(!isPremium)await checkPremium();loadPlans();updatePremiumUI();}
   if(name==='playlist') renderPlaylists();
@@ -3437,7 +3790,7 @@ function getFiltered(){
 function songIco(s){return s.thumb?`<img src="${s.thumb}" onerror="this.style.display='none'" loading="lazy">`:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;}
 function eqOrPlay(isNow){return isNow?`<div class="eq-bars ${playing?'':'paused'}"><div class="eq-b"></div><div class="eq-b"></div><div class="eq-b"></div></div>`:`<svg width="13" height="13" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;}
 function heartBtn(id,faved,ctx){if(ctx==='upnext')return'';return`<button class="s-heart ${faved?'on':''}" onclick="event.stopPropagation();toggleFav('${id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="${faved?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>`;}
-function makeRow(s,i,ctx){const isNow=curIdx!==-1&&(songs[curIdx]?songs[curIdx].id:undefined)===s.id,faved=favs.includes(s.id),numCell=ctx!=='upnext'?`<div class="s-num">${i+1}</div>`:'',sz=ctx==='upnext'?'width:42px;height:42px':'',dur=s.dur!=='—'?`<span class="s-dur">${s.dur}</span>`:'';const addPl=ctx!=='upnext'?`<button onclick="event.stopPropagation();showAddToPlaylist('${s.id}')" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="Playlist mein add karo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`:'';return`<div class="s-row ${isNow?'now-on':''}" onclick="playById('${s.id}')">${numCell}<div class="s-thumb" style="${sz}">${songIco(s)}<div class="s-ov">${eqOrPlay(isNow)}</div></div><div class="s-info"><div class="s-name">${s.title}</div><div class="s-art">${s.artist}</div></div>${dur}${addPl}${heartBtn(s.id,faved,ctx)}</div>`;}
+function makeRow(s,i,ctx){const isNow=curIdx!==-1&&(songs[curIdx]?songs[curIdx].id:undefined)===s.id,faved=favs.includes(s.id),numCell=ctx!=='upnext'?`<div class="s-num">${i+1}</div>`:'',sz=ctx==='upnext'?'width:42px;height:42px':'',dur=s.dur!=='—'?`<span class="s-dur">${s.dur}</span>`:'';const addPl=ctx!=='upnext'?`<button onclick="event.stopPropagation();showAddToPlaylist('${s.id}')" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="Playlist mein add karo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`:'';const dlded=typeof isDownloaded==='function'&&isDownloaded(s.id);const dlBtn=ctx!=='upnext'?`<button onclick="event.stopPropagation();downloadSongById('${s.id}')" style="background:none;border:none;color:${dlded?'var(--grn)':'var(--tx3)'};cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="${dlded?'Downloaded':'Download karo'}" id="dlbtn-${s.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${dlded?'<polyline points="20 6 9 17 4 12"/>':`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`}</svg></button>`:'';return`<div class="s-row ${isNow?'now-on':''}" onclick="playById('${s.id}')">${numCell}<div class="s-thumb" style="${sz}">${songIco(s)}<div class="s-ov">${eqOrPlay(isNow)}</div></div><div class="s-info"><div class="s-name">${s.title}</div><div class="s-art">${s.artist}</div></div>${dur}${addPl}${dlBtn}${heartBtn(s.id,faved,ctx)}</div>`;}
 
 function renderSongs(){filtered=getFiltered();const g=document.getElementById('songsList');if(!filtered.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><h3>${filterMode==='mine'?'Koi song nahi':songs.length?'Koi result nahi':'Library Khali Hai'}</h3><p>${filterMode==='mine'?'YouTube se search karo aur + My Library dabao':songs.length?'Kuch aur search try karo':'Admin panel se songs add karo'}</p></div>`;return;}g.innerHTML=filtered.map((s,i)=>makeRow(s,i,'home')).join('');}
 function renderFavs(){const list=songs.filter(s=>favs.includes(s.id));document.getElementById('favsCount').textContent=`${list.length} songs`;const g=document.getElementById('favsList');if(!list.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><h3>Koi Favorite Nahi</h3><p>Songs pe dil icon dabao</p></div>`;return;}g.innerHTML=list.map((s,i)=>makeRow(s,i,'favs')).join('');}
@@ -3515,7 +3868,23 @@ function closeMini(){
   
 }
 function closeNP(){goPage('home',document.getElementById('nb-home'));}
-function updateNPUI(s){document.getElementById('npTitle').textContent=s.title;document.getElementById('npArtist').textContent=s.artist;document.getElementById('miniTitle').textContent=s.title;document.getElementById('miniArt').textContent=s.artist;const badge=document.getElementById('npBadge');badge.textContent=s.quality;badge.style.display=s.quality?'inline-flex':'none';const artEl=document.getElementById('npArt'),miniTh=document.getElementById('miniThumb'),imgH=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;artEl.innerHTML=imgH;miniTh.innerHTML=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;const faved=favs.includes(s.id),hrt=document.getElementById('npHeart');hrt.classList.toggle('on',faved);hrt.querySelector('svg').setAttribute('fill',faved?'currentColor':'none');artEl.classList.toggle('spin',playing);}
+function updateNPUI(s){
+  const npTitle=document.getElementById('npTitle'),npArtist=document.getElementById('npArtist');
+  const miniTitle=document.getElementById('miniTitle'),miniArt=document.getElementById('miniArt');
+  const badge=document.getElementById('npBadge');
+  const artEl=document.getElementById('npArt'),miniTh=document.getElementById('miniThumb');
+  const hrt=document.getElementById('npHeart');
+  if(npTitle) npTitle.textContent=s.title;
+  if(npArtist) npArtist.textContent=s.artist;
+  if(miniTitle) miniTitle.textContent=s.title;
+  if(miniArt) miniArt.textContent=s.artist;
+  if(badge){badge.textContent=s.quality;badge.style.display=s.quality?'inline-flex':'none';}
+  const imgH=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+  if(artEl) artEl.innerHTML=imgH;
+  if(miniTh) miniTh.innerHTML=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+  if(hrt){const faved=favs.includes(s.id);hrt.classList.toggle('on',faved);hrt.querySelector('svg').setAttribute('fill',faved?'currentColor':'none');}
+  if(artEl) artEl.classList.toggle('spin',playing);
+}
 function updateGlows(){const colors=['#6C5CE7','#FD79A8','#FDCB6E','#00CEC9','#0984E3','#E17055'];document.querySelector('.ga-1').style.background=colors[curIdx%colors.length];document.querySelector('.ga-2').style.background=colors[(curIdx+1)%colors.length];}
 function togglePlay(){
   if(aud.paused){
