@@ -4083,10 +4083,11 @@ window.onAndroidResume = function(){
 function _playNext(){
   wasPlayingBeforeHide = true;
   const dlMeta = getDlMeta();
+  const currentId = curIdx >= 0 && songs[curIdx] ? songs[curIdx].id : null;
+  const currentIsDownloaded = dlMeta.some(d => d.id === currentId);
 
-  // ✅ Agar downloaded songs hain — unhi queue mein auto-next karo
-  if(dlMeta.length > 0){
-    const currentId = curIdx >= 0 && songs[curIdx] ? songs[curIdx].id : null;
+  // Sirf tab downloaded queue use karo jab current song bhi downloaded ho
+  if(dlMeta.length > 0 && currentIsDownloaded){
     const dlIdx = dlMeta.findIndex(d => d.id === currentId);
     const nextDl = dlMeta[(dlIdx+1) % dlMeta.length];
     playDownloaded(nextDl.id);
@@ -4217,15 +4218,16 @@ function _loadAndPlay(s){
 function nextS(){
   wasPlayingBeforeHide=true;
   const dlMeta=getDlMeta();
-  // Agar downloaded queue mein songs hain — unhi mein navigate karo
-  if(dlMeta.length>0){
-    const currentId=curIdx>=0&&songs[curIdx]?songs[curIdx].id:null;
+  const currentId=curIdx>=0&&songs[curIdx]?songs[curIdx].id:null;
+  const currentIsDownloaded=dlMeta.some(d=>d.id===currentId);
+  // Sirf tab downloaded queue use karo jab current song bhi downloaded ho
+  if(dlMeta.length>0 && currentIsDownloaded){
     const dlIdx=dlMeta.findIndex(d=>d.id===currentId);
     const nextDl=dlMeta[(dlIdx+1)%dlMeta.length];
     playById(nextDl.id);
     return;
   }
-  // Fallback: normal songs queue
+  // Normal songs queue (online ya mixed)
   if(!songs.length)return;
   if(shuffle)curIdx=Math.floor(Math.random()*songs.length);
   else curIdx=curIdx+1<songs.length?curIdx+1:0;
@@ -4235,15 +4237,16 @@ function prevS(){
   if(aud.currentTime>3){aud.currentTime=0;return;}
   wasPlayingBeforeHide=true;
   const dlMeta=getDlMeta();
-  // Agar downloaded queue mein songs hain — unhi mein navigate karo
-  if(dlMeta.length>0){
-    const currentId=curIdx>=0&&songs[curIdx]?songs[curIdx].id:null;
+  const currentId=curIdx>=0&&songs[curIdx]?songs[curIdx].id:null;
+  const currentIsDownloaded=dlMeta.some(d=>d.id===currentId);
+  // Sirf tab downloaded queue use karo jab current song bhi downloaded ho
+  if(dlMeta.length>0 && currentIsDownloaded){
     const dlIdx=dlMeta.findIndex(d=>d.id===currentId);
     const prevDl=dlMeta[(dlIdx-1+dlMeta.length)%dlMeta.length];
     playById(prevDl.id);
     return;
   }
-  // Fallback: normal songs queue
+  // Normal songs queue (online ya mixed)
   if(!songs.length)return;
   curIdx=curIdx>0?curIdx-1:songs.length-1;
   playById(songs[curIdx].id);
