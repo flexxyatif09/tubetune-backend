@@ -6174,46 +6174,5 @@ async function ytRefreshSongs(){
 }
 </script>
 
-<!-- 🔔 TEMPORARY TEST BUTTON — test ke baad hata dena -->
-<button id="notif-test-btn" onclick="testNotifNow()" style="
-  position: fixed;
-  bottom: 80px;
-  right: 16px;
-  z-index: 99999;
-  background: #6C5CE7;
-  color: white;
-  border: none;
-  padding: 13px 18px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-family: Outfit, sans-serif;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(108,92,231,0.5);
-">🔔 Test Notification</button>
-
-<script>
-function testNotifNow() {
-  var btn = document.getElementById('notif-test-btn');
-  btn.disabled = true;
-  btn.textContent = '⏳ 1 min wait karo...';
-
-  // Already existing function use kar raha hai
-  if (typeof _scheduleNativeNotif === 'function') {
-    _scheduleNativeNotif(
-      Date.now() + 60000,
-      'TubeTune 🎵',
-      'Notification working hai bhai! ✅',
-      'test_notif_123'
-    );
-    alert('✅ Scheduled!\n\nAb app minimize karo (home button)\naur 1 minute wait karo.\n\nNotification aayega to sab kaam kar raha hai!');
-  } else {
-    alert('❌ Function nahi mila!\nPage reload karo aur dobara try karo.');
-    btn.disabled = false;
-    btn.textContent = '🔔 Test Notification';
-  }
-}
-</script>
-<!-- END TEST BUTTON -->
 </body>
 </html>
