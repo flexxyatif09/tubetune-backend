@@ -20,7 +20,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- UPI Payment - No Razorpay needed -->
 <script>
-// Service Worker — background audio + caching
+// ══════════════════════════════════════════════
+// SERVICE WORKER — caching + push notifications
+// ══════════════════════════════════════════════
 if('serviceWorker' in navigator){
   const swCode = `
     const CACHE = 'tubetune-v2';
@@ -41,11 +43,45 @@ if('serviceWorker' in navigator){
         )
       );
     });
+
+    // Push notification receive handler
+    self.addEventListener('push', e => {
+      let data = { title: 'TubeTune 🎵', body: 'Aaj bhi suno!', icon: '/icons/icon-192.png' };
+      try { if(e.data) data = { ...data, ...e.data.json() }; } catch(_) {}
+      e.waitUntil(
+        self.registration.showNotification(data.title, {
+          body: data.body,
+          icon: data.icon || '/icons/icon-192.png',
+          badge: '/icons/icon-192.png',
+          tag: data.tag || 'tubetune-notif',
+          renotify: true,
+          data: { url: data.url || '/' }
+        })
+      );
+    });
+
+    // Notification click — app open karo
+    self.addEventListener('notificationclick', e => {
+      e.notification.close();
+      const url = (e.notification.data && e.notification.data.url) || '/';
+      e.waitUntil(
+        clients.matchAll({ type:'window', includeUncontrolled:true }).then(cls => {
+          const found = cls.find(c => c.focus);
+          if(found) return found.focus();
+          return clients.openWindow(url);
+        })
+      );
+    });
   `;
   const swBlob = new Blob([swCode], {type:'text/javascript'});
-  try{ navigator.serviceWorker.register(URL.createObjectURL(swBlob), {scope: '/'}) }catch(e){ console.warn("SW register failed:",e.message); }
-    .then(() => console.log('TubeTune PWA ready ✅'))
-    .catch(e => console.warn('SW:', e));
+  try {
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob), {scope: '/'})
+      .then(reg => {
+        console.log('TubeTune PWA ready ✅');
+        window._swReg = reg;
+      })
+      .catch(e => console.warn('SW:', e));
+  } catch(e) { console.warn("SW register failed:", e.message); }
 }
 </script>
 <style>
@@ -83,6 +119,18 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .ga-1{width:380px;height:380px;top:-140px;right:-80px;background:var(--p);opacity:.07}
 .ga-2{width:320px;height:320px;bottom:-100px;left:-80px;background:var(--acc);opacity:.06}
 .ga-3{width:200px;height:200px;top:40%;left:30%;background:var(--acc2);opacity:.03}
+
+/* ══ PUSH NOTIFICATIONS ══ */
+.notif-banner{margin:0 16px 14px;background:linear-gradient(90deg,rgba(108,92,231,.1) 0%,rgba(162,155,254,.07) 100%);border:1px solid rgba(108,92,231,.3);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .15s;position:relative;overflow:hidden}
+.notif-banner::before{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,rgba(108,92,231,.6),transparent)}
+.notif-banner:active{background:rgba(108,92,231,.15)}
+.notif-banner-ico{width:36px;height:36px;border-radius:11px;background:rgba(108,92,231,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.notif-banner-text{flex:1;min-width:0}
+.notif-banner-title{font-size:13px;font-weight:700;color:var(--p2);line-height:1.2}
+.notif-banner-sub{font-size:11px;color:var(--tx3);margin-top:2px;line-height:1.3}
+.notif-banner-close{width:24px;height:24px;border-radius:8px;background:rgba(255,255,255,.05);border:none;color:var(--tx3);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:14px;line-height:1}
+.notif-banner-btn{background:var(--p);border:none;color:white;font-size:11px;font-weight:700;font-family:'Outfit',sans-serif;border-radius:8px;padding:5px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.notif-banner-btn:active{opacity:.8}
 
 /* ══ GAMIFICATION ══ */
 /* Streak Banner — compact pill */
@@ -1148,6 +1196,19 @@ audio{display:none}
             <span class="streak-ring-lbl">goal</span>
           </div>
         </div>
+      </div>
+
+      <!-- NOTIFICATION PERMISSION BANNER -->
+      <div class="notif-banner" id="notifPermBanner" style="display:none">
+        <div class="notif-banner-ico">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div class="notif-banner-text">
+          <div class="notif-banner-title">🔔 Notifications ON karo</div>
+          <div class="notif-banner-sub">Streak reminder aur naye features ke liye</div>
+        </div>
+        <button class="notif-banner-btn" onclick="requestNotifPermission()">Allow</button>
+        <button class="notif-banner-close" onclick="dismissNotifBanner()" style="margin-left:4px">✕</button>
       </div>
 
       <div class="load-box" id="loadBox"><div class="loader"></div><div class="load-txt">Songs load ho rahi hain...</div></div>
@@ -3273,6 +3334,7 @@ function enterApp(user){
   Promise.all([loadSongs(),loadPlaylists(),loadFavsFromDB()])
     .then(()=>{handleDeeplink();});
   initGamification(); // 🏆 Gamification system start
+  setTimeout(() => checkAndScheduleNotifs(), 5000); // 🔔 Notification check
 }
 
 function updateUserUI(user){
@@ -4760,6 +4822,13 @@ function recordListening() {
 
   // Supabase mein save karo (fire & forget)
   syncStreakToSupabase(d);
+
+  // Notification timers reschedule karo — aaj sun liya, evening reminder cancel
+  if (_isNotifGranted()) {
+    _cancelNativeNotif('streak-evening');
+    _cancelNativeNotif('streak-urgent');
+    scheduleStreakReminders(); // Kal ke liye naya schedule
+  }
 }
 
 async function syncStreakToSupabase(d) {
@@ -5394,6 +5463,218 @@ function initGamification() {
   setTimeout(checkBadges, 3000);
   // Device check
   setTimeout(() => checkDeviceLimit(), 3500);
+}
+
+/* ══════════════════════════════════════════════════
+   🔔 PUSH NOTIFICATION SYSTEM
+   - Permission request (soft ask — banner se)
+   - Streak reminder: agar aaj nahi suna
+   - Re-engagement: agar 2+ din se nahi aaya
+   - Local scheduled notifications (Notification API)
+══════════════════════════════════════════════════ */
+
+const NOTIF_DISMISSED_KEY = 'tt_notif_banner_dismissed';
+const NOTIF_ENABLED_KEY   = 'tt_notif_enabled';
+
+// Banner dikhao — agar permission nahi li aur dismiss nahi kiya
+function maybeShowNotifBanner() {
+  // Android APK — JavaBridge se check karo
+  if (window.AndroidBridge && AndroidBridge.isNotificationPermissionGranted) {
+    try { if (AndroidBridge.isNotificationPermissionGranted()) return; } catch(e) {}
+  } else {
+    // Browser — Web Notification API
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') return;
+    if (Notification.permission === 'denied') return;
+  }
+  const dismissed = localStorage.getItem(NOTIF_DISMISSED_KEY);
+  if (dismissed) return;
+  setTimeout(() => {
+    const banner = document.getElementById('notifPermBanner');
+    if (banner) banner.style.display = 'flex';
+  }, 10000);
+}
+
+function dismissNotifBanner() {
+  localStorage.setItem(NOTIF_DISMISSED_KEY, '1');
+  const banner = document.getElementById('notifPermBanner');
+  if (banner) { banner.style.opacity = '0'; banner.style.transition = 'opacity .3s'; setTimeout(() => banner.style.display = 'none', 300); }
+}
+
+// ── NOTIFICATION PERMISSION CALLBACKS — Java se call hoga ──
+window._onNotifPermissionGranted = function() {
+  localStorage.setItem(NOTIF_ENABLED_KEY, '1');
+  localStorage.removeItem('tt_alarm_perm_asked'); // reset so alarm check can run fresh
+  dismissNotifBanner();
+  toast('✅ Notifications ON! Streak reminder milega', 'ok');
+  scheduleStreakReminders();
+};
+window._onNotifPermissionDenied = function() {
+  dismissNotifBanner();
+  toast('Notifications allow nahi hua', 'inf');
+};
+
+// Permission request — Android APK ke liye AndroidBridge, browser ke liye Web API
+async function requestNotifPermission() {
+  // Native Android APK — JavaBridge use karo
+  if (window.AndroidBridge && AndroidBridge.requestNotificationPermission) {
+    try { AndroidBridge.requestNotificationPermission(); } catch(e) {}
+    return;
+  }
+  // Browser / PWA fallback — Web Notification API
+  if (!('Notification' in window)) {
+    toast('Is browser mein notifications support nahi hai', 'err');
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    window._onNotifPermissionGranted();
+  } else {
+    window._onNotifPermissionDenied();
+  }
+}
+
+// Notification permission check — Android ya Browser dono handle karo
+function _isNotifGranted() {
+  if (window.AndroidBridge && AndroidBridge.isNotificationPermissionGranted) {
+    try { return AndroidBridge.isNotificationPermissionGranted(); } catch(e) {}
+  }
+  return ('Notification' in window) && Notification.permission === 'granted';
+}
+
+// ── Streak reminder messages ──
+const STREAK_REMINDERS = [
+  { title: '🔥 Streak khatam hone wali hai!', body: 'Aaj ek bhi song nahi suna — ab sun lo, streak bacha lo!' },
+  { title: '🎵 TubeTune miss kar raha hai tujhe!', body: 'Aaj ka song nahi suna? Streak {streak} din ka hai — tutne mat dena!' },
+  { title: '⚡ {streak} din ki streak safe rakho!', body: 'Sirf 1 song suno aur streak safe — abhi kholo!' },
+  { title: '🎶 Music suno, streak jito!', body: 'Kal {streak} din ka streak tha — aaj bhi suno, toot jaata hai warna!' },
+  { title: '🏆 Listener ho ya nahi?', body: '{streak} din ki streak hai tere paas — ek song suno aur badge pakka karo!' },
+];
+
+const REENGAGEMENT_MSGS = [
+  { title: '😢 Kaafi din ho gaye...', body: 'TubeTune pe wapas aao! Teri playlist wait kar rahi hai 🎵' },
+  { title: '🎵 Music ki yaad aa rahi hai?', body: 'Teri pasandida songs tujhse dura hain — abhi ek sun lo!' },
+  { title: '🔕 Bahut quiet hai yahan...', body: 'Bina tere TubeTune sunna nahi chahta. Wapas aao! 🙏' },
+  { title: '📻 Naye songs add hue hain!', body: 'TubeTune pe fresh music wait kar raha hai — check karo!' },
+  { title: '👋 Hey, kahan ho?', body: 'Teri streak toot gayi — nai shuru karo aaj se! 🔥' },
+];
+
+function _pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function _fillTemplate(str, streak) { return str.replace(/\{streak\}/g, streak); }
+
+// ── Native notification schedule — AndroidBridge (APK) ya SW (browser) ──
+function _scheduleNativeNotif(triggerMs, title, body, tag) {
+  // Android APK — AlarmManager se schedule karo (app band ho tab bhi kaam karta hai)
+  if (window.AndroidBridge && AndroidBridge.scheduleNotification) {
+    try { AndroidBridge.scheduleNotification(triggerMs, title, body, tag); return; } catch(e) {}
+  }
+  // Browser/PWA fallback — setTimeout (sirf app open hone par kaam karta hai)
+  const delay = triggerMs - Date.now();
+  if (delay > 0) {
+    setTimeout(() => {
+      if (!_isNotifGranted()) return;
+      try {
+        if (window._swReg) {
+          window._swReg.showNotification(title, { body, icon: '/icons/icon-192.png', tag, renotify: true });
+        } else {
+          new Notification(title, { body, icon: '/icons/icon-192.png', tag });
+        }
+      } catch(e) {}
+    }, delay);
+  }
+}
+
+function _cancelNativeNotif(tag) {
+  if (window.AndroidBridge && AndroidBridge.cancelNotification) {
+    try { AndroidBridge.cancelNotification(tag); } catch(e) {}
+  }
+}
+
+// ── Schedule reminders — AlarmManager via AndroidBridge ──
+function scheduleStreakReminders() {
+  if (!_isNotifGranted()) return;
+
+  // Android 12+ — exact alarm permission check
+  if (window.AndroidBridge && AndroidBridge.canScheduleExactAlarms) {
+    try {
+      if (!AndroidBridge.canScheduleExactAlarms()) {
+        // Permission nahi — ek baar user ko batao
+        const alreadyAsked = localStorage.getItem('tt_alarm_perm_asked');
+        if (!alreadyAsked) {
+          localStorage.setItem('tt_alarm_perm_asked', '1');
+          // Small toast + settings pe le jao
+          setTimeout(() => {
+            toast('⚙️ Streak reminders ke liye Alarm permission do', 'inf');
+            setTimeout(() => {
+              try { AndroidBridge.openAlarmSettings(); } catch(e) {}
+            }, 2000);
+          }, 3000);
+        }
+        // Inexact alarm bhi schedule karo Java side (thoda late aa sakta hai, but better than nothing)
+      }
+    } catch(e) {}
+  }
+
+  const streakData = getStreakData();
+  const streak = streakData.current || 0;
+  const todayDone = streakData.lastDate === todayStr();
+
+  if (!todayDone) {
+    // Evening reminder — 7 PM
+    const now = new Date();
+    const evening = new Date();
+    evening.setHours(19, 0, 0, 0);
+    if (evening <= now) evening.setDate(evening.getDate() + 1);
+
+    const msg = _pickRandom(STREAK_REMINDERS);
+    _scheduleNativeNotif(
+      evening.getTime(),
+      _fillTemplate(msg.title, streak),
+      _fillTemplate(msg.body, streak),
+      'streak-evening'
+    );
+
+    // Urgent — 10 PM
+    const urgent = new Date();
+    urgent.setHours(22, 0, 0, 0);
+    if (urgent <= now) urgent.setDate(urgent.getDate() + 1);
+
+    if (streak > 0) {
+      _scheduleNativeNotif(
+        urgent.getTime(),
+        `⚠️ LAST CHANCE! Streak ${streak} din ka — tutne wala hai!`,
+        'Abhi sirf ek song suno — 2 minute bhi nahi lagenge! 🔥',
+        'streak-urgent'
+      );
+    }
+  } else {
+    // Aaj sun liya — reminders cancel karo
+    _cancelNativeNotif('streak-evening');
+    _cancelNativeNotif('streak-urgent');
+  }
+
+  // Re-engagement — 2+ din se nahi aaya
+  const lastPlayDate = streakData.lastDate ? new Date(streakData.lastDate) : null;
+  const daysSince = lastPlayDate
+    ? Math.floor((Date.now() - lastPlayDate.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+  if (daysSince >= 2) {
+    const reMsg = _pickRandom(REENGAGEMENT_MSGS);
+    // Kal subah 10 AM pe re-engagement notification
+    const tmr = new Date();
+    tmr.setDate(tmr.getDate() + 1);
+    tmr.setHours(10, 0, 0, 0);
+    _scheduleNativeNotif(tmr.getTime(), reMsg.title, reMsg.body, 're-engage');
+  }
+}
+
+// App foreground aane par check karo
+function checkAndScheduleNotifs() {
+  const granted = _isNotifGranted();
+  if (!granted) {
+    maybeShowNotifBanner();
+    return;
+  }
+  scheduleStreakReminders();
 }
 
 boot();
