@@ -755,6 +755,7 @@ audio{display:none}
 .upi-overlay{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.88);backdrop-filter:blur(14px);display:none;align-items:flex-end;justify-content:center}
 .upi-overlay.open{display:flex;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
 .upi-sheet{background:#0D0F1C;border-radius:28px 28px 0 0;width:100%;max-width:480px;max-height:94vh;overflow-y:auto;border-top:1px solid rgba(255,255,255,.1);padding-bottom:32px}
 .upi-sheet::-webkit-scrollbar{display:none}
 .upi-handle{width:40px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin:14px auto 0;display:block}
@@ -1415,7 +1416,7 @@ audio{display:none}
             <div style="font-size:22px;font-weight:900;letter-spacing:-.5px">Downloads</div>
             <div style="font-size:12px;color:var(--tx3);margin-top:3px" id="dlSubtitle">Offline songs yahan milenge</div>
           </div>
-          <button id="dlClearBtn" onclick="clearAllDownloads()" style="background:rgba(255,118,117,.1);border:1px solid rgba(255,118,117,.2);border-radius:12px;color:var(--red);font-size:12px;font-weight:700;padding:8px 12px;cursor:pointer;font-family:'Outfit',sans-serif;display:none">Sab Hatao</button>
+          <button id="dlClearBtn" onclick="confirmClearAllDownloads()" style="background:rgba(255,118,117,.1);border:1px solid rgba(255,118,117,.2);border-radius:12px;color:var(--red);font-size:12px;font-weight:700;padding:8px 12px;cursor:pointer;font-family:'Outfit',sans-serif;display:none">Sab Hatao</button>
         </div>
         <!-- Offline indicator -->
         <div id="dlOfflineBanner" style="display:none;background:rgba(0,206,201,.08);border:1px solid rgba(0,206,201,.2);border-radius:14px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
@@ -2035,52 +2036,135 @@ function renderDownloadsPage() {
   if (sub) sub.textContent = meta.length ? `${meta.length} song${meta.length > 1 ? 's' : ''} downloaded` : 'Koi download nahi hai abhi';
   if (clearBtn) clearBtn.style.display = meta.length ? 'block' : 'none';
 
-  // Offline banner
   const banner = document.getElementById('dlOfflineBanner');
   if (banner) banner.style.display = !navigator.onLine ? 'flex' : 'none';
 
   if (!meta.length) {
     list.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--tx3)">
-      <div style="width:64px;height:64px;border-radius:20px;background:var(--s2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <div style="width:72px;height:72px;border-radius:24px;background:linear-gradient(135deg,rgba(108,92,231,.15),rgba(253,121,168,.1));border:1px solid rgba(108,92,231,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 18px">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="url(#dlGrad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <defs><linearGradient id="dlGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6C5CE7"/><stop offset="100%" stop-color="#FD79A8"/></linearGradient></defs>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
       </div>
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--tx2)">Koi Downloaded Song Nahi</div>
-      <div style="font-size:13px;line-height:1.6">Song list mein ↓ button dabao<br>aur song offline sun sako</div>
+      <div style="font-size:17px;font-weight:800;margin-bottom:8px;color:var(--tx2)">Koi Downloaded Song Nahi</div>
+      <div style="font-size:13px;line-height:1.7;color:var(--tx3)">Song list mein ↓ button dabao<br>aur song offline sun sako</div>
     </div>`;
     return;
   }
 
+  const currentId = curIdx >= 0 && songs[curIdx] ? songs[curIdx].id : null;
+  // Sirf tab highlight karo jab mini player active ho ya song chal raha ho
+  const activeId = (miniUp || (!aud.paused)) ? currentId : null;
+
   list.innerHTML = meta.map((dl, i) => {
-    // Check if this song is currently playing
-    const isNow = curIdx >= 0 && songs[curIdx] && songs[curIdx].id === dl.id;
-    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="playDownloaded('${dl.id}')">
-      <div style="width:46px;height:46px;border-radius:12px;background:var(--s3);overflow:hidden;flex-shrink:0;position:relative">
-        ${dl.thumb ? `<img src="${dl.thumb}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3);position:absolute;inset:0;margin:auto"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`}
-        ${isNow ? `<div style="position:absolute;inset:0;background:rgba(108,92,231,.6);display:flex;align-items:center;justify-content:center"><div class="eq-bars ${playing ? '' : 'paused'}"><div class="eq-b"></div><div class="eq-b"></div><div class="eq-b"></div></div></div>` : ''}
+    const isNow = activeId === dl.id;
+    const dlDate = dl.dlAt ? new Date(dl.dlAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) : '';
+    return `
+    <div style="display:flex;align-items:center;gap:14px;padding:10px 12px;margin-bottom:6px;border-radius:16px;background:${isNow?'linear-gradient(135deg,rgba(108,92,231,.18),rgba(253,121,168,.1))':'rgba(255,255,255,.03)'};border:1px solid ${isNow?'rgba(108,92,231,.35)':'rgba(255,255,255,.06)'};cursor:pointer;transition:background .2s,border .2s;position:relative;overflow:hidden" onclick="playDownloaded('${dl.id}')">
+      ${isNow ? `<div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(to bottom,#6C5CE7,#FD79A8);border-radius:3px 0 0 3px"></div>` : ''}
+      <!-- Thumbnail -->
+      <div style="width:52px;height:52px;border-radius:14px;background:var(--s3);overflow:hidden;flex-shrink:0;position:relative;box-shadow:${isNow?'0 4px 16px rgba(108,92,231,.4)':'0 2px 8px rgba(0,0,0,.3)'}">
+        ${dl.thumb ? `<img src="${dl.thumb}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3);position:absolute;inset:0;margin:auto"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`}
+        ${isNow ? `<div style="position:absolute;inset:0;background:rgba(108,92,231,.55);display:flex;align-items:center;justify-content:center;border-radius:14px"><div class="eq-bars ${playing ? '' : 'paused'}"><div class="eq-b"></div><div class="eq-b"></div><div class="eq-b"></div></div></div>` : ''}
       </div>
+      <!-- Info -->
       <div style="flex:1;min-width:0">
-        <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${isNow ? 'var(--p2)' : 'var(--tx)'}">${dl.title}</div>
-        <div style="font-size:12px;color:var(--tx3);margin-top:2px;display:flex;align-items:center;gap:6px">
-          ${dl.artist}
-          <span style="display:inline-flex;align-items:center;gap:3px;background:rgba(0,206,201,.1);color:var(--grn);border-radius:6px;padding:1px 6px;font-size:10px;font-weight:700">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" style="display:none"/></svg>
+        <div style="font-size:14px;font-weight:${isNow?'800':'700'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${isNow?'var(--p2)':'var(--tx)'};margin-bottom:4px">${dl.title}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${dl.artist}</span>
+          <span style="display:inline-flex;align-items:center;gap:3px;background:rgba(0,206,201,.12);color:var(--grn);border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700;flex-shrink:0">
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
             offline
           </span>
+          ${dlDate ? `<span style="font-size:10px;color:var(--tx3);flex-shrink:0">${dlDate}</span>` : ''}
         </div>
       </div>
-      <span style="font-size:11px;color:var(--tx3);font-family:'DM Mono',monospace;flex-shrink:0">${dl.dur !== '—' ? dl.dur : ''}</span>
-      <button onclick="event.stopPropagation();deleteDownload('${dl.id}')" style="background:rgba(255,118,117,.08);border:1px solid rgba(255,118,117,.15);border-radius:10px;color:var(--red);cursor:pointer;padding:7px 10px;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Hatao">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+      <!-- Duration -->
+      <span style="font-size:11px;color:var(--tx3);font-family:'DM Mono',monospace;flex-shrink:0;min-width:28px;text-align:right">${dl.dur !== '—' ? dl.dur : ''}</span>
+      <!-- Delete btn -->
+      <button onclick="event.stopPropagation();confirmDeleteDownload('${dl.id}','${dl.title.replace(/'/g,"&#39;")}')" style="background:rgba(255,118,117,.08);border:1px solid rgba(255,118,117,.18);border-radius:12px;color:var(--red);cursor:pointer;padding:9px 11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s" onmouseover="this.style.background='rgba(255,118,117,.2)'" onmouseout="this.style.background='rgba(255,118,117,.08)'" title="Hatao">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
       </button>
     </div>`;
   }).join('');
+}
+
+/* ── Delete Confirmation Dialog ── */
+function confirmDeleteDownload(id, title) {
+  const existing = document.getElementById('dlConfirmModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'dlConfirmModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease';
+  modal.innerHTML = `
+    <div style="background:var(--s2);border-radius:24px 24px 0 0;padding:28px 24px 36px;width:100%;max-width:480px;border-top:1px solid rgba(255,255,255,.08);animation:slideUp .25s ease">
+      <div style="width:40px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin:0 auto 24px"></div>
+      <!-- Icon -->
+      <div style="width:64px;height:64px;border-radius:20px;background:rgba(255,118,117,.12);border:1px solid rgba(255,118,117,.25);display:flex;align-items:center;justify-content:center;margin:0 auto 18px">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </div>
+      <!-- Text -->
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:18px;font-weight:800;color:var(--tx);margin-bottom:8px">Song Hatao?</div>
+        <div style="font-size:13px;color:var(--tx3);line-height:1.6">"<span style="color:var(--tx2);font-weight:600">${title}</span>"<br>downloaded list se hata diya jaega</div>
+      </div>
+      <!-- Buttons -->
+      <div style="display:flex;gap:12px">
+        <button onclick="document.getElementById('dlConfirmModal').remove()" style="flex:1;background:var(--s3);border:1px solid var(--bd);color:var(--tx2);padding:15px;border-radius:16px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif">
+          Raho
+        </button>
+        <button onclick="document.getElementById('dlConfirmModal').remove();deleteDownload('${id}')" style="flex:1;background:linear-gradient(135deg,#ff7675,#e17055);border:none;color:#fff;padding:15px;border-radius:16px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;box-shadow:0 4px 16px rgba(255,118,117,.35)">
+          Haan, Hatao
+        </button>
+      </div>
+    </div>`;
+
+  // Tap outside to close
+  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+/* ── Clear All Confirmation ── */
+function confirmClearAllDownloads() {
+  const meta = getDlMeta();
+  if (!meta.length) return;
+
+  const existing = document.getElementById('dlConfirmModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'dlConfirmModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease';
+  modal.innerHTML = `
+    <div style="background:var(--s2);border-radius:24px 24px 0 0;padding:28px 24px 36px;width:100%;max-width:480px;border-top:1px solid rgba(255,255,255,.08);animation:slideUp .25s ease">
+      <div style="width:40px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin:0 auto 24px"></div>
+      <div style="width:64px;height:64px;border-radius:20px;background:rgba(255,118,117,.12);border:1px solid rgba(255,118,117,.25);display:flex;align-items:center;justify-content:center;margin:0 auto 18px">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </div>
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:18px;font-weight:800;color:var(--tx);margin-bottom:8px">Sab Hatao?</div>
+        <div style="font-size:13px;color:var(--tx3);line-height:1.6">Saare <span style="color:var(--red);font-weight:700">${meta.length} songs</span> permanently<br>delete ho jaenge</div>
+      </div>
+      <div style="display:flex;gap:12px">
+        <button onclick="document.getElementById('dlConfirmModal').remove()" style="flex:1;background:var(--s3);border:1px solid var(--bd);color:var(--tx2);padding:15px;border-radius:16px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif">
+          Cancel
+        </button>
+        <button onclick="document.getElementById('dlConfirmModal').remove();clearAllDownloads()" style="flex:1;background:linear-gradient(135deg,#ff7675,#e17055);border:none;color:#fff;padding:15px;border-radius:16px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;box-shadow:0 4px 16px rgba(255,118,117,.35)">
+          Haan, Sab Hatao
+        </button>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
 /* ── Play Downloaded (offline first) ── */
 async function playDownloaded(id) {
   try {
     const blob = await dlGetBlob(id);
-    if (!blob) { toast('Song data nahi mila, delete ho gaya?', 'err'); return; }
+    if (!blob) { toast('File not found — may have been removed', 'err'); return; }
     const blobUrl = URL.createObjectURL(blob);
 
     // Find song in songs[] agar available ho (metadata ke liye)
@@ -2126,7 +2210,8 @@ async function playDownloaded(id) {
     recent = [id, ...recent.filter(x => x !== id)].slice(0, 30);
     localStorage.setItem('tt_recent', JSON.stringify(recent));
 
-    toast(`"${s.title}" offline play ho raha hai`, 'ok');
+    const shortTitle = s.title.length > 28 ? s.title.slice(0, 28).trim() + '…' : s.title;
+    toast(`▶ Playing offline — ${shortTitle}`, 'ok');
     renderDownloadsPage();
   } catch(e) {
     toast('Play error: ' + e.message, 'err');
@@ -2140,9 +2225,9 @@ async function deleteDownload(id) {
     removeDlMeta(id);
     renderDownloadsPage();
     renderSongs(); // Download button state reset
-    toast('Hataya gaya', 'inf');
+    toast('Removed from downloads', 'inf');
   } catch(e) {
-    toast('Delete fail hua', 'err');
+    toast('Could not remove — try again', 'err');
   }
 }
 
@@ -2156,7 +2241,7 @@ async function clearAllDownloads() {
   saveDlMeta([]);
   renderDownloadsPage();
   renderSongs();
-  toast('Sab downloads hata diye', 'inf');
+  toast('All downloads cleared', 'inf');
 }
 
 /* ── Helper: videoId se stream URL fetch karo ── */
@@ -2181,9 +2266,15 @@ async function downloadCurrentSong() {
   if (curIdx < 0) { toast('Pehle koi song play karo', 'inf'); return; }
   const s = songs[curIdx];
   if (!s) return;
-  // Agar already downloaded hai — offline play karo, dobara download mat karo
+  // Agar already downloaded hai
   if (isDownloaded(s.id)) {
-    toast('Pehle se downloaded hai — offline chal raha hai!', 'ok');
+    // Agar yahi song abhi chal raha hai — restart mat karo, sirf inform karo
+    if (!aud.paused && songs[curIdx] && songs[curIdx].id === s.id) {
+      toast('✓ Playing offline right now', 'ok');
+      return;
+    }
+    // Band hai — tab play karo
+    toast('▶ Already saved — playing offline', 'ok');
     playDownloaded(s.id);
     return;
   }
@@ -2217,7 +2308,7 @@ async function downloadSongById(songId) {
   if (!s) { toast('Song nahi mila', 'err'); return; }
   // Agar already downloaded, direct play karo
   if (isDownloaded(songId)) {
-    toast('Pehle se downloaded hai — play karo!', 'ok');
+    toast('Already saved offline', 'inf');
     return;
   }
   const btnId = 'dlbtn-' + songId;
@@ -2265,7 +2356,8 @@ async function _doDownload(s, btnId, icoId, txtId) {
     if (btn) { btn.classList.remove('downloading'); btn.classList.add('done'); }
     if (ico) ico.innerHTML = `<polyline points="20 6 9 17 4 12"/>`;
     if (txt) txt.textContent = 'Downloaded!';
-    toast(`"${s.title}" download ho gaya — Downloads mein milega`, 'ok');
+    const shortT = s.title.length > 25 ? s.title.slice(0,25).trim()+'…' : s.title;
+    toast(`✓ Saved offline — ${shortT}`, 'ok');
 
     // Button permanently green (downloaded state)
     if (btn) {
@@ -3940,12 +4032,13 @@ function showMini(){
 function closeMini(){
   aud.pause();
   miniUp=false;
-  userClosedMini=true;  // User ne explicitly close kiya — dobara auto-show mat karo
-  wasPlayingBeforeHide=false; // important: dobara auto-show nahi hoga
+  userClosedMini=true;
+  wasPlayingBeforeHide=false;
   const m=document.getElementById('mini');
   m.classList.remove('up');
   m.classList.remove('hidden-np');
-  
+  renderDownloadsPage();
+  renderSongs();
 }
 function closeNP(){goPage('home',document.getElementById('nb-home'));}
 function updateNPUI(s){
@@ -3966,6 +4059,16 @@ function updateNPUI(s){
   if(artEl) artEl.classList.toggle('spin',playing);
   // Download button state update karo
   if(typeof updateNPDlBtn === 'function') updateNPDlBtn(s.id);
+  // ✅ Notification / Lock screen metadata update — har song change pe
+  if('mediaSession' in navigator){
+    const artwork = s.thumb ? [{src:s.thumb, sizes:'512x512', type:'image/jpeg'}] : [];
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: s.title || '—',
+      artist: s.artist || '—',
+      album: 'TubeTune',
+      artwork: artwork
+    });
+  }
 }
 function updateGlows(){const colors=['#6C5CE7','#FD79A8','#FDCB6E','#00CEC9','#0984E3','#E17055'];document.querySelector('.ga-1').style.background=colors[curIdx%colors.length];document.querySelector('.ga-2').style.background=colors[(curIdx+1)%colors.length];}
 function togglePlay(){
@@ -4088,6 +4191,7 @@ function _playNext(){
 
   // Sirf tab downloaded queue use karo jab current song bhi downloaded ho
   if(dlMeta.length > 0 && currentIsDownloaded){
+    if(dlMeta.length === 1) return; // sirf ek song — auto-next pe restart nahi
     const dlIdx = dlMeta.findIndex(d => d.id === currentId);
     const nextDl = dlMeta[(dlIdx+1) % dlMeta.length];
     playDownloaded(nextDl.id);
@@ -4220,14 +4324,13 @@ function nextS(){
   const dlMeta=getDlMeta();
   const currentId=curIdx>=0&&songs[curIdx]?songs[curIdx].id:null;
   const currentIsDownloaded=dlMeta.some(d=>d.id===currentId);
-  // Sirf tab downloaded queue use karo jab current song bhi downloaded ho
-  if(dlMeta.length>0 && currentIsDownloaded){
+  if(dlMeta.length>0&&currentIsDownloaded){
+    if(dlMeta.length===1){ toast('Sirf ek downloaded song hai','inf'); return; } // ek hi song — restart mat karo
     const dlIdx=dlMeta.findIndex(d=>d.id===currentId);
     const nextDl=dlMeta[(dlIdx+1)%dlMeta.length];
     playById(nextDl.id);
     return;
   }
-  // Normal songs queue (online ya mixed)
   if(!songs.length)return;
   if(shuffle)curIdx=Math.floor(Math.random()*songs.length);
   else curIdx=curIdx+1<songs.length?curIdx+1:0;
@@ -4239,14 +4342,13 @@ function prevS(){
   const dlMeta=getDlMeta();
   const currentId=curIdx>=0&&songs[curIdx]?songs[curIdx].id:null;
   const currentIsDownloaded=dlMeta.some(d=>d.id===currentId);
-  // Sirf tab downloaded queue use karo jab current song bhi downloaded ho
-  if(dlMeta.length>0 && currentIsDownloaded){
+  if(dlMeta.length>0&&currentIsDownloaded){
+    if(dlMeta.length===1){ aud.currentTime=0; return; } // ek hi song — beginning pe le jao
     const dlIdx=dlMeta.findIndex(d=>d.id===currentId);
     const prevDl=dlMeta[(dlIdx-1+dlMeta.length)%dlMeta.length];
     playById(prevDl.id);
     return;
   }
-  // Normal songs queue (online ya mixed)
   if(!songs.length)return;
   curIdx=curIdx>0?curIdx-1:songs.length-1;
   playById(songs[curIdx].id);
