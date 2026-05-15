@@ -2822,6 +2822,14 @@ function buyPlan(planId, planName, planPrice) {
   document.getElementById('upiOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 
+  // QR link dynamically update karo with correct amount
+  const _qrLink = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent('TubeTune Premium')}&am=${planPrice}&cu=INR&tn=${encodeURIComponent('TubeTune ' + planName)}`;
+  const _qrImg = document.getElementById('upiQrImg');
+  if (_qrImg) {
+    _qrImg.onclick = () => { window.location.href = _qrLink; };
+    _qrImg.title = 'Click karke UPI app mein open karo — ₹' + planPrice;
+  }
+
   // Check karo kya pehle se approved code hai
   setTimeout(() => {
     const savedCode = checkSavedApprovedCode();
@@ -2840,22 +2848,97 @@ function openUpiApp(app) {
   const uid = encodeURIComponent(UPI_ID);
   const tn  = encodeURIComponent('TubeTune ' + (_upiPlanName || 'Plan'));
 
-  // Generic UPI deep link (works for all UPI apps)
+  // Generic UPI deep link — sabse safe, sab apps support karte hain
   const upiLink = `upi://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`;
 
-  // App-specific URL schemes (WebView + Browser dono mein kaam karte hain)
-  // intent:// WebView mein kaam nahi karta — direct scheme use karo
-  let appUrl = '';
-  if (app === 'phonepe') {
-    appUrl = `phonepe://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`;
-  } else if (app === 'paytm') {
-    appUrl = `paytmmp://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`;
-  } else if (app === 'gpay') {
-    appUrl = `tez://upi/pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`;
+  // isAndroid check
+  const isAndroid = /android/i.test(navigator.userAgent);
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  function tryLaunch(primaryUrl, fallbackUrl, webFallback) {
+    // Ek hidden iframe se try karo — agar app nahi mili toh error nahi dega
+    let launched = false;
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    // Timeout: agar 1.5s mein app nahi khuli toh fallback
+    const fallbackTimer = setTimeout(() => {
+      if (!launched) {
+        document.body.removeChild(iframe);
+        // Web fallback try karo
+        window.open(webFallback || fallbackUrl, '_blank');
+      }
+    }, 1500);
+
+    // visibilitychange se pata chalega app khuli
+    const visHandler = () => {
+      if (document.hidden) {
+        launched = true;
+        clearTimeout(fallbackTimer);
+        document.removeEventListener('visibilitychange', visHandler);
+        document.body.removeChild(iframe);
+      }
+    };
+    document.addEventListener('visibilitychange', visHandler);
+
+    try {
+      iframe.src = primaryUrl;
+    } catch(e) {
+      clearTimeout(fallbackTimer);
+      document.removeEventListener('visibilitychange', visHandler);
+      document.body.removeChild(iframe);
+      window.location.href = fallbackUrl || upiLink;
+    }
+
+    // Backup: direct bhi try karo (kuch devices mein iframe work nahi)
+    setTimeout(() => {
+      if (!launched) window.location.href = primaryUrl;
+    }, 300);
   }
 
-  // App-specific try karo, fallback generic UPI
-  window.location.href = appUrl || upiLink;
+  if (app === 'phonepe') {
+    if (isAndroid) {
+      // Android: intent scheme sabse reliable hai PhonePe ke liye
+      const intentUrl = `intent://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}#Intent;scheme=upi;package=com.phonepe.app;S.browser_fallback_url=https%3A%2F%2Fphon.pe%2F;end`;
+      tryLaunch(intentUrl, upiLink, 'https://phon.pe/');
+    } else if (isIOS) {
+      // iOS: phonepe:// scheme
+      tryLaunch(
+        `phonepe://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`,
+        upiLink,
+        'https://phon.pe/'
+      );
+    } else {
+      // Desktop/unknown: generic UPI
+      window.open(`https://phon.pe/`, '_blank');
+    }
+  } else if (app === 'paytm') {
+    if (isAndroid) {
+      const intentUrl = `intent://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}#Intent;scheme=upi;package=net.one97.paytm;S.browser_fallback_url=https%3A%2F%2Fpaytm.com%2F;end`;
+      tryLaunch(intentUrl, upiLink, 'https://paytm.com/');
+    } else {
+      tryLaunch(
+        `paytmmp://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`,
+        upiLink,
+        'https://paytm.com/'
+      );
+    }
+  } else if (app === 'gpay') {
+    if (isAndroid) {
+      const intentUrl = `intent://pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;S.browser_fallback_url=https%3A%2F%2Fpay.google.com%2F;end`;
+      tryLaunch(intentUrl, upiLink, 'https://pay.google.com/');
+    } else {
+      tryLaunch(
+        `tez://upi/pay?pa=${uid}&pn=${pn}&am=${amt}&cu=INR&tn=${tn}`,
+        upiLink,
+        'https://pay.google.com/'
+      );
+    }
+  } else {
+    // Generic UPI link — koi bhi UPI app select karne deta hai
+    window.location.href = upiLink;
+  }
 
   // Show pending box after 3s + start polling for admin code
   setTimeout(() => {
