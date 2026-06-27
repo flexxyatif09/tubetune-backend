@@ -390,11 +390,13 @@ async function premiumAuth(req, res, next) {
       return res.status(401).json({ success: false, error: 'Login zaroori hai' });
     }
 
-    // supabaseAdmin use karo — RLS bypass hoga
+    // Active subscription dhundho — status filter zaroori
     const { data: sub, error: subError } = await supabaseAdmin
       .from('subscriptions')
       .select('id, expires_at, status')
       .eq('user_id', user.id)
+      .eq('status', 'active')
+      .order('expires_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -408,8 +410,8 @@ async function premiumAuth(req, res, next) {
       });
     }
 
-    // Agar expires_at column hai toh expiry check karo, warna sirf existence kaafi hai
     if (sub.expires_at && new Date(sub.expires_at) < new Date()) {
+      await supabaseAdmin.from('subscriptions').update({ status: 'expired' }).eq('id', sub.id);
       return res.status(403).json({
         success: false,
         error: 'Premium subscription expire ho gaya',
@@ -424,6 +426,7 @@ async function premiumAuth(req, res, next) {
     res.status(500).json({ success: false, error: err.message });
   }
 }
+
 
 // ── GET ALL SONGS ──
 app.get('/api/songs', async (req, res) => {
@@ -522,91 +525,77 @@ app.post('/api/upload', auth, async (req, res) => {
   }
 });
 
-// ── USER SONG UPLOAD (premium only) — YouTube link se user ki library mein add ──
+// ── USER SONG UPLOAD (premium only) ──
 app.post('/api/user-upload', premiumAuth, async (req, res) => {
   try {
-    const userId = req.userId; // premiumAuth ne set kiya
+    const userId = req.userId;
     const { url, quality = '320' } = req.body;
 
     if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
       return res.status(400).json({ success: false, error: 'Valid YouTube URL chahiye' });
     }
 
-    // VideoId extract karo
     let videoId = '';
     if (url.includes('watch?v=')) videoId = url.split('watch?v=')[1].split('&')[0];
     else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1].split('?')[0];
     if (!videoId) return res.status(400).json({ success: false, error: 'Invalid YouTube URL' });
 
-    // Already saved hai check karo
+    // Already saved check
     const { data: existing } = await supabaseAdmin
       .from('user_songs')
-      .select('id, title, audio_url')
+      .select('id, title, artist, thumbnail, duration, audio_url')
       .eq('user_id', userId)
       .eq('youtube_id', videoId)
       .maybeSingle();
 
-    if (existing) {
+    if (existing && existing.audio_url) {
       return res.json({
-        success: true, id: existing.id,
-        title: existing.title,
-        alreadySaved: true,
-        message: 'Yeh song pehle se tumhari library mein hai!'
+        success: true, alreadySaved: true,
+        id: existing.id, title: existing.title,
+        artist: existing.artist, thumbnail: existing.thumbnail,
+        duration: existing.duration, audioUrl: existing.audio_url,
+        message: 'Pehle se library mein hai!'
       });
     }
 
-    // YouTube se title/artist fetch karo (oembed)
-    let title = 'Unknown Title';
-    let artist = 'Unknown Artist';
+    // Title/artist fetch via oembed
+    let title = 'Unknown Title', artist = 'Unknown Artist';
     const thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
-
     try {
-      const oRes = await fetch(
-        `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
-      );
+      const oRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
       if (oRes.ok) {
         const oData = await oRes.json();
-        title  = oData.title       || title;
+        title = oData.title || title;
         artist = oData.author_name || artist;
       }
     } catch(e) { console.log('[user-upload] oembed:', e.message); }
 
-    // RapidAPI se audioUrl + duration fetch karo (same as admin)
-    console.log(`[user-upload] Fetching audio for ${videoId} — user: ${userId}`);
+    // RapidAPI se audio URL fetch karo (same as admin)
+    console.log(`[user-upload] Fetching: ${videoId} for user ${userId}`);
     const { audioUrl, duration } = await getMp3AndUpload(videoId, title, artist);
 
-    // user_songs table mein audio_url ke saath save karo
-    const { data: song, error: dbError } = await supabaseAdmin
+    // Save to user_songs
+    const { data: song, error: dbErr } = await supabaseAdmin
       .from('user_songs')
-      .insert({
-        user_id:    userId,
-        youtube_id: videoId,
-        title,
-        artist,
-        thumbnail,
-        duration,
-        audio_url:  audioUrl,
-        quality:    quality + 'kbps',
+      .upsert({
+        user_id: userId, youtube_id: videoId,
+        title, artist, thumbnail, duration,
+        audio_url: audioUrl,
+        quality: quality + 'kbps',
         youtube_url: url
-      })
+      }, { onConflict: 'user_id,youtube_id' })
       .select('id, title, artist, thumbnail, duration, audio_url')
       .single();
 
-    if (dbError) throw dbError;
+    if (dbErr) throw dbErr;
 
-    console.log(`[user-upload] ✅ Saved: "${title}" for user ${userId}`);
-
+    console.log(`[user-upload] ✅ "${title}" saved for user ${userId}`);
     res.json({
-      success: true,
-      id:        song.id,
-      title:     song.title,
-      artist:    song.artist,
-      thumbnail: song.thumbnail,
-      duration:  song.duration,
-      audioUrl:  song.audio_url,
-      message:   'Song tumhari library mein add ho gaya!'
+      success: true, id: song.id, title: song.title,
+      artist: song.artist, thumbnail: song.thumbnail,
+      duration: song.duration, audioUrl: song.audio_url,
+      message: 'Song library mein add ho gaya!'
     });
-
   } catch (err) {
     console.error('[user-upload] Error:', err.message);
     res.status(500).json({ success: false, error: err.message });
