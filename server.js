@@ -522,6 +522,97 @@ app.post('/api/upload', auth, async (req, res) => {
   }
 });
 
+// ── USER SONG UPLOAD (premium only) — YouTube link se user ki library mein add ──
+app.post('/api/user-upload', premiumAuth, async (req, res) => {
+  try {
+    const userId = req.userId; // premiumAuth ne set kiya
+    const { url, quality = '320' } = req.body;
+
+    if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
+      return res.status(400).json({ success: false, error: 'Valid YouTube URL chahiye' });
+    }
+
+    // VideoId extract karo
+    let videoId = '';
+    if (url.includes('watch?v=')) videoId = url.split('watch?v=')[1].split('&')[0];
+    else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1].split('?')[0];
+    if (!videoId) return res.status(400).json({ success: false, error: 'Invalid YouTube URL' });
+
+    // Already saved hai check karo
+    const { data: existing } = await supabaseAdmin
+      .from('user_songs')
+      .select('id, title, audio_url')
+      .eq('user_id', userId)
+      .eq('youtube_id', videoId)
+      .maybeSingle();
+
+    if (existing) {
+      return res.json({
+        success: true, id: existing.id,
+        title: existing.title,
+        alreadySaved: true,
+        message: 'Yeh song pehle se tumhari library mein hai!'
+      });
+    }
+
+    // YouTube se title/artist fetch karo (oembed)
+    let title = 'Unknown Title';
+    let artist = 'Unknown Artist';
+    const thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+
+    try {
+      const oRes = await fetch(
+        `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
+      );
+      if (oRes.ok) {
+        const oData = await oRes.json();
+        title  = oData.title       || title;
+        artist = oData.author_name || artist;
+      }
+    } catch(e) { console.log('[user-upload] oembed:', e.message); }
+
+    // RapidAPI se audioUrl + duration fetch karo (same as admin)
+    console.log(`[user-upload] Fetching audio for ${videoId} — user: ${userId}`);
+    const { audioUrl, duration } = await getMp3AndUpload(videoId, title, artist);
+
+    // user_songs table mein audio_url ke saath save karo
+    const { data: song, error: dbError } = await supabaseAdmin
+      .from('user_songs')
+      .insert({
+        user_id:    userId,
+        youtube_id: videoId,
+        title,
+        artist,
+        thumbnail,
+        duration,
+        audio_url:  audioUrl,
+        quality:    quality + 'kbps',
+        youtube_url: url
+      })
+      .select('id, title, artist, thumbnail, duration, audio_url')
+      .single();
+
+    if (dbError) throw dbError;
+
+    console.log(`[user-upload] ✅ Saved: "${title}" for user ${userId}`);
+
+    res.json({
+      success: true,
+      id:        song.id,
+      title:     song.title,
+      artist:    song.artist,
+      thumbnail: song.thumbnail,
+      duration:  song.duration,
+      audioUrl:  song.audio_url,
+      message:   'Song tumhari library mein add ho gaya!'
+    });
+
+  } catch (err) {
+    console.error('[user-upload] Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── CONFIG (Razorpay key frontend ko dena) ──
 app.get('/api/config', (req, res) => {
   res.json({ razorpay_key_id: process.env.RAZORPAY_KEY_ID || '' });
