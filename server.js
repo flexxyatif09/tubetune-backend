@@ -395,6 +395,8 @@ async function premiumAuth(req, res, next) {
       .from('subscriptions')
       .select('id, expires_at, status')
       .eq('user_id', user.id)
+      .eq('status', 'active')
+      .order('expires_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -408,8 +410,9 @@ async function premiumAuth(req, res, next) {
       });
     }
 
-    // Agar expires_at column hai toh expiry check karo, warna sirf existence kaafi hai
     if (sub.expires_at && new Date(sub.expires_at) < new Date()) {
+      // Auto expire karo
+      await supabaseAdmin.from('subscriptions').update({ status: 'expired' }).eq('id', sub.id);
       return res.status(403).json({
         success: false,
         error: 'Premium subscription expire ho gaya',
@@ -522,39 +525,76 @@ app.post('/api/upload', auth, async (req, res) => {
   }
 });
 
-// ── DOWNLOAD PROXY — CORS bypass ke liye ──
+// ── USER SONG UPLOAD (premium only) ──
+app.post('/api/user-upload', premiumAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { url, quality = '320' } = req.body;
+    if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
+      return res.status(400).json({ success: false, error: 'Valid YouTube URL chahiye' });
+    }
+    let videoId = '';
+    if (url.includes('watch?v=')) videoId = url.split('watch?v=')[1].split('&')[0];
+    else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1].split('?')[0];
+    if (!videoId) return res.status(400).json({ success: false, error: 'Invalid YouTube URL' });
+
+    // Already saved check
+    const { data: existing } = await supabaseAdmin
+      .from('user_songs').select('id,title,artist,thumbnail,duration,audio_url')
+      .eq('user_id', userId).eq('youtube_id', videoId).maybeSingle();
+    if (existing && existing.audio_url) {
+      return res.json({ success: true, alreadySaved: true, id: existing.id,
+        title: existing.title, artist: existing.artist, thumbnail: existing.thumbnail,
+        duration: existing.duration, audioUrl: existing.audio_url });
+    }
+
+    // Title/artist via oembed
+    let title = 'Unknown Title', artist = 'Unknown Artist';
+    const thumbnail = 'https://i.ytimg.com/vi/' + videoId + '/mqdefault.jpg';
+    try {
+      const oRes = await fetch('https://www.youtube.com/oembed?url=' + encodeURIComponent(url) + '&format=json');
+      if (oRes.ok) { const o = await oRes.json(); title = o.title || title; artist = o.author_name || artist; }
+    } catch(e) {}
+
+    // RapidAPI se audio URL (same as admin)
+    console.log('[user-upload] Fetching: ' + videoId + ' for user ' + userId);
+    const { audioUrl, duration } = await getMp3AndUpload(videoId, title, artist);
+
+    // Save to user_songs
+    const { data: song, error: dbErr } = await supabaseAdmin.from('user_songs')
+      .upsert({ user_id: userId, youtube_id: videoId, title, artist, thumbnail, duration,
+        audio_url: audioUrl, quality: quality + 'kbps', youtube_url: url },
+        { onConflict: 'user_id,youtube_id' })
+      .select('id,title,artist,thumbnail,duration,audio_url').single();
+    if (dbErr) throw dbErr;
+
+    console.log('[user-upload] Saved: "' + title + '" for user ' + userId);
+    res.json({ success: true, id: song.id, title: song.title, artist: song.artist,
+      thumbnail: song.thumbnail, duration: song.duration, audioUrl: song.audio_url });
+  } catch(err) {
+    console.error('[user-upload] Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── DOWNLOAD PROXY — CORS bypass ──
 app.get('/api/download-proxy', async (req, res) => {
   try {
     const { url, filename } = req.query;
     if (!url) return res.status(400).json({ error: 'URL required' });
-
-    // Sirf known audio domains allow karo
-    const allowed = ['123tokyo.xyz', 'ytdl.org', 'rr1---sn', 'googlevideo.com', 'cloudinary.com'];
-    const isAllowed = allowed.some(d => url.includes(d));
-    if (!isAllowed) return res.status(403).json({ error: 'Domain not allowed' });
-
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Referer': 'https://www.youtube.com/'
-      }
-    });
-
+    const allowed = ['123tokyo.xyz', 'googlevideo.com', 'cloudinary.com', 'ytdl.org'];
+    if (!allowed.some(d => url.includes(d))) return res.status(403).json({ error: 'Domain not allowed' });
+    const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.youtube.com/' } });
     if (!response.ok) throw new Error('Upstream fetch failed: ' + response.status);
-
     const contentType = response.headers.get('content-type') || 'audio/mpeg';
-    const safeFilename = (filename || 'song').replace(/[^a-z0-9_\-. ]/gi, '_');
-
+    const safeFilename = (filename || 'song').replace(/[^a-z0-9_ .-]/gi, '_').slice(0, 60);
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}.mp3"`);
+    res.setHeader('Content-Disposition', 'attachment; filename="' + safeFilename + '.mp3"');
     res.setHeader('Access-Control-Allow-Origin', '*');
-
-    // Stream directly to client
     const { Readable } = require('stream');
     const nodeStream = Readable.fromWeb ? Readable.fromWeb(response.body) : response.body;
     nodeStream.pipe(res);
-
-  } catch (err) {
+  } catch(err) {
     console.error('[download-proxy]', err.message);
     res.status(500).json({ error: err.message });
   }
