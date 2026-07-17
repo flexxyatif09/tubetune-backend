@@ -164,13 +164,13 @@ async function getMp3AndUpload(videoId, title, artist) {
     try { return await fn(videoId).then(r => ({ audioUrl: r.url, duration: r.duration })); }
     catch(e) { console.warn(`[getMp3] ${name} fail:`, e.message); }
   }
-  throw new Error('Koi API kaam nahi aayi');
+  throw new Error('All stream APIs failed. Try again later.');
 }
 
 // ── IN-MEMORY URL CACHE (RapidAPI calls bachao) ──
 // videoId → { url, duration, fetchedAt }
 const urlCache = new Map();
-const URL_CACHE_TTL = 55 * 60 * 1000; // 55 min
+const URL_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours (API2 URLs valid ~6hrs)
 
 // Same videoId ke duplicate simultaneous requests deduplicate karo
 const pendingRequests = new Map();
@@ -196,14 +196,20 @@ setInterval(() => {
 // ── STREAM URL ──
 app.post('/api/stream-url', async (req, res) => {
   try {
-    const { videoId } = req.body;
+    const { videoId, force } = req.body;
     if (!videoId) return res.status(400).json({ success: false, error: 'videoId required' });
 
-    // 1. Cache check — fresh URL hai toh API call mat karo
-    const cached = getCached(videoId);
-    if (cached) {
-      console.log(`[stream-url] Cache HIT ✅ ${videoId}`);
-      return res.json({ success: true, url: cached.url, duration: cached.duration, cached: true });
+    // 1. Cache check — force=true hone par cache bypass karo (expired URL fix)
+    if (!force) {
+      const cached = getCached(videoId);
+      if (cached) {
+        console.log(`[stream-url] Cache HIT ✅ ${videoId}`);
+        return res.json({ success: true, url: cached.url, duration: cached.duration, cached: true });
+      }
+    } else {
+      // Force refresh — purani cache delete karo
+      urlCache.delete(videoId);
+      console.log(`[stream-url] Force refresh — cache cleared for ${videoId}`);
     }
 
     // 2. Duplicate request deduplication — same videoId ke liye ek hi API call
@@ -236,7 +242,7 @@ app.post('/api/stream-url', async (req, res) => {
           errors.push(`${api.name}: ${e.message}`);
         }
       }
-      throw new Error('Stream unavailable. Thodi der baad try karo.');
+      throw new Error('Stream unavailable. Please try again later.');
     })();
 
     pendingRequests.set(videoId, fetchPromise);
@@ -256,7 +262,7 @@ app.post('/api/my-songs', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     const user = await getUserFromToken(token);
-    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login required' });
 
     const { videoId, title, artist, thumbnail, duration } = req.body;
     if (!videoId || !title) return res.status(400).json({ success: false, error: 'videoId aur title required' });
@@ -317,7 +323,7 @@ app.delete('/api/my-songs/:id', async (req, res) => {
     // Admin bhi delete kar sake (admin password se)
     const isAdmin = token === process.env.ADMIN_PASSWORD;
     
-    if (!isAdmin && !user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+    if (!isAdmin && !user?.id) return res.status(401).json({ success: false, error: 'Login required' });
 
     const query = supabaseAdmin.from('user_songs').delete().eq('id', req.params.id);
     // Normal user sirf apna song delete kar sake
@@ -387,7 +393,7 @@ async function premiumAuth(req, res, next) {
     const token = req.headers.authorization?.replace('Bearer ', '');
     const user = await getUserFromToken(token);
     if (!user?.id) {
-      return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+      return res.status(401).json({ success: false, error: 'Login required' });
     }
 
     // supabaseAdmin use karo — RLS bypass hoga
@@ -395,8 +401,6 @@ async function premiumAuth(req, res, next) {
       .from('subscriptions')
       .select('id, expires_at, status')
       .eq('user_id', user.id)
-      .eq('status', 'active')
-      .order('expires_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -410,9 +414,8 @@ async function premiumAuth(req, res, next) {
       });
     }
 
+    // Agar expires_at column hai toh expiry check karo, warna sirf existence kaafi hai
     if (sub.expires_at && new Date(sub.expires_at) < new Date()) {
-      // Auto expire karo
-      await supabaseAdmin.from('subscriptions').update({ status: 'expired' }).eq('id', sub.id);
       return res.status(403).json({
         success: false,
         error: 'Premium subscription expire ho gaya',
@@ -531,14 +534,13 @@ app.post('/api/user-upload', premiumAuth, async (req, res) => {
     const userId = req.userId;
     const { url, quality = '320' } = req.body;
     if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
-      return res.status(400).json({ success: false, error: 'Valid YouTube URL chahiye' });
+      return res.status(400).json({ success: false, error: 'Valid YouTube URL required' });
     }
     let videoId = '';
     if (url.includes('watch?v=')) videoId = url.split('watch?v=')[1].split('&')[0];
     else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1].split('?')[0];
     if (!videoId) return res.status(400).json({ success: false, error: 'Invalid YouTube URL' });
 
-    // Already saved check
     const { data: existing } = await supabaseAdmin
       .from('user_songs').select('id,title,artist,thumbnail,duration,audio_url')
       .eq('user_id', userId).eq('youtube_id', videoId).maybeSingle();
@@ -548,7 +550,6 @@ app.post('/api/user-upload', premiumAuth, async (req, res) => {
         duration: existing.duration, audioUrl: existing.audio_url });
     }
 
-    // Title/artist via oembed
     let title = 'Unknown Title', artist = 'Unknown Artist';
     const thumbnail = 'https://i.ytimg.com/vi/' + videoId + '/mqdefault.jpg';
     try {
@@ -556,11 +557,9 @@ app.post('/api/user-upload', premiumAuth, async (req, res) => {
       if (oRes.ok) { const o = await oRes.json(); title = o.title || title; artist = o.author_name || artist; }
     } catch(e) {}
 
-    // RapidAPI se audio URL (same as admin)
     console.log('[user-upload] Fetching: ' + videoId + ' for user ' + userId);
     const { audioUrl, duration } = await getMp3AndUpload(videoId, title, artist);
 
-    // Save to user_songs
     const { data: song, error: dbErr } = await supabaseAdmin.from('user_songs')
       .upsert({ user_id: userId, youtube_id: videoId, title, artist, thumbnail, duration,
         audio_url: audioUrl, quality: quality + 'kbps', youtube_url: url },
@@ -586,9 +585,8 @@ app.get('/api/download-proxy', async (req, res) => {
     if (!allowed.some(d => url.includes(d))) return res.status(403).json({ error: 'Domain not allowed' });
     const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.youtube.com/' } });
     if (!response.ok) throw new Error('Upstream fetch failed: ' + response.status);
-    const contentType = response.headers.get('content-type') || 'audio/mpeg';
     const safeFilename = (filename || 'song').replace(/[^a-z0-9_ .-]/gi, '_').slice(0, 60);
-    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'audio/mpeg');
     res.setHeader('Content-Disposition', 'attachment; filename="' + safeFilename + '.mp3"');
     res.setHeader('Access-Control-Allow-Origin', '*');
     const { Readable } = require('stream');
@@ -884,7 +882,7 @@ app.get('/api/subscription', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     const user  = await getUserFromToken(token);
-    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login required' });
 
     const { data: sub } = await supabase
       .from('subscriptions')
@@ -907,7 +905,7 @@ app.post('/api/create-order', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     const user  = await getUserFromToken(token);
-    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login required' });
 
     // Razorpay keys check karo
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -940,7 +938,7 @@ app.post('/api/verify-payment', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     const user  = await getUserFromToken(token);
-    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login required' });
 
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan_id } = req.body;
 
@@ -1293,7 +1291,7 @@ app.post('/api/upi-verify-code', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     const user  = await getUserFromToken(token);
-    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login required' });
 
     const { code, plan_id, user_email, user_id } = req.body;
     if (!code) return res.status(400).json({ success: false, error: 'Code required hai' });
@@ -1463,7 +1461,7 @@ app.get('/api/upi-my-code', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     const user  = await getUserFromToken(token);
-    if (!user?.id) return res.status(401).json({ success: false, error: 'Login zaroori hai' });
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Login required' });
 
     // User ki approved payment dhundho jisme verify_code ho
     const { data, error } = await supabaseAdmin
