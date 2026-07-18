@@ -1014,6 +1014,7 @@ audio{display:none}
             </button>
           </div>
           <div class="field-err-txt" id="lPassErr">Password is required</div>
+          <div style="text-align:right;margin-top:8px"><span style="font-size:12.5px;color:var(--p2);font-weight:600;cursor:pointer" onclick="goForgot()">Forgot password?</span></div>
         </div>
         <button class="auth-btn" id="loginBtn" onclick="doLogin()"><div class="spin"></div><span class="btn-txt">Sign In</span></button>
       </div>
@@ -1053,6 +1054,46 @@ audio{display:none}
         <button class="auth-btn" id="signupBtn" onclick="doSignup()"><div class="spin"></div><span class="btn-txt">Create Account</span></button>
       </div>
       <div class="auth-switch">Already have an account? <b onclick="goLogin()">Sign in</b></div>
+    </div>
+    <div class="auth-slide" id="slideForgot" style="transform:translateX(100%);opacity:0;pointer-events:none">
+      <div class="auth-card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px">
+          <button onclick="goLogin()" style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx2);flex-shrink:0;transition:all .15s" onmouseover="this.style.background='rgba(108,92,231,.18)';this.style.color='var(--p2)'" onmouseout="this.style.background='rgba(255,255,255,.07)';this.style.color='var(--tx2)'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div class="auth-card-title" style="margin-bottom:0" id="fpTitle">Forgot Password</div>
+        </div>
+        <div class="auth-card-sub" id="fpSub">Enter your email, we'll send a verification code</div>
+        <div class="auth-msg" id="fpMsg"></div>
+        <div id="fpStep1">
+          <div class="field">
+            <div class="field-lbl"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Email</div>
+            <div class="field-wrap"><input class="field-inp" id="fpEmail" type="email" placeholder="email@example.com" autocomplete="email"></div>
+            <div class="field-err-txt" id="fpEmailErr">Enter a valid email</div>
+          </div>
+          <button class="auth-btn" id="fpSendBtn" onclick="sendResetCode()"><div class="spin"></div><span class="btn-txt">Send Code</span></button>
+        </div>
+        <div id="fpStep2" style="display:none">
+          <div class="field">
+            <div class="field-lbl">Verification Code</div>
+            <div class="field-wrap"><input class="field-inp" id="fpCode" type="text" inputmode="numeric" maxlength="10" placeholder="Enter code" style="letter-spacing:4px;text-align:center;font-weight:700"></div>
+            <div class="field-err-txt" id="fpCodeErr">Enter the code from your email</div>
+          </div>
+          <div class="field">
+            <div class="field-lbl">New Password</div>
+            <div class="field-wrap">
+              <input class="field-inp" id="fpPass" type="password" placeholder="Min 8 characters" autocomplete="new-password" oninput="calcStrength2(this.value)">
+              <button class="field-toggle" type="button" onclick="toggleVis('fpPass',this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="strength" id="strengthBox2"><div class="strength-track"><div class="strength-bar" id="strengthBar2"></div></div><div class="strength-txt" id="strengthTxt2"></div></div>
+            <div class="field-err-txt" id="fpPassErr">Min 8 characters chahiye</div>
+          </div>
+          <button class="auth-btn" id="fpVerifyBtn" onclick="verifyResetCode()"><div class="spin"></div><span class="btn-txt">Reset Password</span></button>
+          <div class="auth-switch" style="margin-top:14px"><span id="fpResendTxt" style="cursor:pointer" onclick="resendResetCode()">Didn't get the code? <b>Resend</b></span></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -3265,9 +3306,24 @@ async function sbFetch(path, opts={}) {
    AUTH UI
 ══════════════════════════════════════════════════ */
 function showScreen(id) {
-  const login=document.getElementById('slideLogin'), signup=document.getElementById('slideSignup');
-  if(id==='login'){login.style.transform='translateX(0)';login.style.opacity='1';login.style.pointerEvents='auto';signup.style.transform='translateX(100%)';signup.style.opacity='0';signup.style.pointerEvents='none';}
-  else{signup.style.transform='translateX(0)';signup.style.opacity='1';signup.style.pointerEvents='auto';login.style.transform='translateX(-100%)';login.style.opacity='0';login.style.pointerEvents='none';}
+  const login=document.getElementById('slideLogin'), signup=document.getElementById('slideSignup'), forgot=document.getElementById('slideForgot');
+  const slides={login,signup,forgot};
+  const order=['login','signup','forgot'];
+  const targetIdx=order.indexOf(id);
+  order.forEach((key,i)=>{
+    const el=slides[key];
+    if(key===id){el.style.transform='translateX(0)';el.style.opacity='1';el.style.pointerEvents='auto';}
+    else{el.style.transform=i<targetIdx?'translateX(-100%)':'translateX(100%)';el.style.opacity='0';el.style.pointerEvents='none';}
+  });
+}
+function goForgot(){resetForgotForm();showScreen('forgot');document.getElementById('loginMsg').className='auth-msg';}
+function resetForgotForm(){
+  document.getElementById('fpStep1').style.display='';
+  document.getElementById('fpStep2').style.display='none';
+  document.getElementById('fpTitle').textContent='Forgot Password';
+  document.getElementById('fpSub').textContent="Enter your email, we'll send a verification code";
+  document.getElementById('fpEmail').value='';document.getElementById('fpCode').value='';document.getElementById('fpPass').value='';
+  clearMsg('fpMsg');
 }
 function goLogin(){showScreen('login');document.getElementById('signupMsg').className='auth-msg';}
 function goSignup(){showScreen('signup');document.getElementById('loginMsg').className='auth-msg';}
@@ -3331,6 +3387,74 @@ async function doLogin(){
     setMsg('loginMsg','Logged in!','ok');
     setTimeout(()=>enterApp(data.user),700);
   }catch(e){setMsg('loginMsg',e.message||'Login failed','err');}
+  btn.classList.remove('ld');btn.disabled=false;
+}
+
+/* ══════════════════════════════════════════════════
+   FORGOT PASSWORD — Email OTP via Supabase
+══════════════════════════════════════════════════ */
+let fpResendTimer=null,fpLastEmail='';
+function calcStrength2(pw){const box=document.getElementById('strengthBox2'),bar=document.getElementById('strengthBar2'),txt=document.getElementById('strengthTxt2');if(!pw){box.classList.remove('show');return;}box.classList.add('show');let sc=0;if(pw.length>=8)sc++;if(/[A-Z]/.test(pw))sc++;if(/[0-9]/.test(pw))sc++;if(/[^A-Za-z0-9]/.test(pw))sc++;const map=[{w:'25%',c:'var(--red)',t:'Weak'},{w:'50%',c:'var(--acc2)',t:'Fair'},{w:'75%',c:'var(--grn)',t:'Good'},{w:'100%',c:'var(--grn)',t:'Strong'}];const m=map[sc-1]||map[0];bar.style.width=m.w;bar.style.background=m.c;txt.textContent=m.t;txt.style.color=m.c;}
+function startResendCooldown(sec){
+  const el=document.getElementById('fpResendTxt');
+  let s=sec;
+  el.style.pointerEvents='none';el.style.opacity='.55';
+  clearInterval(fpResendTimer);
+  el.innerHTML=`Resend code in ${s}s`;
+  fpResendTimer=setInterval(()=>{
+    s--;
+    if(s<=0){clearInterval(fpResendTimer);el.style.pointerEvents='';el.style.opacity='';el.innerHTML="Didn't get the code? <b>Resend</b>";}
+    else el.innerHTML=`Resend code in ${s}s`;
+  },1000);
+}
+async function sendResetCode(){
+  clearMsg('fpMsg');
+  const email=document.getElementById('fpEmail').value.trim();
+  setErr('fpEmailErr',!email||!email.includes('@'));
+  if(!email||!email.includes('@'))return;
+  const btn=document.getElementById('fpSendBtn');btn.classList.add('ld');btn.disabled=true;
+  try{
+    const{ok,data}=await sbAuth('recover',{email});
+    if(!ok){const em=(data?data.error_description:undefined)||(data?data.msg:undefined)||(data?data.message:undefined)||'Could not send code';throw new Error(em);}
+    fpLastEmail=email;
+    document.getElementById('fpTitle').textContent='Enter Code';
+    document.getElementById('fpSub').textContent=`We sent a verification code to ${email}`;
+    document.getElementById('fpStep1').style.display='none';
+    document.getElementById('fpStep2').style.display='';
+    document.getElementById('fpCode').value='';document.getElementById('fpPass').value='';
+    setMsg('fpMsg','Code sent! Check your email inbox (aur spam bhi).','ok');
+    startResendCooldown(30);
+  }catch(e){setMsg('fpMsg',e.message||'Something went wrong','err');}
+  btn.classList.remove('ld');btn.disabled=false;
+}
+async function resendResetCode(){
+  if(!fpLastEmail)return;
+  clearMsg('fpMsg');
+  try{
+    const{ok,data}=await sbAuth('recover',{email:fpLastEmail});
+    if(!ok){const em=(data?data.error_description:undefined)||(data?data.msg:undefined)||'Could not resend code';throw new Error(em);}
+    setMsg('fpMsg','New code sent!','ok');
+    startResendCooldown(30);
+  }catch(e){setMsg('fpMsg',e.message||'Something went wrong','err');}
+}
+async function verifyResetCode(){
+  clearMsg('fpMsg');
+  const code=document.getElementById('fpCode').value.trim(),pass=document.getElementById('fpPass').value;
+  setErr('fpCodeErr',code.length<4);setErr('fpPassErr',pass.length<8);
+  if(code.length<4||pass.length<8)return;
+  const btn=document.getElementById('fpVerifyBtn');btn.classList.add('ld');btn.disabled=true;
+  try{
+    const{ok,data}=await sbAuth('verify',{email:fpLastEmail,token:code,type:'recovery'});
+    if(!ok){const em=(data?data.error_description:undefined)||(data?data.msg:undefined)||(data?data.message:undefined)||'Invalid or expired code';throw new Error(em);}
+    const accessToken=data.access_token;
+    if(!accessToken)throw new Error('Verification failed, try again');
+    const r=await fetch(`${SB_URL}/auth/v1/user`,{method:'PUT',headers:{apikey:SB_KEY,Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({password:pass})});
+    if(!r.ok){const ed=await r.json().catch(()=>({}));throw new Error(ed.msg||ed.error_description||ed.message||'Password update failed');}
+    SS.save(data);
+    setMsg('fpMsg','Password reset! Logging in...','ok');
+    clearInterval(fpResendTimer);
+    setTimeout(()=>enterApp(data.user),900);
+  }catch(e){setMsg('fpMsg',e.message||'Something went wrong','err');}
   btn.classList.remove('ld');btn.disabled=false;
 }
 
