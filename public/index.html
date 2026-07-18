@@ -484,9 +484,15 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .ctrl-play:hover{transform:scale(1.05);box-shadow:0 12px 40px rgba(108,92,231,.6)}
 .ctrl-play:active{transform:scale(.95)}
 .np-vol{display:flex;align-items:center;gap:10px}
-.vol-ico{color:var(--tx3);flex-shrink:0}
-.vol-track{flex:1;height:4px;background:var(--s4);border-radius:4px;cursor:pointer}
-.vol-fill{height:100%;background:var(--p);border-radius:4px;width:80%}
+.vol-ico{color:var(--tx3);flex-shrink:0;cursor:pointer;transition:color .2s ease,transform .15s ease}
+.vol-ico:active{transform:scale(.85)}
+.vol-track{position:relative;flex:1;height:24px;display:flex;align-items:center;cursor:pointer}
+.vol-track::before{content:'';position:absolute;top:50%;left:0;right:0;height:4px;transform:translateY(-50%);background:var(--s4);border-radius:4px}
+.vol-fill{position:absolute;top:50%;left:0;transform:translateY(-50%);height:4px;background:linear-gradient(90deg,var(--p),var(--p2));border-radius:4px;width:80%;pointer-events:none;transition:box-shadow .15s ease}
+.vol-thumb{position:absolute;top:50%;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.4);transform:translate(-50%,-50%) scale(0);transition:transform .15s ease,box-shadow .15s ease;pointer-events:none}
+.vol-track:hover .vol-thumb,.vol-track.dragging .vol-thumb{transform:translate(-50%,-50%) scale(1)}
+.vol-track.dragging .vol-thumb{box-shadow:0 0 0 6px rgba(108,92,231,.25),0 1px 4px rgba(0,0,0,.4)}
+.vol-track:hover .vol-fill,.vol-track.dragging .vol-fill{box-shadow:0 0 8px rgba(108,92,231,.6)}
 .up-next{margin-top:24px;padding-bottom:8px}
 .un-title{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:10px}
 
@@ -1217,8 +1223,8 @@ audio{display:none}
           </button>
         </div>
         <div class="np-vol">
-          <svg class="vol-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
-          <div class="vol-track" id="volTrack" onclick="setVol(event)"><div class="vol-fill" id="volFill"></div></div>
+          <svg class="vol-ico" id="volMuteIco" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" onclick="toggleMute()"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
+          <div class="vol-track" id="volTrack"><div class="vol-fill" id="volFill"></div><div class="vol-thumb" id="volThumb"></div></div>
           <svg class="vol-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         </div>
         <!-- DOWNLOAD BUTTON -->
@@ -4177,6 +4183,7 @@ async function playById(id){
     userClosedMini=false;
     if(!npOpen) showMini();
     aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
+    document.getElementById('volThumb').style.left=document.getElementById('volFill').style.width||'80%';
     wasPlayingBeforeHide=true;
 
     // ── PRIORITY 1: url already hai — seedha play ──
@@ -4591,7 +4598,40 @@ function onTU(){
   else bgEndedPending = false;
 }
 function seekClick(e){if(!aud.duration)return;const r=document.getElementById('npTrack').getBoundingClientRect();aud.currentTime=((e.clientX-r.left)/r.width)*aud.duration;}
-function setVol(e){const r=document.getElementById('volTrack').getBoundingClientRect();const p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));aud.volume=p;document.getElementById('volFill').style.width=(p*100)+'%';}
+let lastVol=0.8;
+function applyVol(p){
+  p=Math.max(0,Math.min(1,p));
+  aud.volume=p;
+  document.getElementById('volFill').style.width=(p*100)+'%';
+  document.getElementById('volThumb').style.left=(p*100)+'%';
+  const ico=document.getElementById('volMuteIco');
+  if(p>0){lastVol=p;}
+  ico.innerHTML=p<=0
+    ?'<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>'
+    :'<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>';
+}
+function setVol(e){
+  const r=document.getElementById('volTrack').getBoundingClientRect();
+  const x=(e.touches?e.touches[0].clientX:e.clientX);
+  applyVol((x-r.left)/r.width);
+}
+function toggleMute(){
+  applyVol(aud.volume>0?0:(lastVol||0.8));
+}
+(function initVolDrag(){
+  const track=document.getElementById('volTrack');
+  if(!track)return;
+  let dragging=false;
+  const start=e=>{dragging=true;track.classList.add('dragging');setVol(e);e.preventDefault();};
+  const move=e=>{if(dragging){setVol(e);}};
+  const end=()=>{if(dragging){dragging=false;track.classList.remove('dragging');}};
+  track.addEventListener('mousedown',start);
+  track.addEventListener('touchstart',start,{passive:false});
+  window.addEventListener('mousemove',move);
+  window.addEventListener('touchmove',move,{passive:false});
+  window.addEventListener('mouseup',end);
+  window.addEventListener('touchend',end);
+})();
 function toggleRepeat(){repeat=!repeat;document.getElementById('npRep').classList.toggle('on',repeat);toast(repeat?'Repeat ON':'Repeat OFF','inf');}
 function toggleShuffle(){shuffle=!shuffle;document.getElementById('npShuf').classList.toggle('on',shuffle);toast(shuffle?'Shuffle ON':'Shuffle OFF','inf');}
 function toggleSleep(){if(sleepOn){clearTimeout(sleepTimer);sleepOn=false;document.getElementById('npSleep').classList.remove('on');toast('Sleep timer off','inf');}else{sleepOn=true;document.getElementById('npSleep').classList.add('on');toast('Sleep: 30 min baad band hoga','inf');sleepTimer=setTimeout(()=>{aud.pause();sleepOn=false;document.getElementById('npSleep').classList.remove('on');toast('Music band ho gaya','inf');},30*60*1000);}}
