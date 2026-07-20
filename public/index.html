@@ -395,7 +395,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 
 /* ── SONGS LIST ── */
 .songs-wrap{display:flex;flex-direction:column;gap:1px;padding:0 10px}
-.s-row{display:flex;align-items:center;gap:12px;padding:10px 10px 10px 8px;border-radius:var(--r2);cursor:pointer;transition:background .15s;position:relative}
+.s-row{display:flex;align-items:center;gap:8px;padding:10px 8px 10px 8px;border-radius:var(--r2);cursor:pointer;transition:background .15s;position:relative}
 .s-row:hover{background:var(--s2)}
 .s-row:active{background:var(--s3)}
 .s-row.now-on{background:rgba(108,92,231,.09)}
@@ -473,12 +473,18 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .np-action.on svg{fill:var(--acc)}
 .np-prog{margin-bottom:20px}
 .np-track{position:relative;width:100%;height:28px;display:flex;align-items:center;cursor:pointer}
+.wave-bars{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:24px;display:flex;align-items:center;gap:2px;pointer-events:none}
+.wave-bars .wb{flex:1;min-width:2px;border-radius:2px;background:var(--s4);transition:background .2s}
+.wave-bars-active{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:24px;display:flex;align-items:center;gap:2px;pointer-events:none;clip-path:inset(0 100% 0 0)}
+.wave-bars-active .wb{flex:1;min-width:2px;border-radius:2px;background:linear-gradient(180deg,var(--p2),var(--p))}
 .np-track::before{content:'';position:absolute;top:50%;left:0;right:0;height:4px;transform:translateY(-50%);background:var(--s4);border-radius:4px}
 .np-bar{position:absolute;top:50%;left:0;transform:translateY(-50%);height:4px;background:var(--grad);border-radius:4px;width:0%;transition:width .35s linear,box-shadow .15s ease}
 .np-track.dragging .np-bar{transition:none}
 .np-bar::after{content:'';position:absolute;right:0;top:50%;transform:translate(50%,-50%) scale(1);width:16px;height:16px;border-radius:50%;background:var(--p2);box-shadow:0 0 12px rgba(108,92,231,.7),0 0 0 3px rgba(13,15,28,1);transition:box-shadow .15s ease}
 .np-track.dragging .np-bar::after{box-shadow:0 0 0 6px rgba(108,92,231,.25),0 0 12px rgba(108,92,231,.7),0 0 0 3px rgba(13,15,28,1)}
 .np-track:hover .np-bar,.np-track.dragging .np-bar{box-shadow:0 0 8px rgba(108,92,231,.6)}
+.np-track.has-wave::before{display:none}
+.np-track.has-wave .np-bar{background:transparent;box-shadow:none!important}
 .np-times{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;font-family:'DM Mono',monospace;color:var(--tx3)}
 .np-ctrl{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:18px}
 .ctrl-btn{background:none;border:none;color:var(--tx2);cursor:pointer;border-radius:50%;width:46px;height:46px;display:flex;align-items:center;justify-content:center;transition:all .15s}
@@ -498,6 +504,19 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background-image:url("da
 .vol-track:hover .vol-fill,.vol-track.dragging .vol-fill{box-shadow:0 0 8px rgba(108,92,231,.6)}
 .up-next{margin-top:24px;padding-bottom:8px}
 .un-title{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:10px}
+.autoplay-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--tx3);background:var(--s3);border:1px solid var(--bd2);border-radius:20px;padding:5px 10px;cursor:pointer;transition:all .18s;user-select:none}
+.autoplay-pill.on{color:var(--grn);background:rgba(0,206,201,.1);border-color:rgba(0,206,201,.3)}
+.queue-row{display:flex;align-items:center;gap:8px;padding:8px 4px;border-radius:12px;transition:background .15s,box-shadow .15s,opacity .15s;position:relative;touch-action:pan-y}
+.queue-row.dragging{background:var(--s3);box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5;opacity:.95}
+.queue-drag{cursor:grab;color:var(--tx3);flex-shrink:0;padding:6px;touch-action:none}
+.queue-remove{background:none;border:none;color:var(--tx3);cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.queue-remove:hover{color:var(--red)}
+.eq-band-track{position:relative;width:36px;height:90px;margin:0 auto;cursor:pointer;touch-action:none;display:flex;justify-content:center}
+.eq-band-track::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:8px;transform:translateX(-50%);background:var(--s4);border-radius:5px}
+.eq-band-fill{position:absolute;left:50%;bottom:0;width:8px;transform:translateX(-50%);background:var(--grad);border-radius:5px;pointer-events:none}
+.eq-band-thumb{position:absolute;left:50%;width:17px;height:17px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.4);transform:translate(-50%,50%);pointer-events:none;transition:box-shadow .15s}
+.eq-band-track.dragging .eq-band-thumb{box-shadow:0 0 0 7px rgba(108,92,231,.25),0 1px 4px rgba(0,0,0,.4)}
+.eq-band-track.dragging .eq-band-fill{box-shadow:0 0 8px rgba(108,92,231,.6)}
 
 /* ── BOTTOM NAV ── */
 .bot-nav{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:460px;z-index:99;background:rgba(18,18,28,.92);backdrop-filter:blur(32px) saturate(1.8);border:1px solid rgba(255,255,255,.08);display:flex;padding:8px 10px;height:64px;border-radius:40px;gap:2px;box-shadow:0 8px 32px rgba(0,0,0,.45);box-sizing:border-box}
@@ -1244,9 +1263,12 @@ audio{display:none}
           <div class="np-action" id="npRep" onclick="toggleRepeat()">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
           </div>
+          <div class="np-action" id="npEqBtn" onclick="openEQ()" title="Equalizer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          </div>
         </div>
         <div class="np-prog">
-          <div class="np-track" id="npTrack" onclick="seekClick(event)"><div class="np-bar" id="npBar"></div></div>
+          <div class="np-track" id="npTrack" onclick="seekClick(event)"><div class="wave-bars" id="waveBars"></div><div class="wave-bars-active" id="waveBarsActive"></div><div class="np-bar" id="npBar"></div></div>
           <div class="np-times"><span id="npCur">0:00</span><span id="npDur">0:00</span></div>
         </div>
         <div class="np-ctrl">
@@ -1279,7 +1301,7 @@ audio{display:none}
         <div class="dl-progress-wrap" id="dlProgressWrap">
           <div class="dl-progress-bar" id="dlProgressBar"></div>
         </div>
-        <div class="up-next"><div class="un-title">Up Next <span style="font-size:11px;font-weight:600;color:var(--grn);background:rgba(0,206,201,.1);border-radius:6px;padding:2px 7px;margin-left:6px">Downloaded</span></div><div class="songs-wrap" id="upNextList" style="padding:0"></div></div>
+        <div class="up-next"><div class="un-title" style="display:flex;align-items:center;justify-content:space-between;width:100%"><span>Up Next</span><span class="autoplay-pill" id="autoplayPill" onclick="toggleAutoplay()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg><span id="autoplayTxt">Autoplay ON</span></span></div><div class="songs-wrap" id="upNextList" style="padding:0"></div></div>
       </div>
     </div>
 
@@ -1492,6 +1514,19 @@ audio{display:none}
     <h3 style="font-size:18px;font-weight:800;margin-bottom:16px">Add to Playlist</h3>
     <div id="addToPlList" style="max-height:300px;overflow-y:auto"></div>
     <button onclick="hideAddToPlaylist()" style="width:100%;background:var(--s3);border:none;color:var(--tx2);padding:14px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;margin-top:12px">Cancel</button>
+  </div>
+</div>
+
+<!-- EQUALIZER MODAL -->
+<div id="eqModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);align-items:flex-end;justify-content:center">
+  <div style="background:var(--s2);border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px">
+    <h3 style="font-size:18px;font-weight:800;margin-bottom:4px">Equalizer</h3>
+    <div style="font-size:12.5px;color:var(--tx3);margin-bottom:10px;display:flex;align-items:center;gap:8px">Sound presets — apni pasand ka style chuno <span id="eqCustomTag" style="display:none;font-size:10px;font-weight:800;color:var(--p2);background:rgba(108,92,231,.14);border:1px solid var(--p);border-radius:20px;padding:2px 8px">Custom</span></div>
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:14px">Bars ko upar/neeche drag karke apna khud ka mix bana sakte ho</div>
+    <div id="eqSafetyNote" style="display:none;font-size:12px;color:#FDCB6E;background:rgba(253,203,110,.1);border:1px solid rgba(253,203,110,.3);border-radius:10px;padding:10px 12px;margin-bottom:14px">⚠️ Yeh song streaming se aa raha hai — EQ sirf downloaded songs par kaam karta hai.</div>
+    <div id="eqPresetList" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
+    <div id="eqBandsWrap" style="display:flex;justify-content:space-between;gap:14px;padding:6px 4px 18px"></div>
+    <button onclick="closeEQ()" style="width:100%;background:var(--s3);border:none;color:var(--tx2);padding:14px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">Done</button>
   </div>
 </div>
 
@@ -2230,6 +2265,7 @@ async function playDownloaded(id) {
     document.getElementById('npBar').style.width = '0%';
     document.getElementById('miniFill').style.width = '0%';
     document.getElementById('npRing').style.setProperty('--prog', '0%');
+    setProgUI(0);
     document.getElementById('npCur').textContent = '0:00';
     document.getElementById('npDur').textContent = '0:00';
 
@@ -3578,6 +3614,29 @@ async function boot(){
   aud.addEventListener('ended',onEnded);
   aud.addEventListener('play',()=>setPlayUI(true));
   aud.addEventListener('pause',()=>setPlayUI(false));
+
+  // ── Bluetooth (ya kisi bhi audio output device) disconnect pe song pause ──
+  // Jab earbuds/headset off ho jaaye, audio route badalta hai — usse pehle
+  // count of available audio-output devices detect karke pause kar dete hain,
+  // taaki gaana achanak phone ke speaker pe loud na baj jaaye.
+  if(navigator.mediaDevices && navigator.mediaDevices.enumerateDevices){
+    let _lastAudioOutCount=null;
+    async function _checkAudioOutputs(){
+      try{
+        const devices=await navigator.mediaDevices.enumerateDevices();
+        const count=devices.filter(d=>d.kind==='audiooutput').length;
+        if(_lastAudioOutCount!==null && count<_lastAudioOutCount && !aud.paused){
+          aud.pause();
+          wasPlayingBeforeHide=false; // headphone-unplug jaisa intentional pause treat karo
+          toast('Bluetooth disconnect ho gaya — song pause kar diya','inf');
+        }
+        _lastAudioOutCount=count;
+      }catch(e){}
+    }
+    navigator.mediaDevices.addEventListener('devicechange',_checkAudioOutputs);
+    _checkAudioOutputs();
+  }
+
   if('mediaSession' in navigator){
     navigator.mediaSession.setActionHandler('play',()=>aud.play());
     navigator.mediaSession.setActionHandler('pause',()=>aud.pause());
@@ -4008,6 +4067,9 @@ function loadYtSongsIntoArray(){
   });
 }
 let curIdx=-1,playing=false,repeat=false,shuffle=false;
+let playQueue=[]; // user/auto managed "Up Next" queue — array of song objects
+let autoplayOn=(localStorage.getItem('tt_autoplay')!=='off');
+const _waveCache={}; // songId → array of bar heights (0-1)
 let filterMode='all',searchVal='',miniUp=false,npOpen=false,userClosedMini=false;
 const _urlRefreshing = {}; // videoId → true/false — global URL refresh guard
 let _currentPlayingId = null; // Playing song ID — refresh ke baad bhi sahi track kare
@@ -4195,7 +4257,7 @@ function getFiltered(){
 function songIco(s){return s.thumb?`<img src="${s.thumb}" onerror="this.style.display='none'" loading="lazy">`:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;}
 function eqOrPlay(isNow){return isNow?`<div class="eq-bars ${playing?'':'paused'}"><div class="eq-b"></div><div class="eq-b"></div><div class="eq-b"></div></div>`:`<svg width="13" height="13" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;}
 function heartBtn(id,faved,ctx){if(ctx==='upnext')return'';return`<button class="s-heart ${faved?'on':''}" onclick="event.stopPropagation();toggleFav('${id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="${faved?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>`;}
-function makeRow(s,i,ctx){const isNow=curIdx!==-1&&(songs[curIdx]?songs[curIdx].id:undefined)===s.id,faved=favs.includes(s.id),numCell=ctx!=='upnext'?`<div class="s-num">${i+1}</div>`:'',sz=ctx==='upnext'?'width:42px;height:42px':'',dur=s.dur!=='—'?`<span class="s-dur">${s.dur}</span>`:'';const addPl=ctx!=='upnext'?`<button onclick="event.stopPropagation();showAddToPlaylist('${s.id}')" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="Add to Playlist"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`:'';const dlded=typeof isDownloaded==='function'&&isDownloaded(s.id);const dlBtn=ctx!=='upnext'?`<button onclick="event.stopPropagation();downloadSongById('${s.id}')" style="background:none;border:none;color:${dlded?'var(--grn)':'var(--tx3)'};cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="${dlded?'Downloaded':'Download'}" id="dlbtn-${s.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${dlded?'<polyline points="20 6 9 17 4 12"/>':`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`}</svg></button>`:'';return`<div class="s-row ${isNow?'now-on':''}" onclick="playById('${s.id}')">${numCell}<div class="s-thumb" style="${sz}">${songIco(s)}<div class="s-ov">${eqOrPlay(isNow)}</div></div><div class="s-info"><div class="s-name">${s.title}</div><div class="s-art">${s.artist}</div></div>${dur}${addPl}${dlBtn}${heartBtn(s.id,faved,ctx)}</div>`;}
+function makeRow(s,i,ctx){const isNow=curIdx!==-1&&(songs[curIdx]?songs[curIdx].id:undefined)===s.id,faved=favs.includes(s.id),numCell=ctx!=='upnext'?`<div class="s-num">${i+1}</div>`:'',sz=ctx==='upnext'?'width:42px;height:42px':'',dur=s.dur!=='—'?`<span class="s-dur">${s.dur}</span>`:'';const addPl=ctx!=='upnext'?`<button onclick="event.stopPropagation();showAddToPlaylist('${s.id}')" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="Add to Playlist"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`:'';const addQ=ctx!=='upnext'?`<button onclick="event.stopPropagation();addToQueue('${s.id}')" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="Add to Queue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="12" y1="3" x2="12" y2="13"/></svg></button>`:'';const dlded=typeof isDownloaded==='function'&&isDownloaded(s.id);const dlBtn=ctx!=='upnext'?`<button onclick="event.stopPropagation();downloadSongById('${s.id}')" style="background:none;border:none;color:${dlded?'var(--grn)':'var(--tx3)'};cursor:pointer;padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center" title="${dlded?'Downloaded':'Download'}" id="dlbtn-${s.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${dlded?'<polyline points="20 6 9 17 4 12"/>':`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`}</svg></button>`:'';return`<div class="s-row ${isNow?'now-on':''}" onclick="playById('${s.id}')">${numCell}<div class="s-thumb" style="${sz}">${songIco(s)}<div class="s-ov">${eqOrPlay(isNow)}</div></div><div class="s-info"><div class="s-name">${s.title}</div><div class="s-art">${s.artist}</div></div>${dur}${addQ}${addPl}${dlBtn}</div>`;}
 
 function renderSongs(){filtered=getFiltered();const g=document.getElementById('songsList');if(!filtered.length){
   if(searchVal&&songs.length>0){
@@ -4253,15 +4315,38 @@ function renderSongs(){filtered=getFiltered();const g=document.getElementById('s
 }g.innerHTML=filtered.map(function(s,i){return makeRow(s,i,'home');}).join('');}
 function renderFavs(){const list=songs.filter(s=>favs.includes(s.id));document.getElementById('favsCount').textContent=`${list.length} songs`;const g=document.getElementById('favsList');if(!list.length){g.innerHTML=`<div class="state-empty"><div class="state-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><h3>No Favorite No</h3><p>Tap the heart icon on songs</p></div>`;return;}g.innerHTML=list.map((s,i)=>makeRow(s,i,'favs')).join('');}
 function renderRecent(){const sec=document.getElementById('recentArea');if(!recent.length||searchVal){sec.style.display='none';return;}const rs=recent.map(id=>songs.find(s=>s.id===id)).filter(Boolean).slice(0,10);if(!rs.length){sec.style.display='none';return;}sec.style.display='';document.getElementById('recentList').innerHTML=rs.map(s=>`<div class="rc-card" onclick="playById('${s.id}')"><div class="rc-art">${s.thumb?`<img src="${s.thumb}" onerror="this.style.display='none'" loading="lazy">`:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`}<div class="rc-play-ov"><div class="rc-play-ring"><svg width="14" height="14" viewBox="0 0 24 24" fill="#111" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div></div><div class="rc-name">${s.title}</div><div class="rc-artist">${s.artist}</div></div>`).join('');}
-function renderUpNext(){
+function renderUpNext(skipPillUpdate){
   const g=document.getElementById('upNextList');
   if(!g) return;
-  // Sirf downloaded songs Up Next mein dikhao
+  if(!skipPillUpdate) updateAutoplayPill();
+
+  // ── Queue mode: user ne songs add ki hain (manually ya autoplay se) ──
+  if(playQueue.length>0){
+    g.innerHTML = playQueue.map((s,i) => `<div class="queue-row" id="qrow-${i}" data-idx="${i}">
+      <div class="queue-drag" onpointerdown="queueDragStart(event,${i})" ontouchstart="queueDragStart(event,${i})">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+      </div>
+      <div class="s-thumb" style="width:42px;height:42px;flex-shrink:0;cursor:pointer" onclick="playFromQueue(${i})">
+        ${s.thumb ? `<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.style.display='none'">` : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`}
+      </div>
+      <div class="s-info" style="cursor:pointer" onclick="playFromQueue(${i})">
+        <div class="s-name">${s.title}</div>
+        <div class="s-art">${s.artist}</div>
+      </div>
+      ${s.dur && s.dur !== '—' ? `<span class="s-dur">${s.dur}</span>` : ''}
+      <button class="queue-remove" onclick="event.stopPropagation();removeFromQueue(${i})" title="Remove">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>`).join('');
+    return;
+  }
+
+  // ── Fallback: koi manual queue nahi — downloaded songs suggest karo ──
   const dlMeta = getDlMeta();
   if(!dlMeta.length){
     g.innerHTML=`<div style="color:var(--tx3);font-size:12px;padding:16px 0;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      <span>No downloaded songs — pehle songs download karo</span>
+      <span>Queue khaali hai — kisi song par + dabao ya songs download karo</span>
     </div>`;
     return;
   }
@@ -4287,7 +4372,139 @@ function renderUpNext(){
     </div>`;
   }).join('');
 }
+function playFromQueue(idx){
+  const item=playQueue[idx];
+  if(!item) return;
+  playQueue.splice(idx,1);
+  renderUpNext();
+  playById(item.id);
+}
 function renderFavBadge(){const b=document.getElementById('favBadge');b.textContent=favs.length;b.style.display=favs.length?'block':'none';}
+
+/* ══════════════════════════════════════════════════
+   QUEUE MANAGEMENT — Add to Queue / Reorder / Remove
+══════════════════════════════════════════════════ */
+function addToQueue(id){
+  const s=songs.find(x=>x.id===id);
+  if(!s) return;
+  if(curIdx>=0&&songs[curIdx]&&songs[curIdx].id===id){ toast('Yeh song already play ho raha hai','inf'); return; }
+  if(playQueue.some(q=>q.id===id)){ toast('Yeh song pehle se queue mein hai','inf'); return; }
+  playQueue.push(s);
+  toast('Queue mein add ho gaya','ok');
+  renderUpNext();
+}
+function removeFromQueue(idx){
+  playQueue.splice(idx,1);
+  renderUpNext();
+}
+function toggleAutoplay(){
+  autoplayOn=!autoplayOn;
+  localStorage.setItem('tt_autoplay',autoplayOn?'on':'off');
+  updateAutoplayPill();
+  toast(autoplayOn?'Autoplay ON — song khatam hote hi similar gaane add honge':'Autoplay OFF','inf');
+}
+function updateAutoplayPill(){
+  const pill=document.getElementById('autoplayPill'),txt=document.getElementById('autoplayTxt');
+  if(!pill) return;
+  pill.classList.toggle('on',autoplayOn);
+  txt.textContent=autoplayOn?'Autoplay ON':'Autoplay OFF';
+}
+function buildAutoQueue(){
+  if(!songs.length||curIdx<0) return [];
+  const cur=songs[curIdx];
+  const pool=songs.filter(s=>s.id!==cur.id);
+  const sameArtist=pool.filter(s=>s.artist&&cur.artist&&s.artist.toLowerCase().trim()===cur.artist.toLowerCase().trim());
+  const rest=pool.filter(s=>!sameArtist.includes(s));
+  const shuf=arr=>arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(v=>v[1]);
+  return [...shuf(sameArtist),...shuf(rest)].slice(0,10);
+}
+
+/* ── Up Next queue — drag-to-reorder (Pointer Events) ── */
+let _dragEl=null,_dragFromIdx=null,_dragStartY=0,_dragOffsetY=0;
+function queueDragStart(e,idx){
+  const row=document.getElementById('qrow-'+idx);
+  if(!row) return;
+  _dragEl=row;_dragFromIdx=idx;
+  _dragStartY=(e.touches?e.touches[0].clientY:e.clientY);
+  _dragOffsetY=0;
+  row.classList.add('dragging');
+  row.style.position='relative';row.style.zIndex='5';
+  document.addEventListener('pointermove',queueDragMove);
+  document.addEventListener('pointerup',queueDragEnd);
+  document.addEventListener('touchmove',queueDragMove,{passive:false});
+  document.addEventListener('touchend',queueDragEnd);
+  if(e.cancelable)e.preventDefault();
+}
+function queueDragMove(e){
+  if(!_dragEl) return;
+  if(e.cancelable)e.preventDefault();
+  const y=(e.touches?e.touches[0].clientY:e.clientY);
+  _dragOffsetY=y-_dragStartY;
+  _dragEl.style.transform=`translateY(${_dragOffsetY}px)`;
+  // find row we're hovering over
+  const rows=[...document.querySelectorAll('.queue-row')];
+  const dragRect=_dragEl.getBoundingClientRect();
+  const dragMid=dragRect.top+dragRect.height/2;
+  for(const row of rows){
+    if(row===_dragEl) continue;
+    const r=row.getBoundingClientRect();
+    const mid=r.top+r.height/2;
+    const toIdx=parseInt(row.dataset.idx);
+    if(dragMid<mid && dragMid>r.top || dragMid>mid && dragMid<r.bottom){
+      if(toIdx!==_dragFromIdx){
+        const [item]=playQueue.splice(_dragFromIdx,1);
+        playQueue.splice(toIdx,0,item);
+        _dragFromIdx=toIdx;
+        renderUpNext(true);
+        const newEl=document.getElementById('qrow-'+toIdx);
+        if(newEl){_dragEl=newEl;_dragEl.classList.add('dragging');_dragEl.style.zIndex='5';_dragEl.style.transform=`translateY(${_dragOffsetY}px)`;}
+      }
+      break;
+    }
+  }
+}
+function queueDragEnd(){
+  if(_dragEl){
+    _dragEl.classList.remove('dragging');
+    _dragEl.style.transform='';
+    _dragEl.style.zIndex='';
+  }
+  _dragEl=null;_dragFromIdx=null;
+  document.removeEventListener('pointermove',queueDragMove);
+  document.removeEventListener('pointerup',queueDragEnd);
+  document.removeEventListener('touchmove',queueDragMove);
+  document.removeEventListener('touchend',queueDragEnd);
+  renderUpNext();
+}
+
+/* ══════════════════════════════════════════════════
+   WAVEFORM SEEK BAR — deterministic per-song bar pattern
+══════════════════════════════════════════════════ */
+function _seededRandom(seed){let x=Math.sin(seed)*10000;return x-Math.floor(x);}
+function getWaveform(songId){
+  if(_waveCache[songId]) return _waveCache[songId];
+  let seed=0;for(let i=0;i<songId.length;i++)seed=(seed*31+songId.charCodeAt(i))%100000;
+  const bars=[];
+  for(let i=0;i<56;i++){
+    const base=_seededRandom(seed+i*7.13);
+    const wave=Math.sin(i*0.4+seed*0.01)*0.25;
+    let h=0.25+base*0.55+wave;
+    h=Math.max(0.14,Math.min(1,h));
+    bars.push(h);
+  }
+  _waveCache[songId]=bars;
+  return bars;
+}
+function renderWaveform(songId){
+  const track=document.getElementById('npTrack');
+  const base=document.getElementById('waveBars'),active=document.getElementById('waveBarsActive');
+  if(!track||!base||!active) return;
+  const heights=getWaveform(songId);
+  const barsHtml=heights.map(h=>`<div class="wb" style="height:${Math.round(h*100)}%"></div>`).join('');
+  base.innerHTML=barsHtml;
+  active.innerHTML=barsHtml;
+  track.classList.add('has-wave');
+}
 
 /* ── PLAYBACK ── */
 let _playLock=false; // concurrent playById calls rok
@@ -4309,7 +4526,7 @@ async function playById(id){
     const s=songs[idx];
     userClosedMini=false;
     if(!npOpen) showMini();
-    aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
+    if(!(typeof eqLive!=='undefined'&&eqLive)) aud.volume=parseFloat(document.getElementById('volFill').style.width||'80')/100;
     document.getElementById('volThumb').style.left=document.getElementById('volFill').style.width||'80%';
     wasPlayingBeforeHide=true;
 
@@ -4390,6 +4607,8 @@ function updateNPUI(s){
   if(miniTh) miniTh.innerHTML=s.thumb?`<img src="${s.thumb}" style="width:100%;height:100%;object-fit:cover">`:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--tx3)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
   if(hrt){const faved=favs.includes(s.id);hrt.classList.toggle('on',faved);hrt.querySelector('svg').setAttribute('fill',faved?'currentColor':'none');}
   if(artEl) artEl.classList.toggle('spin',playing);
+  if(typeof renderWaveform==='function') renderWaveform(s.id);
+  if(typeof _reEvaluateEqForCurrentSong==='function') setTimeout(_reEvaluateEqForCurrentSong,150);
   // Download button state update karo
   if(typeof updateNPDlBtn === 'function') updateNPDlBtn(s.id);
   // ✅ Notification / Lock screen metadata update — har song change pe
@@ -4518,6 +4737,12 @@ window.onAndroidResume = function(){
 
 function _playNext(){
   wasPlayingBeforeHide = true;
+  if(playQueue.length>0){
+    const nextItem=playQueue.shift();
+    renderUpNext();
+    playById(nextItem.id);
+    return;
+  }
   const dlMeta = getDlMeta();
   const currentId = curIdx >= 0 && songs[curIdx] ? songs[curIdx].id : null;
   const currentIsDownloaded = dlMeta.some(d => d.id === currentId);
@@ -4534,7 +4759,21 @@ function _playNext(){
   // Fallback: normal online queue
   if(!songs.length) return;
   if(shuffle) curIdx = Math.floor(Math.random()*songs.length);
-  else curIdx = curIdx+1 < songs.length ? curIdx+1 : 0;
+  else if(curIdx+1<songs.length){ curIdx=curIdx+1; }
+  else{
+    // Library ke end tak pahunch gaye — autoplay ON hai to similar songs auto-add karo
+    if(autoplayOn){
+      const auto=buildAutoQueue();
+      if(auto.length){
+        playQueue=auto;
+        const nextItem=playQueue.shift();
+        renderUpNext();
+        playById(nextItem.id);
+        return;
+      }
+    }
+    curIdx=0;
+  }
   const s = songs[curIdx];
   if(!s) return;
 
@@ -4572,6 +4811,7 @@ function _loadAndPlay(s){
   document.getElementById('npBar').style.width='0%';
   document.getElementById('miniFill').style.width='0%';
   document.getElementById('npRing').style.setProperty('--prog','0%');
+  setProgUI(0);
   document.getElementById('npCur').textContent='0:00';
   document.getElementById('npDur').textContent='0:00';
 
@@ -4663,6 +4903,12 @@ function _loadAndPlay(s){
 
 function nextS(){
   wasPlayingBeforeHide=true;
+  if(playQueue.length>0){
+    const nextItem=playQueue.shift();
+    renderUpNext();
+    playById(nextItem.id);
+    return;
+  }
   const dlMeta=getDlMeta();
   const currentId=curIdx>=0&&songs[curIdx]?songs[curIdx].id:null;
   const currentIsDownloaded=dlMeta.some(d=>d.id===currentId);
@@ -4675,7 +4921,20 @@ function nextS(){
   }
   if(!songs.length)return;
   if(shuffle)curIdx=Math.floor(Math.random()*songs.length);
-  else curIdx=curIdx+1<songs.length?curIdx+1:0;
+  else if(curIdx+1<songs.length){ curIdx=curIdx+1; }
+  else{
+    if(autoplayOn){
+      const auto=buildAutoQueue();
+      if(auto.length){
+        playQueue=auto;
+        const nextItem=playQueue.shift();
+        renderUpNext();
+        playById(nextItem.id);
+        return;
+      }
+    }
+    curIdx=0;
+  }
   playById(songs[curIdx].id);
 }
 function prevS(){
@@ -4710,12 +4969,17 @@ function toggleFav(id){
   }
 }
 function toggleFavNP(){if(curIdx<0)return;toggleFav(songs[curIdx].id);}
+function setProgUI(pct){
+  const wa=document.getElementById('waveBarsActive');
+  if(wa) wa.style.clipPath=`inset(0 ${100-pct}% 0 0)`;
+}
 function onTU(){
   if(!aud.duration) return;
   const pct=aud.currentTime/aud.duration*100;
   if(!_seeking) document.getElementById('npBar').style.width=pct+'%';
   document.getElementById('miniFill').style.width=pct+'%';
   document.getElementById('npRing').style.setProperty('--prog',pct+'%');
+  if(!_seeking) setProgUI(pct);
   document.getElementById('npCur').textContent=fmtTime(aud.currentTime);
   document.getElementById('npDur').textContent=fmtTime(aud.duration);
   updateMediaPosition();
@@ -4732,6 +4996,7 @@ function seekClick(e){
   const p=Math.max(0,Math.min(1,(x-r.left)/r.width));
   aud.currentTime=p*aud.duration;
   document.getElementById('npBar').style.width=(p*100)+'%';
+  setProgUI(p*100);
   document.getElementById('npCur').textContent=fmtTime(aud.currentTime);
 }
 (function initSeekDrag(){
@@ -4751,7 +5016,14 @@ function seekClick(e){
 let lastVol=0.8;
 function applyVol(p){
   p=Math.max(0,Math.min(1,p));
-  aud.volume=p;
+  if(typeof eqLive!=='undefined'&&eqLive){
+    _eqUserVol=p;
+    if(audEq) audEq.volume=p;
+    // aud.volume 0 hi rakho jab tak eqLive hai (uska output audEq se aa raha hai)
+  } else {
+    aud.volume=p;
+    if(typeof _eqUserVol!=='undefined') _eqUserVol=p;
+  }
   document.getElementById('volFill').style.width=(p*100)+'%';
   document.getElementById('volThumb').style.left=(p*100)+'%';
   const ico=document.getElementById('volMuteIco');
@@ -4766,7 +5038,8 @@ function setVol(e){
   applyVol((x-r.left)/r.width);
 }
 function toggleMute(){
-  applyVol(aud.volume>0?0:(lastVol||0.8));
+  const curVol=(typeof eqLive!=='undefined'&&eqLive)?_eqUserVol:aud.volume;
+  applyVol(curVol>0?0:(lastVol||0.8));
 }
 (function initVolDrag(){
   const track=document.getElementById('volTrack');
@@ -6322,6 +6595,281 @@ async function ytRefreshSongs(){
     }
   }catch(e){console.warn('ytRefreshSongs:',e);}
 }
+
+/* ══════════════════════════════════════════════════
+   MINI-PLAYER SWIPE GESTURES — swipe left/right for next/prev
+══════════════════════════════════════════════════ */
+(function initMiniSwipe(){
+  const mini=document.getElementById('mini');
+  if(!mini) return;
+  let startX=0,startY=0,dx=0,dragging=false,decided=false;
+  const threshold=60;
+  const onStart=e=>{
+    if(e.target.closest('.mini-btn')||e.target.closest('.mini-close-btn'))return;
+    const t=e.touches?e.touches[0]:e;
+    startX=t.clientX;startY=t.clientY;dx=0;dragging=true;decided=false;
+    mini.style.transition='none';
+  };
+  const onMove=e=>{
+    if(!dragging)return;
+    const t=e.touches?e.touches[0]:e;
+    dx=t.clientX-startX;
+    const dy=t.clientY-startY;
+    if(!decided){
+      if(Math.abs(dx)>8||Math.abs(dy)>8){
+        decided=true;
+        if(Math.abs(dy)>Math.abs(dx)){ dragging=false; mini.style.transition=''; return; }
+      } else return;
+    }
+    if(e.cancelable)e.preventDefault();
+    mini.style.transform=`translateX(${dx}px)`;
+    mini.style.opacity=String(1-Math.min(.6,Math.abs(dx)/300));
+  };
+  const onEnd=()=>{
+    if(!dragging)return;
+    dragging=false;
+    mini.style.transition='transform .25s ease,opacity .25s ease';
+    if(dx>threshold){ prevS(); }
+    else if(dx<-threshold){ nextS(); }
+    mini.style.transform='';
+    mini.style.opacity='';
+  };
+  mini.addEventListener('touchstart',onStart,{passive:true});
+  mini.addEventListener('touchmove',onMove,{passive:false});
+  mini.addEventListener('touchend',onEnd);
+  mini.addEventListener('pointerdown',onStart);
+  mini.addEventListener('pointermove',onMove);
+  mini.addEventListener('pointerup',onEnd);
+})();
+
+/* ══════════════════════════════════════════════════
+   EQUALIZER — Web Audio API, 3-band (bass/mid/treble)
+   IMPORTANT: main `aud` element (streaming ke liye use hota
+   hai) ko KABHI Web Audio se connect nahi karte — kyunki
+   ek baar connect hone ke baad woh element hamesha ke liye
+   us route pe lock ho jaata hai, aur CORS-restricted stream
+   URLs uss route par permanently silent ho jaate hain.
+   Isliye EQ apna alag, isolated "shadow" audio element
+   (audEq) use karta hai jo sirf downloaded (blob) songs ko
+   mirror karta hai. Main `aud` hamesha safe/native rehta hai.
+══════════════════════════════════════════════════ */
+let _eqCtx=null,_eqSource=null,_eqBass=null,_eqMid=null,_eqTreble=null,_eqGraphReady=false,_eqFailed=false;
+let audEq=null,eqLive=false,_eqUserVol=1;
+const EQ_PRESETS=[
+  {name:'Flat',icon:'📻',bass:0,mid:0,treble:0},
+  {name:'Bass Boost',icon:'🔊',bass:7,mid:0,treble:0},
+  {name:'Vocal',icon:'🎤',bass:-2,mid:4,treble:1},
+  {name:'Pop',icon:'✨',bass:2,mid:1,treble:3},
+  {name:'Treble Boost',icon:'🎧',bass:0,mid:0,treble:6},
+  {name:'Lo-Fi',icon:'🌙',bass:3,mid:-2,treble:-3}
+];
+let eqActivePreset=localStorage.getItem('tt_eq_preset')||'Flat';
+const EQ_RANGE_MIN=-12,EQ_RANGE_MAX=12;
+let eqCurrentVals=(function(){
+  if(eqActivePreset==='Custom'){
+    try{ const v=JSON.parse(localStorage.getItem('tt_eq_custom')); if(v) return v; }catch(e){}
+    return {bass:0,mid:0,treble:0};
+  }
+  const p=EQ_PRESETS.find(x=>x.name===eqActivePreset)||EQ_PRESETS[0];
+  return {bass:p.bass,mid:p.mid,treble:p.treble};
+})();
+
+function _currentSongIsEQSafe(){
+  // EQ sirf downloaded (blob:) songs ke liye safe hai — streamed URLs CORS
+  // block karte hain aur Web Audio graph unhe permanently silent kar deta hai
+  try{ return !!(aud.currentSrc && aud.currentSrc.startsWith('blob:')); }
+  catch(e){ return false; }
+}
+function _ensureEQGraph(){
+  if(_eqGraphReady||_eqFailed) return _eqGraphReady;
+  try{
+    audEq=new Audio();
+    audEq.crossOrigin='anonymous';
+    audEq.loop=false;
+    const Ctx=window.AudioContext||window.webkitAudioContext;
+    _eqCtx=new Ctx();
+    _eqSource=_eqCtx.createMediaElementSource(audEq);
+    _eqBass=_eqCtx.createBiquadFilter();_eqBass.type='lowshelf';_eqBass.frequency.value=200;
+    _eqMid=_eqCtx.createBiquadFilter();_eqMid.type='peaking';_eqMid.frequency.value=1000;_eqMid.Q.value=1;
+    _eqTreble=_eqCtx.createBiquadFilter();_eqTreble.type='highshelf';_eqTreble.frequency.value=4000;
+    _eqSource.connect(_eqBass);_eqBass.connect(_eqMid);_eqMid.connect(_eqTreble);_eqTreble.connect(_eqCtx.destination);
+    // aud ke play/pause/seek ko audEq pe mirror karo — sirf jab eqLive ho
+    aud.addEventListener('play',()=>{ if(eqLive&&audEq) audEq.play().catch(()=>{}); });
+    aud.addEventListener('pause',()=>{ if(eqLive&&audEq) audEq.pause(); });
+    aud.addEventListener('seeking',()=>{ if(eqLive&&audEq&&Math.abs(audEq.currentTime-aud.currentTime)>0.3) audEq.currentTime=aud.currentTime; });
+    aud.addEventListener('timeupdate',()=>{ if(eqLive&&audEq&&!audEq.paused&&Math.abs(audEq.currentTime-aud.currentTime)>0.35) audEq.currentTime=aud.currentTime; });
+    _eqGraphReady=true;
+    return true;
+  }catch(e){
+    console.warn('EQ init failed:',e);
+    _eqFailed=true;
+    return false;
+  }
+}
+function _enterEqLive(){
+  if(!_currentSongIsEQSafe()) return false;
+  if(eqLive) return true; // already live — src/currentTime dobara mat chhero
+  if(!_ensureEQGraph()) return false;
+  if(_eqCtx.state==='suspended') _eqCtx.resume().catch(()=>{});
+  if(aud.volume>0) _eqUserVol=aud.volume; // slider ki current value capture karo mute karne se pehle
+  audEq.src=aud.currentSrc;
+  audEq.currentTime=aud.currentTime;
+  audEq.volume=_eqUserVol;
+  aud.volume=0; // main element sirf clock/UI-driver ban jaata hai, silent
+  eqLive=true;
+  if(!aud.paused) audEq.play().catch(()=>{});
+  return true;
+}
+function _exitEqLive(){
+  eqLive=false;
+  if(audEq){ audEq.pause(); }
+  aud.volume=_eqUserVol; // native awaaz wapas normal
+}
+function _applyGainsLive(){
+  if(!_eqGraphReady) return;
+  _eqBass.gain.setTargetAtTime(eqCurrentVals.bass,_eqCtx.currentTime,0.05);
+  _eqMid.gain.setTargetAtTime(eqCurrentVals.mid,_eqCtx.currentTime,0.05);
+  _eqTreble.gain.setTargetAtTime(eqCurrentVals.treble,_eqCtx.currentTime,0.05);
+}
+function applyEQPreset(name){
+  const p=EQ_PRESETS.find(x=>x.name===name)||EQ_PRESETS[0];
+  eqCurrentVals={bass:p.bass,mid:p.mid,treble:p.treble};
+  eqActivePreset=p.name;
+  localStorage.setItem('tt_eq_preset',p.name);
+  localStorage.removeItem('tt_eq_custom');
+  const eqBtn=document.getElementById('npEqBtn');
+  if(eqBtn) eqBtn.classList.toggle('on',p.name!=='Flat');
+  renderEQPresets();
+  renderEQBands();
+  if(p.name==='Flat'){
+    _exitEqLive();
+    return;
+  }
+  if(!_currentSongIsEQSafe()){
+    toast('EQ sirf downloaded songs par kaam karta hai (streaming songs CORS restriction ki wajah se support nahi)','err');
+    return;
+  }
+  if(!_enterEqLive()){
+    toast('EQ enable nahi ho paaya','err');
+    return;
+  }
+  _applyGainsLive();
+  toast(`${p.name} preset ON`,'ok');
+}
+// Naya song load hote hi re-check karo — agar streaming hai to EQ safely bypass ho jaaye
+function _reEvaluateEqForCurrentSong(){
+  if(eqActivePreset==='Flat'){ if(eqLive)_exitEqLive(); return; }
+  if(_currentSongIsEQSafe()){
+    if(_enterEqLive()) _applyGainsLive();
+  } else if(eqLive){
+    _exitEqLive();
+  }
+}
+function renderEQPresets(){
+  const el=document.getElementById('eqPresetList');
+  if(!el) return;
+  el.innerHTML=EQ_PRESETS.map(p=>`
+    <button onclick="applyEQPreset('${p.name}')" style="display:flex;align-items:center;gap:8px;padding:12px;border-radius:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;font-size:13px;border:1px solid ${p.name===eqActivePreset?'var(--p)':'var(--bd2)'};background:${p.name===eqActivePreset?'rgba(108,92,231,.14)':'var(--s3)'};color:${p.name===eqActivePreset?'var(--p2)':'var(--tx2)'}">
+      <span style="font-size:16px">${p.icon}</span>${p.name}
+    </button>`).join('');
+  const custEl=document.getElementById('eqCustomTag');
+  if(custEl) custEl.style.display=eqActivePreset==='Custom'?'inline-flex':'none';
+}
+
+/* ── Customizable draggable EQ bands ── */
+function _eqPctFromVal(v){ return ((v-EQ_RANGE_MIN)/(EQ_RANGE_MAX-EQ_RANGE_MIN))*100; }
+function _eqValFromPct(pct){
+  let v=EQ_RANGE_MIN+(pct/100)*(EQ_RANGE_MAX-EQ_RANGE_MIN);
+  return Math.max(EQ_RANGE_MIN,Math.min(EQ_RANGE_MAX,Math.round(v)));
+}
+function updateEQBandUI(band,val){
+  const fill=document.getElementById('eqFill-'+band),thumb=document.getElementById('eqThumb-'+band),valEl=document.getElementById('eqVal-'+band);
+  const pct=_eqPctFromVal(val);
+  if(fill) fill.style.height=pct+'%';
+  if(thumb) thumb.style.bottom=pct+'%';
+  if(valEl) valEl.textContent=(val>0?'+':'')+val+'dB';
+}
+function setEQBand(band,val,dragging){
+  val=Math.max(EQ_RANGE_MIN,Math.min(EQ_RANGE_MAX,Math.round(val)));
+  eqCurrentVals[band]=val;
+  updateEQBandUI(band,val);
+  if(!dragging){
+    eqActivePreset='Custom';
+    localStorage.setItem('tt_eq_preset','Custom');
+    localStorage.setItem('tt_eq_custom',JSON.stringify(eqCurrentVals));
+    renderEQPresets();
+    const eqBtn=document.getElementById('npEqBtn');
+    if(eqBtn) eqBtn.classList.add('on');
+  }
+  if(!_currentSongIsEQSafe()){
+    if(!dragging) toast('EQ sirf downloaded songs par kaam karta hai (streaming songs CORS restriction ki wajah se support nahi)','err');
+    return;
+  }
+  if(!eqLive){ if(!_enterEqLive()) return; }
+  const filterMap={bass:_eqBass,mid:_eqMid,treble:_eqTreble};
+  const f=filterMap[band];
+  if(f) f.gain.setTargetAtTime(val,_eqCtx.currentTime,0.03);
+}
+let _eqDragBand=null;
+function eqBandDragStart(e,band){
+  _eqDragBand=band;
+  const track=document.getElementById('eqTrack-'+band);
+  if(track) track.classList.add('dragging');
+  document.addEventListener('pointermove',eqBandDragMove);
+  document.addEventListener('pointerup',eqBandDragEnd);
+  document.addEventListener('touchmove',eqBandDragMove,{passive:false});
+  document.addEventListener('touchend',eqBandDragEnd);
+  if(e.cancelable) e.preventDefault();
+  eqBandDragMove(e);
+}
+function eqBandDragMove(e){
+  if(!_eqDragBand) return;
+  if(e.cancelable) e.preventDefault();
+  const track=document.getElementById('eqTrack-'+_eqDragBand);
+  if(!track) return;
+  const r=track.getBoundingClientRect();
+  const y=(e.touches?e.touches[0].clientY:e.clientY);
+  let pct=((r.bottom-y)/r.height)*100;
+  pct=Math.max(0,Math.min(100,pct));
+  setEQBand(_eqDragBand,_eqValFromPct(pct),true);
+}
+function eqBandDragEnd(){
+  if(_eqDragBand){
+    const track=document.getElementById('eqTrack-'+_eqDragBand);
+    if(track) track.classList.remove('dragging');
+    setEQBand(_eqDragBand,eqCurrentVals[_eqDragBand],false); // finalize: persist + mark Custom
+  }
+  _eqDragBand=null;
+  document.removeEventListener('pointermove',eqBandDragMove);
+  document.removeEventListener('pointerup',eqBandDragEnd);
+  document.removeEventListener('touchmove',eqBandDragMove);
+  document.removeEventListener('touchend',eqBandDragEnd);
+}
+function renderEQBands(){
+  const el=document.getElementById('eqBandsWrap');
+  if(!el) return;
+  el.innerHTML=['bass','mid','treble'].map(band=>{
+    const lbl=band.charAt(0).toUpperCase()+band.slice(1);
+    return `<div style="flex:1;text-align:center">
+      <div class="eq-band-track" id="eqTrack-${band}" onpointerdown="eqBandDragStart(event,'${band}')" ontouchstart="eqBandDragStart(event,'${band}')">
+        <div class="eq-band-fill" id="eqFill-${band}"></div>
+        <div class="eq-band-thumb" id="eqThumb-${band}"></div>
+      </div>
+      <div style="font-size:10px;color:var(--tx3);margin-top:6px;font-weight:700">${lbl}</div>
+      <div style="font-size:10px;color:var(--tx2);font-family:'DM Mono',monospace" id="eqVal-${band}"></div>
+    </div>`;
+  }).join('');
+  ['bass','mid','treble'].forEach(band=>updateEQBandUI(band,eqCurrentVals[band]));
+}
+function openEQ(){
+  renderEQPresets();
+  renderEQBands();
+  const note=document.getElementById('eqSafetyNote');
+  if(note) note.style.display=_currentSongIsEQSafe()?'none':'block';
+  document.getElementById('eqModal').style.display='flex';
+}
+function closeEQ(){document.getElementById('eqModal').style.display='none';}
+
 </script>
 
 </body>
